@@ -47,9 +47,20 @@
               @select="onSelectUser" 
               @click.stop
               :key="`table-key-${userSearchColumns.length}-${roleSelectOptions.length}-${existingUsers.length}`"
-            >              <!-- Role select slot -->
+            >
+              <!-- Role select slot -->
               <template #role-cell="{ row }">
-                <div @click.stop>                  <USelect 
+                <div @click.stop class="flex items-center gap-2">
+                  <!-- Avatar preview based on selected role -->
+                  <UAvatar
+                    v-if="selectedRoles[row.original.id] && selectedRoles[row.original.id] !== null"
+                    :icon="getRoleAvatarPreview(selectedRoles[row.original.id]!).icon"
+                    :style="getRoleAvatarPreview(selectedRoles[row.original.id]!).style"
+                    size="xs"
+                    :class="getRoleAvatarPreview(selectedRoles[row.original.id]!).ringClass"
+                    class="ring-1 ring-offset-1"
+                  />
+                  <USelect 
                     :model-value="selectedRoles[row.original.id] ?? undefined"
                     @update:model-value="(value) => selectedRoles[row.original.id] = value"
                     :items="roleSelectOptions"
@@ -179,9 +190,13 @@
           <div class="flex items-center justify-between">
             <div class="flex items-center space-x-4">
               <UAvatar
-                :src="user.avatar"
+                :src="user.avatar || getUserAvatarConfig(user.role).src"
                 :alt="user.name"
+                :icon="user.avatar ? undefined : getUserAvatarConfig(user.role).icon"
+                :style="user.avatar ? {} : getUserAvatarConfig(user.role).style"
                 size="md"
+                class="ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
+                :class="user.avatar ? 'ring-gray-200 dark:ring-gray-600' : getUserAvatarConfig(user.role).ringClass"
               />
               <div>
                 <div class="font-medium text-gray-900 dark:text-white">{{ user.name }}</div>
@@ -225,7 +240,7 @@
     <div v-if="users.length > 0" class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
       <UCard>
         <div class="text-center">
-          <div class="text-2xl font-bold text-primary">{{ users.length }}</div>
+          <div class="text-2xl font-bold text-blue-500">{{ users.length }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Total Users</div>
         </div>
       </UCard>
@@ -296,7 +311,7 @@ const searchUserState = reactive({
 })
 const foundUsers = ref<SearchUser[]>([])
 const rolesLoading = ref(false)
-const roles = ref<{id: number, name: string}[]>([])
+const roles = ref<{id: number, name: string, icon?: string}[]>([])
 const selectedRoles = reactive<Record<number, number | null>>({})
 const existingUsers = ref<number[]>([])
 const rowSelection = ref<Record<string, boolean>>({})
@@ -304,7 +319,7 @@ const userSearchColumns = ref<TableColumn<SearchUser>[]>([])
 
 // Refs
 const searchUsersRef = ref()
-const userSearchTable = useTemplateRef('userSearchTable')
+const userSearchTable = ref()
 
 // Token for API requests
 const token = useCookie('auth_token')
@@ -463,7 +478,8 @@ const fetchRolesForSearch = async (forceRefresh = false) => {
     //@ts-ignore
     roles.value = res.data.map((r) => ({
       id: r.id,
-      name: r.name
+      name: r.name,
+      icon: r.icon
     }))
   } catch (error) {
     console.error('Error fetching roles:', error)
@@ -676,6 +692,99 @@ const formatLastActive = (timestamp: number) => {
   
   const days = Math.floor(diff / 86400)
   return `${days}d ago`
+}
+
+// Avatar configuration based on user role
+const getUserAvatarConfig = (role: string) => {
+  const configs = {
+    admin: {
+      icon: 'i-heroicons-shield-check-solid',
+      style: { 
+        backgroundColor: '#dc2626',
+        color: 'white'
+      },
+      ringClass: 'ring-red-500',
+      src: undefined
+    },
+    manager: {
+      icon: 'i-heroicons-briefcase-solid',
+      style: { 
+        backgroundColor: '#f59e0b',
+        color: 'white'
+      },
+      ringClass: 'ring-amber-500',
+      src: undefined
+    },
+    member: {
+      icon: 'i-heroicons-user-solid',
+      style: { 
+        backgroundColor: '#3b82f6',
+        color: 'white'
+      },
+      ringClass: 'ring-blue-500',
+      src: undefined
+    },
+    viewer: {
+      icon: 'i-heroicons-eye-solid',
+      style: { 
+        backgroundColor: '#6b7280',
+        color: 'white'
+      },
+      ringClass: 'ring-gray-500',
+      src: undefined
+    }
+  }
+  
+  return configs[role as keyof typeof configs] || configs.member
+}
+
+// Get role avatar preview by role ID for invite modal
+const getRoleAvatarPreview = (roleId: number) => {
+  const role = roles.value.find(r => r.id === roleId)
+  if (!role) {
+    return {
+      icon: 'i-heroicons-user-solid',
+      style: { backgroundColor: '#6b7280', color: 'white' },
+      ringClass: 'ring-gray-500'
+    }
+  }
+  
+  // Use the role's custom icon if available, otherwise fall back to role-name-based icons
+  const roleIcon = role.icon || getUserAvatarConfig(role.name.toLowerCase()).icon
+  const roleColor = getRoleColor(role.name.toLowerCase())
+  
+  return {
+    icon: roleIcon,
+    style: { 
+      backgroundColor: getRoleBackgroundColor(roleColor), 
+      color: 'white' 
+    },
+    ringClass: `ring-${getRoleColorName(roleColor)}-500`
+  }
+}
+
+// Helper function to get background color based on role color
+const getRoleBackgroundColor = (roleColor: string) => {
+  const colorMap: Record<string, string> = {
+    'error': '#dc2626',
+    'warning': '#f59e0b', 
+    'primary': '#3b82f6',
+    'secondary': '#6b7280',
+    'info': '#3b82f6'
+  }
+  return colorMap[roleColor] || '#6b7280'
+}
+
+// Helper function to get color name for ring classes
+const getRoleColorName = (roleColor: string) => {
+  const colorMap: Record<string, string> = {
+    'error': 'red',
+    'warning': 'amber',
+    'primary': 'blue', 
+    'secondary': 'gray',
+    'info': 'blue'
+  }
+  return colorMap[roleColor] || 'gray'
 }
 
 // Lifecycle

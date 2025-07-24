@@ -88,7 +88,7 @@
             <tr v-for="role in filteredRoles" :key="role.id" class="hover:bg-gray-50 dark:hover:bg-gray-700" @click.stop>              <td class="px-6 py-4 whitespace-nowrap" @click.stop>
                 <div class="flex items-center">
                   <div class="p-2 bg-primary/10 rounded-lg mr-3">
-                    <UIcon name="i-heroicons-shield-check" class="w-4 h-4 text-primary" />
+                    <UIcon :name="role.icon || 'i-heroicons-user-group'" class="w-4 h-4 text-primary" />
                   </div>
                   <div>
                     <div class="text-sm font-medium text-gray-900 dark:text-white">{{ role.name }}</div>
@@ -162,11 +162,47 @@
               v-model="newRole.description" 
               placeholder="Enter role description"
               size="xl"
-              rows="4"
+              :rows="4"
               class="w-full"
               @click.stop
               @focus.stop
             />
+          </UFormGroup>
+        </div>
+        
+        <div class="space-y-2">
+          <UFormGroup label="Role Icon">
+            <template #description>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Choose an icon that represents this role</p>
+            </template>
+            <div class="space-y-4">
+              <!-- Selected icon preview -->
+              <div v-if="newRole.icon" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <div class="p-2 bg-primary/10 rounded-lg">
+                  <UIcon :name="newRole.icon" class="w-5 h-5 text-primary" />
+                </div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">Selected: {{ getIconDisplayName(newRole.icon) }}</span>
+              </div>
+              
+              <!-- Icon selection grid -->
+              <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border max-h-48 overflow-y-auto">
+                <button
+                  v-for="icon in availableIcons"
+                  :key="icon.value"
+                  type="button"
+                  @click="newRole.icon = icon.value"
+                  class="p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  :class="[
+                    newRole.icon === icon.value 
+                      ? 'border-primary bg-primary/10 text-primary' 
+                      : 'border-gray-200 dark:border-gray-600 hover:border-primary/50 text-gray-600 dark:text-gray-400'
+                  ]"
+                  :title="icon.label"
+                >
+                  <UIcon :name="icon.value" class="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </UFormGroup>
         </div>
         
@@ -222,6 +258,7 @@ interface Role {
   id: number
   name: string
   description: string
+  icon?: string
   permissionFlags: PermissionFlags
   memberCount?: number
   createdAt: number
@@ -255,6 +292,7 @@ const permissionFlags = ref<PermissionFlags>({
 const newRole = ref({
   name: '',
   description: '',
+  icon: 'i-heroicons-user-group',
   permissionFlags: {
     admin: false,
     editOrganization: false,
@@ -266,6 +304,30 @@ const newRole = ref({
     deleteProjects: false,
   } as PermissionFlags
 })
+
+// Available icons for role selection
+const availableIcons = ref([
+  { label: 'User Group', value: 'i-heroicons-user-group' },
+  { label: 'Shield Check', value: 'i-heroicons-shield-check' },
+  { label: 'Briefcase', value: 'i-heroicons-briefcase' },
+  { label: 'Academic Cap', value: 'i-heroicons-academic-cap' },
+  { label: 'Cog 6 Tooth', value: 'i-heroicons-cog-6-tooth' },
+  { label: 'Key', value: 'i-heroicons-key' },
+  { label: 'Eye', value: 'i-heroicons-eye' },
+  { label: 'Pencil', value: 'i-heroicons-pencil' },
+  { label: 'Document Text', value: 'i-heroicons-document-text' },
+  { label: 'Folder', value: 'i-heroicons-folder' },
+  { label: 'Chart Bar', value: 'i-heroicons-chart-bar' },
+  { label: 'Lightning Bolt', value: 'i-heroicons-bolt' },
+  { label: 'Star', value: 'i-heroicons-star' },
+  { label: 'Fire', value: 'i-heroicons-fire' },
+  { label: 'Heart', value: 'i-heroicons-heart' },
+  { label: 'Cube', value: 'i-heroicons-cube' },
+  { label: 'Puzzle Piece', value: 'i-heroicons-puzzle-piece' },
+  { label: 'Trophy', value: 'i-heroicons-trophy' },
+  { label: 'Rocket', value: 'i-heroicons-rocket-launch' },
+  { label: 'Globe', value: 'i-heroicons-globe-alt' }
+])
 
 // Token for API requests
 const token = useCookie('auth_token')
@@ -301,6 +363,12 @@ const handlePermissionUpdate = (state: PermissionFlags) => {
   console.log('Updated permissionFlags:', permissionFlags.value)
 }
 
+// Helper function to get icon display name
+const getIconDisplayName = (iconValue: string) => {
+  const icon = availableIcons.value.find(icon => icon.value === iconValue)
+  return icon ? icon.label : iconValue
+}
+
 const clearForm = () => {
   resetForm()
 }
@@ -325,6 +393,7 @@ const resetForm = () => {
   newRole.value = {
     name: '',
     description: '',
+    icon: 'i-heroicons-user-group',
     permissionFlags: {
       admin: false,
       editOrganization: false,
@@ -369,6 +438,7 @@ const fetchRoles = async () => {
       id: role.id,
       name: role.name,
       description: role.description || '',
+      icon: role.icon || 'i-heroicons-user-group',
       permissionFlags: role.permissionFlags || {},
       memberCount: 0, // This would need to come from API if available
       createdAt: role.createdAt || Date.now() / 1000
@@ -389,6 +459,7 @@ const createRole = async () => {
     const roleData = {
       name: newRole.value.name,
       description: newRole.value.description,
+      icon: newRole.value.icon,
       permissionFlags: newRole.value.permissionFlags,
       organizationId: props.organizationId
     }

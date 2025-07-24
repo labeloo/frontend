@@ -115,11 +115,11 @@
     <div v-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
       <UCard>
         <div class="text-center">
-          <div class="text-2xl font-bold text-primary">{{ projects.length }}</div>
+          <div class="text-2xl font-bold text-blue-500">{{ projects.length }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Total Projects</div>
         </div>
       </UCard>
-      
+
       <UCard>
         <div class="text-center">
           <div class="text-2xl font-bold text-success">{{ activeProjects }}</div>
