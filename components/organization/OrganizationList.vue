@@ -49,10 +49,10 @@
           <p class="text-gray-500 dark:text-gray-300 mb-6 line-clamp-2" style="min-height: 3rem">
             {{ org.description || 'No description provided' }}
           </p>
-            <div class="flex items-center justify-between mt-4">            <UButton color="primary" variant="soft" :to="'/organizations/' + org.id">
+            <div class="flex items-center justify-between mt-4">            <UButton color="info" variant="solid" :to="'/organizations/' + org.id" class="text-white">
               View Details
             </UButton>
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-black dark:text-white">
               Created: {{ formatDate(org.createdAt) }}
             </p>
           </div>
