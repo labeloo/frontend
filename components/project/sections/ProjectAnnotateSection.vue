@@ -14,7 +14,8 @@
           v-if="selectedUnassignedTasks.length > 0" 
           @click="assignSelectedTasks" 
           :loading="assignLoading"
-          color="primary"
+          color="secondary"
+          class="cursor-pointer"
         >
           <UIcon name="i-heroicons-user-plus" class="w-4 h-4 mr-2" />
           Assign ({{ selectedUnassignedTasks.length }})
@@ -24,11 +25,12 @@
           @click="completeSelectedTasks" 
           :loading="completeLoading"
           color="success"
+          class="cursor-pointer"
         >
           <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-2" />
           Complete ({{ selectedAnnotatingTasks.length }})
         </UButton>
-        <UButton @click="refreshTasks" :loading="loading" variant="outline">
+        <UButton @click="refreshTasks" :loading="loading" variant="outline" color="secondary" class="cursor-pointer">
           <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
           Refresh
         </UButton>
@@ -172,33 +174,38 @@
             >
               <div class="flex items-start justify-between mb-2">
                 <h4 class="font-medium">Task {{ task.id }}</h4>
-                <div class="flex items-center gap-2">
-                  <UCheckbox 
-                    :model-value="selectedAnnotatingTasks.includes(task.id)"
-                    @change="toggleAnnotatingTaskSelection(task.id)"
-                    @click.stop
-                    class="cursor-pointer"
-                  />
-                  <UButton
-                    @click.stop="navigateToAnnotate(task.id)"
-                    size="xs"
-                    variant="ghost"
-                    color="secondary"
-                  >
-                    <UIcon name="i-heroicons-arrow-top-right-on-square" class="w-4 h-4" />
-                  </UButton>
-                </div>
+                <UCheckbox 
+                  :model-value="selectedAnnotatingTasks.includes(task.id)"
+                  @change="toggleAnnotatingTaskSelection(task.id)"
+                  @click.stop
+                  class="cursor-pointer"
+                />
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Status: {{ task.status }}</p>
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Type: {{ task.dataType }}</p>
               <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
-              <div v-if="!selectedAnnotatingTasks.includes(task.id)" class="mt-3 flex items-center text-sm text-blue-600 dark:text-blue-400">
-                <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-1" />
-                Click to select or continue annotation
-              </div>
-              <div v-else class="mt-3 flex items-center text-sm text-green-600 dark:text-green-400">
-                <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-1" />
-                Selected for completion
+              
+              <!-- Action Buttons Section -->
+              <div class="mt-3 space-y-2 flex flex-col items-center">
+                <UButton
+                  @click.stop="navigateToAnnotate(task.id)"
+                  size="lg"
+                  variant="solid"
+                  color="secondary"
+                  class="rounded-full px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105 cursor-pointer text-black dark:text-black"
+                >
+                  <UIcon name="i-heroicons-pencil" class="w-5 h-5 mr-2" />
+                  Continue Annotation
+                </UButton>
+                
+                <div v-if="!selectedAnnotatingTasks.includes(task.id)" class="flex items-center text-xs text-blue-600 dark:text-blue-400">
+                  <UIcon name="i-heroicons-information-circle" class="w-3 h-3 mr-1" />
+                  Click card to select for completion
+                </div>
+                <div v-else class="flex items-center text-xs text-green-600 dark:text-green-400">
+                  <UIcon name="i-heroicons-check-circle" class="w-3 h-3 mr-1" />
+                  Selected for completion
+                </div>
               </div>
             </div>
           </div>

@@ -89,6 +89,7 @@
                 Current Classes ({{ classes.length }})
               </h4>
               <UButton
+                v-if="hasChanges"
                 @click="updateClasses"
                 :loading="updating"
                 color="info"
@@ -179,6 +180,7 @@ const error = ref<string | null>(null)
 const updating = ref(false)
 const projectData = ref<Project | null>(null)
 const classes = ref<string[]>([])
+const originalClasses = ref<string[]>([])
 const newClassName = ref('')
 
 // Computed properties
@@ -191,6 +193,11 @@ const getProjectTypeName = (type: number | undefined) => {
     default: return 'Unknown'
   }
 }
+
+const hasChanges = computed(() => {
+  if (classes.value.length !== originalClasses.value.length) return true
+  return !classes.value.every((className, index) => className === originalClasses.value[index])
+})
 
 // Methods
 const fetchProjectData = async () => {
@@ -213,8 +220,10 @@ const fetchProjectData = async () => {
     // Extract classes from labelConfig
     if (response.data.projects.labelConfig?.classes) {
       classes.value = [...response.data.projects.labelConfig.classes]
+      originalClasses.value = [...response.data.projects.labelConfig.classes]
     } else {
       classes.value = []
+      originalClasses.value = []
     }
     
   } catch (err) {
@@ -341,8 +350,12 @@ const updateClasses = async () => {
     // Update local project data from response
     if (response.data?.projects) {
       projectData.value = response.data.projects
+      // Update originalClasses to reflect the new saved state
+      originalClasses.value = [...classes.value]
     } else {
       projectData.value = updatedProject
+      // Update originalClasses to reflect the new saved state
+      originalClasses.value = [...classes.value]
     }
     
     toast.add({
