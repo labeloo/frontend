@@ -103,9 +103,9 @@
             :key="tab.key"
             @click="activeTab = tab.key"
             :class="[
-              'py-2 px-1 border-b-2 font-medium text-sm transition-colors',
+              'py-2 px-1 border-b-2 font-medium text-sm transition-colors cursor-pointer',
               activeTab === tab.key
-                ? 'border-primary text-primary'
+                ? 'border-secondary text-secondary'
                 : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
             ]"
           >
@@ -177,6 +177,7 @@
                     :model-value="selectedAnnotatingTasks.includes(task.id)"
                     @change="toggleAnnotatingTaskSelection(task.id)"
                     @click.stop
+                    class="cursor-pointer"
                   />
                   <UButton
                     @click.stop="navigateToAnnotate(task.id)"

@@ -126,7 +126,7 @@
               </div>
               <UButton
                 type="button"
-                color="primary"
+                color="secondary"
                 variant="outline"
                 icon="i-heroicons-folder-open"
                 size="lg"

@@ -2,7 +2,7 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Project Settings</h2>
-      <UButton color="primary">
+      <UButton color="secondary" class="cursor-pointer">
         <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
         Edit Settings
       </UButton>
@@ -103,7 +103,7 @@
             <div>
               <p class="font-medium text-gray-900 dark:text-white">Archive Project</p>
               <p class="text-sm text-gray-500 dark:text-gray-400">Archive this project to hide it from active projects</p>
-            </div>            <UButton color="warning" variant="outline">Archive</UButton>
+            </div>            <UButton color="warning" variant="outline" class="cursor-pointer">Archive</UButton>
           </div>
           
           <div class="flex items-center justify-between">
@@ -111,7 +111,7 @@
               <p class="font-medium text-gray-900 dark:text-white">Delete Project</p>
               <p class="text-sm text-gray-500 dark:text-gray-400">Permanently delete this project and all its data</p>
             </div>
-            <UButton color="error" variant="outline">Delete</UButton>
+            <UButton color="error" variant="outline" class="cursor-pointer">Delete</UButton>
           </div>
         </div>
       </div>

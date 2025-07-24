@@ -89,7 +89,13 @@
 
         <template #footer>
           <div class="flex justify-between items-center">
-            <UButton variant="ghost" size="sm" icon="i-heroicons-eye" @click.stop="viewProject(project.id)">
+            <UButton  
+              size="sm" 
+              color="info"
+              icon="i-heroicons-eye" 
+              class="text-white"
+              @click.stop="viewProject(project.id)"
+            >
               View Details
             </UButton>
             <UDropdown :items="getProjectActions(project)">

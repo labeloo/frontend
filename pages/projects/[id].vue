@@ -12,11 +12,11 @@
           </p>
         </div>
         <div class="flex gap-3">
-          <UButton color="primary" variant="outline">
+          <UButton color="primary" class="cursor-pointer">
             <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
             Edit Project
           </UButton>
-          <UButton color="primary">
+          <UButton color="primary" class="cursor-pointer">
             <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
             Add New Task
           </UButton>

@@ -29,7 +29,24 @@
   --color-success: #36827F;
   --color-custom: #C5CBD3;
   /* neutral rengini primary'e göre otomatik ayarlıyor custom oluşturmana gerek yok*/
+}
 
+/* Primary button styling - ensures white text on primary background */
+.btn-primary, 
+[data-color="primary"],
+.bg-primary {
+  color: white !important;
+}
+
+/* For Nuxt UI buttons specifically */
+.ui-button[data-color="primary"] {
+  color: white !important;
+}
+
+/* Alternative approach using Nuxt UI's component classes */
+.btn[data-color="primary"] .btn-text,
+.btn[data-color="primary"] {
+  color: white !important;
 }
 
 

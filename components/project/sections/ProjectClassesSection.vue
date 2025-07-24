@@ -75,7 +75,8 @@
               :disabled="!newClassName.trim() || updating"
               icon="i-heroicons-plus"
               size="lg"
-              color="primary"
+              color="secondary"
+              class="cursor-pointer"
             >
               Add
             </UButton>
@@ -90,9 +91,10 @@
               <UButton
                 @click="updateClasses"
                 :loading="updating"
-                color="primary"
+                color="info"
                 size="sm"
                 icon="i-heroicons-check"
+                class="cursor-pointer"
               >
                 Update Classes
               </UButton>
@@ -102,7 +104,7 @@
               <div
                 v-for="(className, index) in classes"
                 :key="index"
-                class="flex items-center space-x-2 bg-primary/10 text-primary px-3 py-2 rounded-lg border border-primary/20"
+                class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-100 text-primary dark:text-black px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-200"
               >
                 <span class="text-sm font-medium">{{ className }}</span>
                 <UButton
@@ -112,6 +114,7 @@
                   color="primary"
                   variant="ghost"
                   :disabled="updating"
+                  class="cursor-pointer"
                 />
               </div>
             </div>
