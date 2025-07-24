@@ -18,24 +18,24 @@
                     <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Project</div>
                     
                     <button
-                        @click="handleNavClick('users')"
+                        @click="handleNavClick('annotate')"
                         :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'users'
-                                ? 'bg-primary text-white'
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                            activeSection === 'annotate'
+                                ? 'bg-info text-white'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
-                        <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
-                        Users
+                        <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 mr-3" />
+                        Annotate
                     </button>
                     
                     <button
                         @click="handleNavClick('tasks')"
                         :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                             activeSection === 'tasks'
-                                ? 'bg-primary text-white'
+                                ? 'bg-info text-white'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -44,36 +44,24 @@
                     </button>
                     
                     <button
-                        @click="handleNavClick('settings')"
+                        @click="handleNavClick('users')"
                         :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'settings'
-                                ? 'bg-primary text-white'
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                            activeSection === 'users'
+                                ? 'bg-info text-white'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
-                        <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />
-                        Settings
-                    </button>
-                      <button
-                        @click="handleNavClick('classes')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'classes'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-academic-cap" class="w-4 h-4 mr-3" />
-                        Classes
+                        <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
+                        Users
                     </button>
 
                     <button
                         @click="handleNavClick('upload-data')"
                         :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                             activeSection === 'upload-data'
-                                ? 'bg-primary text-white'
+                                ? 'bg-info text-white'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -82,16 +70,29 @@
                     </button>
 
                     <button
-                        @click="handleNavClick('annotate')"
+                        @click="handleNavClick('classes')"
                         :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'annotate'
-                                ? 'bg-primary text-white'
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                            activeSection === 'classes'
+                                ? 'bg-info text-white'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
-                        <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 mr-3" />
-                        Annotate
+                        <UIcon name="i-heroicons-academic-cap" class="w-4 h-4 mr-3" />
+                        Classes
+                    </button>
+                    
+                    <button
+                        @click="handleNavClick('settings')"
+                        :class="[
+                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                            activeSection === 'settings'
+                                ? 'bg-info text-white'
+                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                        ]"
+                    >
+                        <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />
+                        Settings
                     </button>
                 </div>
             </div>
