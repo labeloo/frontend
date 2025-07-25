@@ -22,7 +22,7 @@
                   section.disabled 
                     ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50' 
                     : activeSection === section.key
-                      ? 'bg-primary/10 text-primary border-primary'
+                      ? 'bg-primary/10 text-secondary border-secondary dark:border-secondary/50 border-l-4'
                       : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                 ]"
                 :disabled="section.disabled"
@@ -59,8 +59,17 @@
             </div>
             
             <!-- Form -->
-            <form v-else @submit.prevent="saveGeneralSettings" class="space-y-6"><!-- Organization Logo -->
-              <UFormGroup label="Organization Logo">
+            <form v-else @submit.prevent="saveGeneralSettings" class="space-y-8">
+              <!-- Organization Logo -->
+              <UFormGroup>
+                <template #label>
+                  <div class="flex items-center space-x-2 mb-3">
+                    <UIcon name="i-heroicons-photo" class="w-4 h-4 text-gray-600 dark:text-gray-400" />
+                    <span class="text-base font-semibold text-gray-900 dark:text-white">Organization Logo</span>
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Optional</span>
+                  </div>
+                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Upload a visual representation of your organization for branding purposes</p>
+                </template>
                 <div class="flex items-center space-x-4">
                   <div class="flex-shrink-0">
                     <img 
@@ -72,65 +81,221 @@
                     <div v-else class="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600">
                       <UIcon name="i-heroicons-building-office" class="w-8 h-8 text-gray-400" />
                     </div>
-                  </div>                  <div>
+                  </div>
+                  <div>
                     <!-- TODO: Implement logo upload functionality -->
                     <UButton color="secondary" variant="outline" size="sm" disabled>
-                      Change Logo
+                      <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4 mr-2" />
+                      Upload Logo
                     </UButton>
                     <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">JPG, PNG up to 2MB (Upload coming soon)</p>
                   </div>
                 </div>
-              </UFormGroup>              <!-- Organization Name -->
-              <UFormGroup label="Organization Name" required>
-                <UInput 
-                  v-model="formData.name" 
-                  placeholder="Enter organization name"
-                  :color="formData.name.trim().length === 0 ? 'error' : 'primary'"
-                />
-                <template #help>
-                  <span 
-                    v-if="formData.name.trim().length === 0" 
-                    class="text-xs text-red-600 dark:text-red-400"
-                  >
-                    Organization name is required
-                  </span>
+              </UFormGroup>
+
+              <!-- Organization Name -->
+              <UFormGroup class="space-y-4">
+                <template #label>
+                  <div class="flex items-center space-x-3 mb-2">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                      <UIcon name="i-heroicons-building-office-2" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                    </div>
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-base font-semibold text-gray-900 dark:text-white">Organization Name</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">Required</span>
+                      </div>
+                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">The public display name for your organization</p>
+                    </div>
+                  </div>
                 </template>
-              </UFormGroup>              <!-- Description -->
-              <UFormGroup label="Description">
-                <UTextarea 
-                  v-model="formData.description" 
-                  placeholder="Enter organization description"
-                  :rows="3"
-                  maxlength="500"
-                />
+                
+                <!-- Clear Input Label -->
+                <div class="mb-4 mt-6">
+                  <label for="organization-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ">
+                    Organization Name
+                  </label>
+                </div>
+                
+                <div class="relative">
+                  <UInput 
+                    id="organization-name"
+                    v-model="formData.name" 
+                    placeholder="e.g., Acme Corporation, Tech Innovations Inc."
+                    size="xl"
+                    :color="formData.name.trim().length === 0 ? 'error' : 'primary'"
+                    class="text-lg font-medium shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    :aria-label="'Organization name input - currently: ' + (formData.name || 'empty')"
+                  />
+                  <div v-if="formData.name.trim().length > 0" class="absolute inset-y-0 right-0 flex items-center pr-4">
+                    <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-500" />
+                  </div>
+                </div>
                 <template #help>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ formData.description.length }}/500 characters
-                  </span>
+                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg" :class="[
+                    formData.name.trim().length === 0 ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                  ]">
+                    <UIcon 
+                      :name="formData.name.trim().length === 0 ? 'i-heroicons-exclamation-triangle' : 'i-heroicons-information-circle'" 
+                      :class="[
+                        'w-5 h-5 mt-0.5 flex-shrink-0',
+                        formData.name.trim().length === 0 ? 'text-red-500' : 'text-blue-500'
+                      ]"
+                    />
+                    <div>
+                      <p 
+                        :class="[
+                          'text-sm font-medium',
+                          formData.name.trim().length === 0 ? 'text-red-800 dark:text-red-200' : 'text-blue-800 dark:text-blue-200'
+                        ]"
+                      >
+                        {{ formData.name.trim().length === 0 ? 'Organization name is required' : 'Perfect! This name looks great' }}
+                      </p>
+                      <p 
+                        :class="[
+                          'text-xs mt-1',
+                          formData.name.trim().length === 0 ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'
+                        ]"
+                      >
+                        {{ formData.name.trim().length === 0 ? 'Please enter a name for your organization to continue.' : 'This name will appear in invitations, project headers, and throughout the platform.' }}
+                      </p>
+                    </div>
+                  </div>
                 </template>
-              </UFormGroup><div class="flex justify-between">
-                <UButton 
-                  v-if="hasUnsavedChanges"
-                  color="secondary" 
-                  variant="ghost" 
-                  @click="resetForm"
-                  :disabled="saving"
-                >
-                  <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
-                  Reset Changes
-                </UButton>
-                <div></div>
-                <UButton 
-                  type="submit" 
-                  :color="saved ? 'success' : hasUnsavedChanges ? 'primary' : 'secondary'" 
-                  :variant="hasUnsavedChanges ? 'solid' : 'outline'"
-                  :loading="saving"
-                  :disabled="saving || !isGeneralFormValid"
-                >
-                  <UIcon v-if="saved" name="i-heroicons-check" class="w-4 h-4 mr-2" />
-                  <UIcon v-else-if="hasUnsavedChanges" name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
-                  {{ saved ? 'Saved!' : saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes' }}
-                </UButton>
+              </UFormGroup>
+
+              <!-- Description -->
+              <UFormGroup class="space-y-4">
+                <template #label>
+                  <div class="flex items-center space-x-3 mb-2">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+                      <UIcon name="i-heroicons-document-text" class="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                    </div>
+                    <div>
+                      <div class="flex items-center space-x-2">
+                        <span class="text-base font-semibold text-gray-900 dark:text-white">Description</span>
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Optional</span>
+                      </div>
+                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Tell people what your organization is all about</p>
+                    </div>
+                  </div>
+                </template>
+                
+                <!-- Clear Input Label -->
+                <div class="mb-4 mt-6">
+                  <label for="organization-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                    Organization Description
+                  </label>
+                </div>
+                
+                <div class="relative w-full">
+                  <UTextarea 
+                    id="organization-description"
+                    v-model="formData.description" 
+                    placeholder="Share your organization's mission, values, or what makes it unique. This helps team members understand your purpose and attracts the right collaborators..."
+                    :rows="5"
+                    maxlength="500"
+                    size="xl"
+                    class="w-full text-base leading-relaxed shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm resize-none rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
+                    style="resize: none !important;"
+                    :aria-label="'Organization description input - ' + (formData.description.length > 0 ? formData.description.length + ' characters entered' : 'empty')"
+                  />
+                  <div class="absolute bottom-3 right-3">
+                    <span 
+                      :class="[
+                        'text-xs font-medium tabular-nums px-2 py-1 rounded-md',
+                        formData.description.length > 450 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300' :
+                        formData.description.length > 400 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
+                        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                      ]"
+                    >
+                      {{ formData.description.length }}/500
+                    </span>
+                  </div>
+                </div>
+                <template #help>
+                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
+                    <UIcon name="i-heroicons-light-bulb" class="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p class="text-sm font-medium text-purple-800 dark:text-purple-200">
+                        {{ formData.description.length === 0 ? 'Pro tip: Add a description to make your organization more discoverable' : 'Great! Your description helps others understand your organization' }}
+                      </p>
+                      <p class="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                        {{ formData.description.length === 0 ? 'A good description includes your mission, industry, or what makes your organization special.' : 'This description will be visible to team members and in organization directories.' }}
+                      </p>
+                    </div>
+                  </div>
+                </template>
+              </UFormGroup>              <!-- Action Buttons -->
+              <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <!-- Reset Button -->
+                  <div class="flex items-center">
+                    <UButton 
+                      v-if="hasUnsavedChanges"
+                      color="secondary" 
+                      variant="ghost" 
+                      size="md"
+                      @click="resetForm"
+                      :disabled="saving"
+                      class="flex items-center"
+                    >
+                      <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
+                      Reset Changes
+                    </UButton>
+                  </div>
+                  
+                  <!-- Save Button -->
+                  <div class="flex items-center">
+                    <UButton 
+                      type="submit" 
+                      :color="saved ? 'success' : hasUnsavedChanges ? 'primary' : 'secondary'" 
+                      :variant="hasUnsavedChanges ? 'solid' : 'outline'"
+                      size="lg"
+                      :loading="saving"
+                      :disabled="saving || !isGeneralFormValid"
+                      class="min-w-[140px] justify-center"
+                    >
+                      <UIcon v-if="saved" name="i-heroicons-check" class="w-5 h-5 mr-2" />
+                      <UIcon v-else-if="hasUnsavedChanges" name="i-heroicons-pencil" class="w-5 h-5 mr-2" />
+                      <UIcon v-else name="i-heroicons-document-check" class="w-5 h-5 mr-2" />
+                      <span class="font-medium">
+                        {{ saved ? 'Saved!' : saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes' }}
+                      </span>
+                    </UButton>
+                  </div>
+                </div>
+                
+                <!-- Success/Info Messages -->
+                <div v-if="hasUnsavedChanges || saved" class="mt-4 p-4 rounded-lg" :class="[
+                  saved ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' :
+                  hasUnsavedChanges ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' :
+                  'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
+                ]">
+                  <div class="flex items-center space-x-3">
+                    <UIcon 
+                      :name="saved ? 'i-heroicons-check-circle' : 'i-heroicons-exclamation-triangle'" 
+                      :class="[
+                        'w-5 h-5',
+                        saved ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
+                      ]"
+                    />
+                    <div>
+                      <p :class="[
+                        'text-sm font-medium',
+                        saved ? 'text-green-800 dark:text-green-200' : 'text-amber-800 dark:text-amber-200'
+                      ]">
+                        {{ saved ? 'Changes saved successfully!' : 'You have unsaved changes' }}
+                      </p>
+                      <p :class="[
+                        'text-xs mt-1',
+                        saved ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'
+                      ]">
+                        {{ saved ? 'Your organization settings have been updated.' : 'Don\'t forget to save your changes before leaving this page.' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </div>
             </form>
           </div>
