@@ -179,7 +179,7 @@
               <!-- Selected icon preview -->
               <div v-if="newRole.icon" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
                 <div class="p-2 bg-primary/10 rounded-lg">
-                  <UIcon :name="newRole.icon" class="w-5 h-5 text-primary" />
+                  <UIcon :name="newRole.icon" class="w-5 h-5 text-secondary" />
                 </div>
                 <span class="text-sm font-medium text-gray-900 dark:text-white">Selected: {{ getIconDisplayName(newRole.icon) }}</span>
               </div>
@@ -194,7 +194,7 @@
                   class="p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50"
                   :class="[
                     newRole.icon === icon.value 
-                      ? 'border-primary bg-primary/10 text-primary' 
+                      ? 'border-secondary bg-primary/10 text-secondary' 
                       : 'border-gray-200 dark:border-gray-600 hover:border-primary/50 text-gray-600 dark:text-gray-400'
                   ]"
                   :title="icon.label"

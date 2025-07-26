@@ -136,7 +136,7 @@ const emit = defineEmits<{
 }>()
 
 // Current active section - sync with global state
-const activeSection = useState('currentProjectSection', () => 'users')
+const activeSection = useState('currentProjectSection', () => 'annotate')
 
 const handleLogout = () => {
     logout()

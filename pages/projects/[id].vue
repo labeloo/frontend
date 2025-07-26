@@ -80,7 +80,7 @@ const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 
 // Get the current section from the global state
-const currentSection = useState('currentProjectSection', () => 'users')
+const currentSection = useState('currentProjectSection', () => 'annotate')
 
 // Set page title
 useHead({
