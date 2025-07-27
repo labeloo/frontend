@@ -229,7 +229,7 @@
             </UButton> -->
           </div>
           <!-- Export Dataset Modal -->
-          <UModal v-model="showExportModal">
+          
             <UCard>
               <template #header>
                 <div class="flex items-center justify-between">
@@ -255,6 +255,7 @@
                     <label class="flex items-center space-x-3">
                       <input 
                         type="radio" 
+                        name="exportFormat"
                         v-model="selectedExportFormat" 
                         value="yolo"
                         class="text-primary focus:ring-primary"
@@ -266,16 +267,20 @@
                         </p>
                       </div>
                     </label>
-                    <!-- Future formats can be added here -->
-                    <label class="flex items-center space-x-3 opacity-50 cursor-not-allowed">
+                    <!-- COCO Format -->
+                    <label class="flex items-center space-x-3">
                       <input 
                         type="radio" 
-                        disabled
-                        class="text-gray-400"
+                        name="exportFormat"
+                        v-model="selectedExportFormat" 
+                        value="coco"
+                        class="text-primary focus:ring-primary"
                       >
                       <div>
-                        <p class="text-sm font-medium text-gray-400">COCO Format</p>
-                        <p class="text-xs text-gray-400">Coming soon...</p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white">COCO Format</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400">
+                          COCO JSON format for object detection and instance segmentation
+                        </p>
                       </div>
                     </label>
                   </div>
@@ -425,7 +430,7 @@
                 </div>
               </template>
             </UCard>
-          </UModal>
+          
           <div v-if="tasks.completed.length === 0" class="text-center py-12">
             <UIcon name="i-heroicons-check-circle" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Completed Tasks</h3>

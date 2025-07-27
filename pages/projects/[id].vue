@@ -22,12 +22,7 @@
           </UButton>
         </div>
       </div>
-    </div>    <!-- Debug info -->
-    <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-      <p class="text-sm text-blue-600 dark:text-blue-400">
-        Current Section: <strong>{{ currentSection }}</strong>
-      </p>
-    </div>
+    </div>    
 
     <!-- Dynamic Content Based on Active Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
