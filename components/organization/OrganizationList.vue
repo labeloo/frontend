@@ -42,8 +42,13 @@
             <UBadge v-if="org.isActiveOrg" color="success" variant="subtle" class="ml-2">Active</UBadge>
           </div>
           
-          <div class="flex items-center mb-4" v-if="org.logo">
-            <img :src="org.logo" alt="Organization logo" class="w-12 h-12 rounded-full object-cover mr-3" />
+          <div class="flex items-center mb-4">
+            <img 
+              :src="org.logo || DEFAULT_ORGANIZATION_LOGO" 
+              alt="Organization logo" 
+              class="w-12 h-12 rounded-full object-cover mr-3"
+              onerror="this.src='https://via.placeholder.com/48?text=Logo'"
+            />
           </div>
           
           <p class="text-gray-500 dark:text-gray-300 mb-6 line-clamp-2" style="min-height: 3rem">
@@ -64,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
 
 interface Organization {
   id: number;

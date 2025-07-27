@@ -455,13 +455,6 @@ async function addUsers() {
         >
             Please assign roles to all selected users before adding them.
         </div>        <!-- Debug info -->
-        <div v-if="foundUsers.length > 0" class="text-xs text-gray-500 mt-2 p-2 bg-gray-50 rounded">
-            <div>Selected: {{ Object.keys(rowSelection).filter(key => rowSelection[key]).length }} users</div>
-            <div>All have roles: {{ allSelectedUsersHaveRoles ? 'Yes' : 'No' }}</div>
-            <div>Row Selection Object: {{ JSON.stringify(rowSelection) }}</div>
-            <div>Selected Roles Object: {{ JSON.stringify(selectedRoles) }}</div>
-            <div>Selected Row Indices: {{ Object.keys(rowSelection).filter(key => rowSelection[key]) }}</div>
-            <div>Actual User IDs: {{ Object.keys(rowSelection).filter(key => rowSelection[key]).map(rowIndex => foundUsers[Number(rowIndex)]?.id) }}</div>
-        </div>
+
     </UForm>
 </template>

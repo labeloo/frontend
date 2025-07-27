@@ -23,17 +23,13 @@
         <div class="p-8">
           <div class="flex items-start justify-between">
             <div class="flex items-center space-x-6">
-              <div v-if="organization.organizations.logo" class="flex-shrink-0">
+              <div class="flex-shrink-0">
                 <img 
-                  :src="organization.organizations.logo" 
+                  :src="organization.organizations.logo || DEFAULT_ORGANIZATION_LOGO" 
                   :alt="`${organization.organizations.name} logo`"
                   class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+                  onerror="this.src='https://via.placeholder.com/80?text=Logo'"
                 />
-              </div>
-              <div v-else class="flex-shrink-0">
-                <div class="w-20 h-20 rounded-full bg-secondary/20 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600">
-                  <UIcon name="i-heroicons-building-office" class="w-8 h-8 text-secondary" />
-                </div>
               </div>
               
               <div class="flex-1">
@@ -111,6 +107,8 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+
 interface Organization {
   organizations: {
     id: number
