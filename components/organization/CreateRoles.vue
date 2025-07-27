@@ -168,7 +168,11 @@ const enabledFlagsCount = computed(() => {
                     </span>
                 </UButton>
                 <template #content>
-                    <div class="p-4">
+                    <div class="p-6 max-w-md">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Configure Role Permissions</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Set the permissions for this role</p>
+                        </div>
                         <OrganizationManageRoles 
                             :initialState="permissionFlags"
                             @update:state="handleRoleState"/>
