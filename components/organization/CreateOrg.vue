@@ -167,6 +167,15 @@ async function uploadLogo(file: File) {
 }
 
 // ===== API OPERATIONS =====
+// Image error handler
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement
+  if (target) {
+    // Set a simple data URI for a gray circle as fallback
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIiBmaWxsPSIjRTVFN0VCIi8+Cjxzdmcgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiB2aWV3Qm94PSIwIDAgNTAgNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeD0iMjUiIHk9IjI1Ij4KPHBhdGggZD0iTTI1IDRDMTMuNSA0IDQuMTcgMTMuNSA0LjE3IDI1UzEzLjUgNDYgMjUgNDZTNDUuODMgMzYuNSA0NS44MyAyNVMzNi41IDQgMjUgNFpNMjUgMTAuNEMyOC40NiAxMC40IDMxLjI1IDEzLjIxIDMxLjI1IDE2LjdTMjguNDYgMjMgMjUgMjNTMTguNzUgMjAuMTkgMTguNzUgMTYuN1MyMS41NCAxMC40IDI1IDEwLjRaTTI1IDQwLjJDMTkuODEgNDAuMiAxNS4yMSAzNy4zNCAxMi41IDMyLjg4QzEyLjU2IDI5LjE2IDIwLjg1IDI2Ljg4IDI1IDI2Ljg4UzM3LjQ0IDI5LjE2IDM3LjUgMzIuODhDMzQuNzkgMzcuMzQgMzAuMTkgNDAuMiAyNSA0MC4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
+  }
+}
+
 // Create a new organization and proceed to the next tab if successful
 const createOrganization = async () => {
   // Validate organization name
@@ -550,7 +559,7 @@ function goToOrganizationPage() {
                       :src="logoPreview" 
                       alt="Logo preview" 
                       class="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
-                      onerror="this.src='https://via.placeholder.com/100?text=Logo'"
+                      @error="handleImageError"
                     />
                     <p class="text-xs text-gray-500 mt-1">
                       {{ hasCustomLogo ? 'Custom logo' : 'Default logo' }}
@@ -669,7 +678,7 @@ function goToOrganizationPage() {
                 :src="logoPreview" 
                 :alt="organizationState.name || 'Organization Logo'" 
                 class="w-20 h-20 rounded-full object-cover"
-                onerror="this.src='https://via.placeholder.com/100?text=Logo'"
+                @error="handleImageError"
               >
             </div>
           </div>

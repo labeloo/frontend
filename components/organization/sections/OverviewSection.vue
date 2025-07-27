@@ -4,99 +4,188 @@
     <div class="flex justify-between items-center">
       <div>
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Overview</h2>
-        <p class="text-gray-600 dark:text-gray-300 mt-1">Organization overview and recent projects</p>
+        <p class="text-gray-600 dark:text-gray-300 mt-1">Organization summary and quick insights</p>
       </div>
       <UBadge color="primary" variant="subtle">
         {{ projects.length }} {{ projects.length === 1 ? 'Project' : 'Projects' }}
       </UBadge>
-    </div>    <!-- Projects Loading -->
+    </div>
+
+    <!-- Loading State -->
     <div v-if="loading" class="flex flex-col justify-center items-center py-12 space-y-3">
       <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading projects...</p>
+      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading overview...</p>
     </div>
 
-    <!-- No Projects State -->
-    <div v-else-if="projects.length === 0" class="text-center py-12">
-      <div class="mx-auto max-w-md">
-        <div class="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-6">
-          <UIcon name="i-heroicons-folder-plus" class="w-12 h-12 text-gray-400" />
-        </div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Projects Yet</h3>
-        <p class="text-gray-600 dark:text-gray-300 mb-6">
-          Get started by creating your first project for this organization.
-        </p>
-        <UButton 
-          color="secondary" 
-          size="lg"
-          icon="i-heroicons-plus"
-          class="cursor-pointer"
-          @click="createProject"
-        >
-          Create Project
-        </UButton>
-      </div>
-    </div>
-
-    <!-- Projects Grid -->
-    <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div 
-        v-for="project in projects" 
-        :key="project.id"
-        class="bg-gray-50 dark:bg-gray-700 rounded-lg p-6 hover:bg-gray-100 dark:hover:bg-gray-600 transition-all duration-200 cursor-pointer border border-gray-200 dark:border-gray-600"
-        @click="viewProject(project.id)"
-      >
-        <div class="flex items-start justify-between mb-4">
-          <div class="flex-1">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2 truncate">
-              {{ project.name }}
-            </h3>
-            <p v-if="project.description" class="text-gray-600 dark:text-gray-300 text-sm line-clamp-2 mb-3">
-              {{ project.description }}
-            </p>
+    <!-- Overview Content -->
+    <div v-else>
+      <!-- Quick Stats Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <!-- Projects Card -->
+        <UCard class="hover:shadow-lg transition-shadow duration-200">
+          <div class="flex items-center space-x-4">
+            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-lg">
+              <UIcon name="i-heroicons-folder" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ projects.length || '0' }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Projects</p>
+            </div>
           </div>
-          <UBadge 
-            :color="getProjectTypeColor(project.projectType)" 
-            variant="subtle"
-            class="ml-2 flex-shrink-0"
-          >
-            Type {{ project.projectType }}
-          </UBadge>
+        </UCard>
+
+        <!-- Users Card -->
+        <UCard class="hover:shadow-lg transition-shadow duration-200">
+          <div class="flex items-center space-x-4">
+            <div class="p-3 bg-green-100 dark:bg-green-900 rounded-lg">
+              <UIcon name="i-heroicons-users" class="w-6 h-6 text-green-600 dark:text-green-400" />
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ users.length || '0' }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Members</p>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Roles Card -->
+        <UCard class="hover:shadow-lg transition-shadow duration-200">
+          <div class="flex items-center space-x-4">
+            <div class="p-3 bg-purple-100 dark:bg-purple-900 rounded-lg">
+              <UIcon name="i-heroicons-shield-check" class="w-6 h-6 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ roles.length || '0' }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Roles</p>
+            </div>
+          </div>
+        </UCard>
+
+        <!-- Active Projects Card -->
+        <UCard class="hover:shadow-lg transition-shadow duration-200">
+          <div class="flex items-center space-x-4">
+            <div class="p-3 bg-orange-100 dark:bg-orange-900 rounded-lg">
+              <UIcon name="i-heroicons-fire" class="w-6 h-6 text-orange-600 dark:text-orange-400" />
+            </div>
+            <div>
+              <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ activeProjects }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Active</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">(Last 30 days)</p>
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <!-- Recent Projects Section -->
+      <div v-if="projects.length > 0" class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Projects</h3>
+          <UButton variant="ghost" size="sm" @click="navigateToSection('projects')">
+            View All
+            <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 ml-1" />
+          </UButton>
         </div>
-        <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-          <span class="flex items-center space-x-1">
-            <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
-            <span>{{ formatDate(project.createdAt) }}</span>
-          </span>
-          <span class="flex items-center space-x-1">
-            <UIcon name="i-heroicons-user" class="w-3 h-3" />
-            <span>Role {{ project.roleId }}</span>
-          </span>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <UCard 
+            v-for="project in recentProjectsList" 
+            :key="project.id"
+            class="hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            @click="viewProject(project.id)"
+          >
+            <div class="space-y-3">
+              <div class="flex items-start justify-between">
+                <h4 class="font-medium text-gray-900 dark:text-white truncate">{{ project.name }}</h4>
+                <UBadge 
+                  :color="getProjectTypeColor(project.projectType)" 
+                  variant="subtle"
+                  size="xs"
+                >
+                  Type {{ project.projectType }}
+                </UBadge>
+              </div>
+              <p v-if="project.description" class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
+                {{ project.description }}
+              </p>
+              <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
+                <span class="flex items-center space-x-1">
+                  <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
+                  <span>{{ formatDate(project.createdAt) }}</span>
+                </span>
+                <span>Role {{ project.roleId }}</span>
+              </div>
+            </div>
+          </UCard>
         </div>
       </div>
-    </div>
 
-    <!-- Organization Stats Section -->
-    <div v-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-primary">{{ projects.length }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Total Projects</div>
+      <!-- Recent Users Section -->
+      <div v-if="users.length > 0" class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Members</h3>
+          <UButton variant="ghost" size="sm" @click="navigateToSection('users')">
+            View All
+            <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 ml-1" />
+          </UButton>
         </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-success">{{ activeProjects }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Active Projects</div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <UCard 
+            v-for="user in recentUsersList" 
+            :key="user.id"
+            class="hover:shadow-md transition-shadow duration-200"
+          >
+            <div class="flex items-center space-x-3">
+              <UAvatar 
+                :alt="user.email" 
+                size="sm"
+                :src="undefined"
+              >
+                {{ user.email?.charAt(0)?.toUpperCase() || 'U' }}
+              </UAvatar>
+              <div class="flex-1 min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">
+                  {{ user.email || 'Unknown User' }}
+                </p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 truncate">
+                  {{ getRoleName(user.role) }}
+                </p>
+              </div>
+            </div>
+          </UCard>
         </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-warning">{{ recentProjects }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Recent Projects</div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <UButton 
+            color="primary" 
+            variant="soft"
+            icon="i-heroicons-plus"
+            class="justify-start"
+            @click="createProject"
+          >
+            Create New Project
+          </UButton>
+          <UButton 
+            color="success" 
+            variant="soft"
+            icon="i-heroicons-user-plus"
+            class="justify-start"
+            @click="navigateToSection('users')"
+          >
+            Invite Members
+          </UButton>
+          <UButton 
+            color="secondary" 
+            variant="soft"
+            icon="i-heroicons-shield-check"
+            class="justify-start"
+            @click="navigateToSection('roles')"
+          >
+            Manage Roles
+          </UButton>
         </div>
-      </UCard>
+      </div>
     </div>
   </div>
 </template>
@@ -115,6 +204,23 @@ interface Project {
   updatedAt: number
 }
 
+interface User {
+  id: number
+  email: string
+  isActive : boolean
+  role: number
+  createdAt: number
+}
+
+interface Role {
+  id: number
+  organizationId: number
+  roleName: string
+  permissions: number
+  createdAt: number
+  updatedAt: number
+}
+
 interface Props {
   organizationId: string | number
 }
@@ -123,6 +229,8 @@ const props = defineProps<Props>()
 
 // Reactive state
 const projects = ref<Project[]>([])
+const users = ref<User[]>([])
+const roles = ref<Role[]>([])
 const loading = ref(true)
 
 // Token for API requests
@@ -141,15 +249,28 @@ const recentProjects = computed(() => {
   return projects.value.filter(p => p.createdAt > sevenDaysAgo).length
 })
 
+const recentProjectsList = computed(() => {
+  // Get the 3 most recent projects
+  return [...projects.value]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 3)
+})
+
+const recentUsersList = computed(() => {
+  // Get the 4 most recent users
+  return [...users.value]
+    .sort((a, b) => b.createdAt - a.createdAt)
+    .slice(0, 4)
+})
+
 // Methods
 const fetchProjects = async () => {
   try {
-    loading.value = true
-    
     const response = await fetch('http://localhost:8787/api/projects/all', {
       headers: {
         'Authorization': `Bearer ${token.value}`,
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'orgId': props.organizationId.toString()
       }
     })
 
@@ -159,14 +280,72 @@ const fetchProjects = async () => {
 
     const data = await response.json()
     
-    // Filter projects for this organization
+    // Check data structure and assign directly first to debug
     if (data.data) {
-      projects.value = data.data.filter((project: Project) => 
+      // Filter projects for this organization
+      const filteredProjects = data.data.filter((project: Project) => 
         project.organizationId === Number.parseInt(props.organizationId as string)
       )
+      projects.value = filteredProjects
+    } else if (data) {
+      projects.value = []
     }
   } catch (err) {
-    console.error('Error fetching projects:', err)
+    console.error('OverviewSection: Error fetching projects:', err)
+  }
+}
+
+const fetchUsers = async () => {
+  try {
+    const response = await $fetch<{ data: User[] }>('http://localhost:8787/api/organizationRelations/users', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json',
+        'orgId': String(props.organizationId)
+      },
+    })
+    if (response.data) {
+      users.value = response.data
+    }
+  } catch (err) {
+    console.error('OverviewSection: Error fetching users:', err)
+  }
+}
+
+const fetchRoles = async () => {
+  try {
+    const response = await $fetch<{ data: Role[] }>('http://localhost:8787/api/organizationRoles/all', {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json',
+        'orgId': String(props.organizationId)
+      },
+    })
+    if (response.data) {
+      roles.value = response.data
+    }
+  } catch (err) {
+    console.error('OverviewSection: Error fetching roles:', err)
+  }
+}
+
+const fetchAllData = async () => {
+  loading.value = true
+  
+  if (!token.value) {
+    console.error('OverviewSection: No auth token available')
+    loading.value = false
+    return
+  }
+  
+  try {
+    await Promise.all([
+      fetchProjects(),
+      fetchUsers(),
+      fetchRoles()
+    ])
   } finally {
     loading.value = false
   }
@@ -174,7 +353,7 @@ const fetchProjects = async () => {
 
 const createProject = () => {
   console.log('Create project for organization:', props.organizationId)
-  // Add your project creation logic here
+  navigateTo('/projects/create?organizationId=' + props.organizationId)
 }
 
 const viewProject = (projectId: number) => {
@@ -195,14 +374,25 @@ const getProjectTypeColor = (type: number): 'primary' | 'secondary' | 'success' 
   return colors[type % colors.length] || 'primary'
 }
 
+const getRoleName = (roleId: number): string => {
+  const role = roles.value.find(r => r.id === roleId)
+  return role?.roleName || `Role :  ${roleId}`
+}
+
+const navigateToSection = (section: string) => {
+  // Update the global state that the navbar and organization page use
+  const currentSection = useState('currentSection')
+  currentSection.value = section
+}
+
 // Lifecycle
 onMounted(() => {
-  fetchProjects()
+  fetchAllData()
 })
 
 // Watch for organization changes
 watch(() => props.organizationId, () => {
-  fetchProjects()
+  fetchAllData()
 })
 </script>
 

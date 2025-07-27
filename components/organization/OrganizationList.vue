@@ -47,7 +47,7 @@
               :src="org.logo || DEFAULT_ORGANIZATION_LOGO" 
               alt="Organization logo" 
               class="w-12 h-12 rounded-full object-cover mr-3"
-              onerror="this.src='https://via.placeholder.com/48?text=Logo'"
+              @error="handleImageError"
             />
           </div>
           
@@ -92,6 +92,14 @@ const toast = useToast();
 const formatDate = (timestamp: number): string => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp * 1000).toLocaleDateString();
+}
+
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement
+  if (target) {
+    // Set a simple data URI for a gray circle as fallback
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMiIgeT0iMTIiPgo8cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJTNi40OCAyMiAxMiAyMlMyMiAxNy41MiAyMiAxMlMxNy41MiAyIDEyIDJaTTEyIDVDMTMuNjYgNSAxNSA2LjM0IDE1IDhTMTMuNjYgMTEgMTIgMTFTOSA5LjY2IDkgOFMxMC4zNCA1IDEyIDVaTTEyIDE5LjJDOS41NCAxOS4yIDcuMyAxNy45MiA2IDE1Ljk4QzYuMDMgMTMuOTkgMTAuMDEgMTIuOSAxMiAxMi45UzE3Ljk3IDEzLjk5IDE4IDE1Ljk4QzE2LjcgMTcuOTIgMTQuNDYgMTkuMiAxMiAxOS4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
+  }
 }
 
 onMounted(async () => {
