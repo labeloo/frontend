@@ -222,230 +222,222 @@
         </div>
 
         <!-- Completed Tab -->
-        <div v-if="activeTab === 'completed'" @click.stop>
-          <!-- Export Button Header -->
-          <div v-if="tasks.completed.length > 0" class="flex justify-between items-center mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+        <div v-if="activeTab === 'completed'">
+          <!-- Header -->
+          <div v-if="tasks.completed.length > 0" class="mb-6">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Completed Tasks ({{ tasks.completed.length }})
             </h3>
-<!--             <UButton 
-              @click.stop="openExportModal" 
-              color="success"
-              variant="solid"
-              :loading="exportLoading"
-            >
-              <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
-              Export Dataset
-            </UButton> -->
-          </div>
-          <!-- Export Dataset Modal -->
-          
-            <UCard>
-              <template #header>
-                <div class="flex items-center justify-between">
-                  <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                    Export Dataset
-                  </h3>
-                  <UButton 
-                    color="neutral" 
-                    variant="ghost" 
-                    icon="i-heroicons-x-mark-20-solid" 
-                    class="-my-1"
-                    @click="closeExportModal"
-                  />
-                </div>
-              </template>
-
-              <div class="space-y-6">
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                    Export Format
-                  </h4>
-                  <div class="space-y-3">
-                    <label class="flex items-center space-x-3">
-                      <input 
-                        type="radio" 
-                        name="exportFormat"
-                        v-model="selectedExportFormat" 
-                        value="yolo"
-                        class="text-primary focus:ring-primary"
-                      >
-                      <div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">YOLO Format</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                          Standard YOLO annotation format with normalized coordinates
-                        </p>
-                      </div>
-                    </label>
-                    <!-- COCO Format -->
-                    <label class="flex items-center space-x-3">
-                      <input 
-                        type="radio" 
-                        name="exportFormat"
-                        v-model="selectedExportFormat" 
-                        value="coco"
-                        class="text-primary focus:ring-primary"
-                      >
-                      <div>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white">COCO Format</p>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">
-                          COCO JSON format for object detection and instance segmentation
-                        </p>
-                      </div>
-                    </label>
-                  </div>
-                </div>
-
-                <!-- Dataset Split Configuration -->
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-3">
-                    Dataset Split Configuration
-                  </h4>
-                  <div class="space-y-4">
-                    <div class="grid grid-cols-3 gap-4">
-                      <!-- Train Split -->
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Train (%)
-                        </label>
-                        <input 
-                          type="number"
-                          v-model.number="trainPercentage"
-                          min="0"
-                          max="100"
-                          @input="updateSplitPercentages('train')"
-                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <!-- Test Split -->
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Test (%)
-                        </label>
-                        <input 
-                          type="number"
-                          v-model.number="testPercentage"
-                          min="0"
-                          max="100"
-                          @input="updateSplitPercentages('test')"
-                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                      </div>
-                      
-                      <!-- Validation Split -->
-                      <div>
-                        <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
-                          Validation (%)
-                        </label>
-                        <input 
-                          type="number"
-                          v-model.number="validationPercentage"
-                          min="0"
-                          max="100"
-                          @input="updateSplitPercentages('validation')"
-                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
-                        />
-                      </div>
-                    </div>
-                    
-                    <!-- Visual Progress Bars -->
-                    <div class="space-y-2">
-                      <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
-                        <span>Split Distribution</span>
-                        <span class="font-medium" :class="totalPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
-                          Total: {{ totalPercentage }}%
-                        </span>
-                      </div>
-                      <div class="flex rounded-lg overflow-hidden h-2">
-                        <div 
-                          class="bg-blue-500 transition-all duration-200" 
-                          :style="{ width: `${trainPercentage}%` }"
-                          :title="`Train: ${trainPercentage}%`"
-                        ></div>
-                        <div 
-                          class="bg-green-500 transition-all duration-200" 
-                          :style="{ width: `${testPercentage}%` }"
-                          :title="`Test: ${testPercentage}%`"
-                        ></div>
-                        <div 
-                          class="bg-yellow-500 transition-all duration-200" 
-                          :style="{ width: `${validationPercentage}%` }"
-                          :title="`Validation: ${validationPercentage}%`"
-                        ></div>
-                      </div>
-                      <div class="flex justify-between text-xs">
-                        <span class="flex items-center">
-                          <div class="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
-                          Train ({{ Math.round((tasks?.completed?.length || 0) * trainPercentage / 100) }} tasks)
-                        </span>
-                        <span class="flex items-center">
-                          <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
-                          Test ({{ Math.round((tasks?.completed?.length || 0) * testPercentage / 100) }} tasks)
-                        </span>
-                        <span class="flex items-center">
-                          <div class="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
-                          Validation ({{ Math.round((tasks?.completed?.length || 0) * validationPercentage / 100) }} tasks)
-                        </span>
-                      </div>
-                    </div>
-                    
-                    <!-- Warning for invalid split -->
-                    <div v-if="totalPercentage !== 100" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-                      <div class="flex items-start">
-                        <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 mr-2" />
-                        <div>
-                          <p class="text-xs font-medium text-amber-800 dark:text-amber-300">Invalid Split</p>
-                          <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">
-                            Percentages must total exactly 100%. Current total: {{ totalPercentage }}%
-                          </p>
-                        </div>
-                      </div>
-                      
-                    </div>
-                  </div>
-                </div>
-
-                <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-                  <div class="flex items-start">
-                    <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" />
+            
+            <!-- Export Configuration Section -->
+            <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+              <h4 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+                <UIcon name="i-heroicons-arrow-down-tray" class="w-5 h-5 mr-2" />
+                Export Dataset Configuration
+              </h4>
+              
+              <!-- Export Format Selection -->
+              <div class="mb-6">
+                <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                  Export Format
+                </h5>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label class="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <input 
+                      type="radio" 
+                      name="exportFormat"
+                      v-model="selectedExportFormat" 
+                      value="yolo"
+                      class="text-primary focus:ring-primary"
+                    >
                     <div>
-                      <h5 class="text-sm font-medium text-blue-900 dark:text-blue-300">Export Information</h5>
-                      <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
-                        This will export {{ tasks?.completed?.length || 0 }} completed tasks with their annotations.
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">YOLO Format</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        Standard YOLO annotation format with normalized coordinates
                       </p>
+                    </div>
+                  </label>
+                  
+                  <label class="flex items-center space-x-3 p-3 border border-gray-200 dark:border-gray-600 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <input 
+                      type="radio" 
+                      name="exportFormat"
+                      v-model="selectedExportFormat" 
+                      value="coco"
+                      class="text-primary focus:ring-primary"
+                    >
+                    <div>
+                      <p class="text-sm font-medium text-gray-900 dark:text-white">COCO Format</p>
+                      <p class="text-xs text-gray-500 dark:text-gray-400">
+                        COCO JSON format for object detection and instance segmentation
+                      </p>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Dataset Split Configuration -->
+              <div class="mb-6">
+                <h5 class="text-sm font-medium text-gray-900 dark:text-white mb-3">
+                  Dataset Split Configuration
+                </h5>
+                <div class="space-y-4">
+                  <div class="grid grid-cols-3 gap-4">
+                    <!-- Train Split -->
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Train (%)
+                      </label>
+                      <input 
+                        type="number"
+                        v-model.number="trainPercentage"
+                        min="0"
+                        max="100"
+                        @input="updateSplitPercentages('train')"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <!-- Test Split -->
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Test (%)
+                      </label>
+                      <input 
+                        type="number"
+                        v-model.number="testPercentage"
+                        min="0"
+                        max="100"
+                        @input="updateSplitPercentages('test')"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                    
+                    <!-- Validation Split -->
+                    <div>
+                      <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Validation (%)
+                      </label>
+                      <input 
+                        type="number"
+                        v-model.number="validationPercentage"
+                        min="0"
+                        max="100"
+                        @input="updateSplitPercentages('validation')"
+                        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  
+                  <!-- Visual Progress Bars -->
+                  <div class="space-y-2">
+                    <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400">
+                      <span>Split Distribution</span>
+                      <span class="font-medium" :class="totalPercentage === 100 ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'">
+                        Total: {{ totalPercentage }}%
+                      </span>
+                    </div>
+                    <div class="flex rounded-lg overflow-hidden h-2">
+                      <div 
+                        class="bg-blue-500 transition-all duration-200" 
+                        :style="{ width: `${trainPercentage}%` }"
+                        :title="`Train: ${trainPercentage}%`"
+                      ></div>
+                      <div 
+                        class="bg-green-500 transition-all duration-200" 
+                        :style="{ width: `${testPercentage}%` }"
+                        :title="`Test: ${testPercentage}%`"
+                      ></div>
+                      <div 
+                        class="bg-yellow-500 transition-all duration-200" 
+                        :style="{ width: `${validationPercentage}%` }"
+                        :title="`Validation: ${validationPercentage}%`"
+                      ></div>
+                    </div>
+                    <div class="flex justify-between text-xs">
+                      <span class="flex items-center">
+                        <div class="w-2 h-2 bg-blue-500 rounded-full mr-1"></div>
+                        Train ({{ Math.round((tasks?.completed?.length || 0) * trainPercentage / 100) }} tasks)
+                      </span>
+                      <span class="flex items-center">
+                        <div class="w-2 h-2 bg-green-500 rounded-full mr-1"></div>
+                        Test ({{ Math.round((tasks?.completed?.length || 0) * testPercentage / 100) }} tasks)
+                      </span>
+                      <span class="flex items-center">
+                        <div class="w-2 h-2 bg-yellow-500 rounded-full mr-1"></div>
+                        Validation ({{ Math.round((tasks?.completed?.length || 0) * validationPercentage / 100) }} tasks)
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <!-- Warning for invalid split -->
+                  <div v-if="totalPercentage !== 100" class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <div class="flex items-start">
+                      <UIcon name="i-heroicons-exclamation-triangle" class="w-4 h-4 text-amber-600 dark:text-amber-400 mt-0.5 mr-2" />
+                      <div>
+                        <p class="text-xs font-medium text-amber-800 dark:text-amber-300">Invalid Split</p>
+                        <p class="text-xs text-amber-700 dark:text-amber-400 mt-1">
+                          Percentages must total exactly 100%. Current total: {{ totalPercentage }}%
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <template #footer>
-                <div class="flex justify-end space-x-3">
-                  <UButton 
-                    color="neutral" 
-                    variant="outline" 
-                    @click="closeExportModal"
-                  >
-                    Cancel
-                  </UButton>
-                  <UButton 
-                    color="primary" 
-                    @click="handleExportDataset"
-                    :loading="exportLoading"
-                    :disabled="!selectedExportFormat || totalPercentage !== 100"
-                  >
-                    <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
-                    Export Dataset
-                  </UButton>
+              <!-- Export Information -->
+              <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-4">
+                <div class="flex items-start">
+                  <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400 mt-0.5 mr-3" />
+                  <div>
+                    <h6 class="text-sm font-medium text-blue-900 dark:text-blue-300">Export Information</h6>
+                    <p class="text-sm text-blue-700 dark:text-blue-400 mt-1">
+                      This will export {{ tasks?.completed?.length || 0 }} completed tasks with their annotations.
+                    </p>
+                    <p class="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                      • Only the latest annotation per task will be exported<br>
+                      • Duplicate annotations will be automatically removed<br>
+                      • Annotations will be validated before export
+                    </p>
+                  </div>
                 </div>
-              </template>
-            </UCard>
+              </div>
+
+              <!-- Export Button -->
+              <div class="flex justify-between items-center">
+                <UButton 
+                  @click="checkAnnotationStatus"
+                  :loading="checkingAnnotations"
+                  variant="outline"
+                  color="neutral"
+                  size="md"
+                >
+                  <UIcon name="i-heroicons-magnifying-glass" class="w-4 h-4 mr-2" />
+                  Check Annotations
+                </UButton>
+                
+                <UButton 
+                  @click="handleExportDataset"
+                  :loading="exportLoading"
+                  :disabled="!selectedExportFormat || totalPercentage !== 100"
+                  color="primary"
+                  size="lg"
+                >
+                  <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
+                  Export Dataset
+                </UButton>
+              </div>
+            </div>
+          </div>
           
+          <!-- Completed Tasks Grid -->
           <div v-if="tasks.completed.length === 0" class="text-center py-12">
             <UIcon name="i-heroicons-check-circle" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Completed Tasks</h3>
             <p class="text-gray-500 dark:text-gray-400">Completed tasks will appear here.</p>
-          </div>          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          </div>
+          
+          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div 
               v-for="task in tasks.completed" 
               :key="task.id" 
@@ -470,8 +462,6 @@
               <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
             </div>
           </div>
-
-
         </div>
       </div>
     </div>
@@ -522,9 +512,9 @@ const completeLoading = ref(false)
 const reassignLoading = ref(false)
 
 // Export functionality
-const showExportModal = ref(false)
 const selectedExportFormat = ref('yolo')
 const exportLoading = ref(false)
+const checkingAnnotations = ref(false)
 
 // Dataset split percentages
 const trainPercentage = ref(80)
@@ -814,8 +804,78 @@ const handleExportDataset = async () => {
     }
     
     console.log('Exporting dataset for project:', props.projectId)
+    console.log('Export format:', selectedExportFormat.value)
+    console.log('Split configuration:', {
+      train: trainPercentage.value,
+      test: testPercentage.value,
+      validation: validationPercentage.value
+    })
     
-    // Use native fetch instead of $fetch for better blob handling
+    // Validate that we have completed tasks to export
+    if (!tasks.value?.completed || tasks.value.completed.length === 0) {
+      throw new Error('No completed tasks available for export')
+    }
+    
+    // Log export request details for debugging
+    console.log('Export request details:', {
+      projectId: props.projectId,
+      exportFormat: selectedExportFormat.value,
+      completedTasks: tasks.value.completed.length,
+      splitConfig: {
+        train: trainPercentage.value,
+        test: testPercentage.value,
+        validation: validationPercentage.value,
+        total: totalPercentage.value
+      },
+      taskDetails: tasks.value.completed.map(task => ({
+        id: task.id,
+        dataType: task.dataType,
+        hasImage: task.dataType.includes('image'),
+        metadata: task.metadata ? 'Has metadata' : 'No metadata'
+      }))
+    })
+
+    // Validate split configuration before sending
+    const actualTrainCount = Math.round(tasks.value.completed.length * trainPercentage.value / 100)
+    const actualTestCount = Math.round(tasks.value.completed.length * testPercentage.value / 100)
+    const actualValidationCount = Math.round(tasks.value.completed.length * validationPercentage.value / 100)
+    
+    console.log('Expected split distribution:', {
+      total: tasks.value.completed.length,
+      train: actualTrainCount,
+      test: actualTestCount,
+      validation: actualValidationCount,
+      sum: actualTrainCount + actualTestCount + actualValidationCount
+    })
+    
+    // Enhanced debugging request to check annotation data flow
+    const requestBody = {
+      exportFormat: selectedExportFormat.value,
+      splitConfig: {
+        train: trainPercentage.value,
+        test: testPercentage.value,
+        validation: validationPercentage.value
+      },
+      options: {
+        onlyLatestAnnotations: true, // Only export the latest annotation per task
+        deduplicateAnnotations: true, // Remove duplicate annotations
+        validateAnnotations: true, // Validate annotation data before export
+        validateCoordinates: true, // Validate YOLO coordinate ranges
+        debugMode: true, // Enable debug logging on backend
+        ensureProperSplit: true, // Ensure proper task splitting
+        validateImageDimensions: true, // Validate image dimensions
+        // Add annotation inspection options
+        inspectDatabase: true, // Log database queries and results
+        inspectAnnotationData: true, // Log annotation data details
+        inspectTaskMetadata: true, // Log task metadata
+        debugFileGeneration: true, // Debug file writing process
+        verifyAnnotationCount: true, // Verify annotation counts per task
+        logEmptyTasks: true // Log tasks with no annotations
+      }
+    }
+    
+    console.log('Full request payload:', JSON.stringify(requestBody, null, 2))
+    
     const response = await fetch(`http://localhost:8787/api/tasks/export/${props.projectId}`, {
       method: 'POST',
       headers: {
@@ -823,39 +883,73 @@ const handleExportDataset = async () => {
         'Content-Type': 'application/json',
         'export-format': selectedExportFormat.value
       },
-      body: JSON.stringify({
-        splitConfig: {
-          train: trainPercentage.value,
-          test: testPercentage.value,
-          validation: validationPercentage.value
-        }
-      })
+      body: JSON.stringify(requestBody)
     })
     
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: 'Export failed' }))
+      console.error('Export API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        errorData,
+        requestBody: {
+          exportFormat: selectedExportFormat.value,
+          splitConfig: {
+            train: trainPercentage.value,
+            test: testPercentage.value,
+            validation: validationPercentage.value
+          }
+        }
+      })
       throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`)
     }
     
     // Check if response is a ZIP file
     const contentType = response.headers.get('content-type')
+    console.log('Response content type:', contentType)
+    console.log('Response headers:', Object.fromEntries(response.headers.entries()))
+    
     if (contentType && contentType.includes('application/zip')) {
       // Handle ZIP file download
       const blob = await response.blob()
+      console.log('Export blob details:', {
+        size: blob.size,
+        type: blob.type,
+        sizeInKB: (blob.size / 1024).toFixed(2)
+      })
+      
+      if (blob.size === 0) {
+        throw new Error('Export file is empty - no annotation data found. Please check if tasks have valid annotations.')
+      }
+      
+      // Warn if blob is very small (likely just folder structure without annotations)
+      if (blob.size < 2048) { // Less than 2KB
+        console.warn(`Export file is very small (${blob.size} bytes). This may indicate empty label files.`)
+        toast.add({
+          title: 'Warning: Small Export File',
+          description: `Export file is only ${(blob.size / 1024).toFixed(1)} KB. Label files may be empty.`,
+          color: 'warning'
+        })
+      }
+      
       const url = URL.createObjectURL(blob)
       
       const link = document.createElement('a')
       link.href = url
-      link.download = `dataset_${props.projectId}_${selectedExportFormat.value}_${new Date().toISOString().split('T')[0]}.zip`
+      
+      // Create more descriptive filename with timestamp
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0]
+      link.download = `project-${props.projectId}-${selectedExportFormat.value}-${timestamp}.zip`
+      
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
       
-      // Show success toast
+      // Show detailed success toast
       toast.add({
-        title: 'Dataset Exported',
-        description: `Dataset exported successfully in ${selectedExportFormat.value.toUpperCase()} format with ${trainPercentage.value}/${testPercentage.value}/${validationPercentage.value} split`,
+        title: 'Dataset Downloaded',
+        description: `${selectedExportFormat.value.toUpperCase()} dataset (${(blob.size / 1024).toFixed(1)} KB) with ${trainPercentage.value}%/${testPercentage.value}%/${validationPercentage.value}% split`,
         color: 'success'
       })
     } else {
@@ -882,12 +976,33 @@ const handleExportDataset = async () => {
       })
     }
     
-    // Close modal
-    closeExportModal()
+    // Close modal after successful export (now just a success message)
+    toast.add({
+      title: 'Export Complete',
+      description: 'Dataset export completed successfully.',
+      color: 'success'
+    })
     
   } catch (err) {
     console.error('Error exporting dataset:', err)
-    const errorMessage = err instanceof Error ? err.message : 'Failed to export dataset'
+    let errorMessage = 'Failed to export dataset'
+    
+    if (err instanceof Error) {
+      errorMessage = err.message
+      
+      // Provide more specific error messages based on the error
+      if (err.message.includes('No completed tasks')) {
+        errorMessage = 'No completed tasks available for export. Complete some tasks first.'
+      } else if (err.message.includes('Authentication')) {
+        errorMessage = 'Authentication failed. Please log in again.'
+      } else if (err.message.includes('HTTP 400')) {
+        errorMessage = 'Invalid export request. Please check your settings and try again.'
+      } else if (err.message.includes('HTTP 404')) {
+        errorMessage = 'Export endpoint not found. Please contact support.'
+      } else if (err.message.includes('HTTP 500')) {
+        errorMessage = 'Server error during export. Please try again later.'
+      }
+    }
     
     // Show error toast
     toast.add({
@@ -900,20 +1015,82 @@ const handleExportDataset = async () => {
   }
 }
 
-// Modal management
-const openExportModal = () => {
-  console.log('Opening export modal')
-  showExportModal.value = true
-}
+// Check annotation status for completed tasks
+const checkAnnotationStatus = async () => {
+  if (!tasks.value?.completed.length) {
+    toast.add({
+      title: 'No Completed Tasks',
+      description: 'There are no completed tasks to check for annotations.',
+      color: 'warning'
+    })
+    return
+  }
 
-const closeExportModal = () => {
-  console.log('Closing export modal')
-  showExportModal.value = false
-  // Reset form values to defaults when closing
-  selectedExportFormat.value = 'yolo'
-  trainPercentage.value = 80
-  testPercentage.value = 10
-  validationPercentage.value = 10
+  try {
+    checkingAnnotations.value = true
+    
+    if (!token.value) {
+      throw new Error('Authentication required')
+    }
+
+    console.log('Checking annotation status for completed tasks:', tasks.value.completed.map(t => t.id))
+
+    const response = await $fetch(`http://localhost:8787/api/tasks/annotation-status/${props.projectId}`, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+
+    console.log('Annotation status response:', response)
+
+    const responseData = response as any
+    const tasksWithAnnotations = responseData.data?.tasksWithAnnotations || []
+    const tasksWithoutAnnotations = responseData.data?.tasksWithoutAnnotations || []
+    const annotationCounts = responseData.data?.annotationCounts || {}
+
+    // Show detailed results
+    const totalCompleted = tasks.value.completed.length
+    const withAnnotations = tasksWithAnnotations.length
+    const withoutAnnotations = tasksWithoutAnnotations.length
+
+    console.log('Annotation analysis:', {
+      totalCompleted,
+      withAnnotations,
+      withoutAnnotations,
+      annotationCounts
+    })
+
+    let message = `Checked ${totalCompleted} completed tasks:\n`
+    message += `• ${withAnnotations} tasks have annotations\n`
+    message += `• ${withoutAnnotations} tasks have no annotations`
+
+    if (withoutAnnotations > 0) {
+      message += `\n\nTasks without annotations: ${tasksWithoutAnnotations.join(', ')}`
+    }
+
+    if (Object.keys(annotationCounts).length > 0) {
+      message += '\n\nAnnotation counts:'
+      Object.entries(annotationCounts).forEach(([taskId, count]) => {
+        message += `\n• Task ${taskId}: ${count} annotations`
+      })
+    }
+
+    toast.add({
+      title: withoutAnnotations > 0 ? 'Annotation Issues Found' : 'All Tasks Have Annotations',
+      description: message,
+      color: withoutAnnotations > 0 ? 'warning' : 'success'
+    })
+
+  } catch (err) {
+    console.error('Error checking annotation status:', err)
+    toast.add({
+      title: 'Check Failed',
+      description: err instanceof Error ? err.message : 'Failed to check annotation status',
+      color: 'error'
+    })
+  } finally {
+    checkingAnnotations.value = false
+  }
 }
 
 // Dataset split management
@@ -970,8 +1147,11 @@ watch(() => props.projectId, () => {
     selectedUnassignedTasks.value = []
     selectedAnnotatingTasks.value = []
     selectedCompletedTasks.value = []
-    // Close modal when switching projects
-    showExportModal.value = false
+    // Reset export settings when switching projects
+    selectedExportFormat.value = 'yolo'
+    trainPercentage.value = 80
+    testPercentage.value = 10
+    validationPercentage.value = 10
     fetchTasks()
   }
 }, { immediate: true })

@@ -1353,28 +1353,118 @@ const saveAnnotation = async () => {
       throw new Error('Authentication required')
     }
     
+    // Validate image scaling information before conversion
+    console.log('Image scaling validation:', {
+      imageScale: imageScale.value,
+      originalImageSize: originalImageSize.value,
+      displayImageSize: displayImageSize.value,
+      canvasAnnotationsCount: canvasAnnotations.value.length
+    })
+    
+    if (imageScale.value <= 0 || imageScale.value > 10) {
+      console.error('Invalid image scale:', imageScale.value)
+      throw new Error(`Invalid image scale: ${imageScale.value}`)
+    }
+    
+    if (originalImageSize.value.width <= 0 || originalImageSize.value.height <= 0) {
+      console.error('Invalid original image dimensions:', originalImageSize.value)
+      throw new Error(`Invalid original image dimensions: ${originalImageSize.value.width}x${originalImageSize.value.height}`)
+    }
+    
     // Convert display coordinates to original image coordinates before saving
     const annotationData = {
-      annotations: canvasAnnotations.value.map(annotation => {
+      annotations: canvasAnnotations.value.map((annotation, index) => {
         const convertedAnnotation = { ...annotation, class: annotation.className }
+        
+        console.log(`Converting annotation ${index}:`, {
+          type: annotation.type,
+          original: annotation,
+          imageScale: imageScale.value
+        })
         
         if (annotation.type === 'rectangle' && annotation.startPoint && annotation.width && annotation.height) {
           const originalStartPoint = displayToOriginal(annotation.startPoint)
           const originalSize = displaySizeToOriginal({ width: annotation.width, height: annotation.height })
-          return {
+          
+          // Validate converted coordinates
+          const converted = {
             ...convertedAnnotation,
             startPoint: originalStartPoint,
             width: originalSize.width,
             height: originalSize.height
           }
+          
+          console.log(`Rectangle conversion ${index}:`, {
+            display: {
+              startPoint: annotation.startPoint,
+              width: annotation.width,
+              height: annotation.height
+            },
+            original: {
+              startPoint: originalStartPoint,
+              width: originalSize.width,
+              height: originalSize.height
+            },
+            imageInfo: {
+              scale: imageScale.value,
+              originalSize: originalImageSize.value
+            }
+          })
+          
+          // Validate that coordinates are within image bounds
+          if (originalStartPoint.x < 0 || originalStartPoint.y < 0 || 
+              originalStartPoint.x + originalSize.width > originalImageSize.value.width ||
+              originalStartPoint.y + originalSize.height > originalImageSize.value.height) {
+            console.warn(`Rectangle ${index} extends beyond image bounds:`, {
+              rectangle: { x: originalStartPoint.x, y: originalStartPoint.y, width: originalSize.width, height: originalSize.height },
+              imageBounds: originalImageSize.value
+            })
+            
+            // Clamp coordinates to image bounds
+            const clampedStartPoint = {
+              x: Math.max(0, Math.min(originalStartPoint.x, originalImageSize.value.width - 1)),
+              y: Math.max(0, Math.min(originalStartPoint.y, originalImageSize.value.height - 1))
+            }
+            const clampedSize = {
+              width: Math.max(1, Math.min(originalSize.width, originalImageSize.value.width - clampedStartPoint.x)),
+              height: Math.max(1, Math.min(originalSize.height, originalImageSize.value.height - clampedStartPoint.y))
+            }
+            
+            console.log(`Clamped rectangle ${index}:`, {
+              original: { startPoint: originalStartPoint, size: originalSize },
+              clamped: { startPoint: clampedStartPoint, size: clampedSize }
+            })
+            
+            return {
+              ...convertedAnnotation,
+              startPoint: clampedStartPoint,
+              width: clampedSize.width,
+              height: clampedSize.height
+            }
+          }
+          
+          return converted
         } else if (annotation.type === 'polygon' && annotation.points) {
+          const convertedPoints = annotation.points.map(point => displayToOriginal(point))
+          
+          console.log(`Polygon conversion ${index}:`, {
+            displayPoints: annotation.points,
+            originalPoints: convertedPoints
+          })
+          
           return {
             ...convertedAnnotation,
-            points: annotation.points.map(point => displayToOriginal(point))
+            points: convertedPoints
           }
         } else if (annotation.type === 'dot' && annotation.center && annotation.radius) {
           const originalCenter = displayToOriginal(annotation.center)
           const originalRadius = Math.round(annotation.radius / imageScale.value)
+          
+          console.log(`Dot conversion ${index}:`, {
+            display: { center: annotation.center, radius: annotation.radius },
+            original: { center: originalCenter, radius: originalRadius }
+          })
+          
           return {
             ...convertedAnnotation,
             center: originalCenter,
@@ -1386,21 +1476,40 @@ const saveAnnotation = async () => {
       })
     }
 
-    await $fetch(`http://localhost:8787/api/annotations`, {
+    // Add metadata for better tracking and deduplication
+    const savePayload = {
+      taskId: parseInt(taskId),
+      projectId: taskData.value.projectId,
+      annotationData,
+      metadata: {
+        timestamp: Date.now(),
+        imageScale: imageScale.value,
+        originalImageSize: originalImageSize.value,
+        displayImageSize: displayImageSize.value,
+        annotationCount: canvasAnnotations.value.length,
+        replaceExisting: true // Flag to replace existing annotations for this task
+      }
+    }
+
+    console.log('Saving annotation payload:', savePayload)
+
+    const response = await $fetch(`http://localhost:8787/api/annotations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token.value}`
       },
-      body: {
-        taskId: parseInt(taskId),
-        projectId: taskData.value.projectId,
-        annotationData
-      }
+      body: savePayload
     })
+
+    console.log('Annotation save response:', response)
 
     // Refresh annotations after saving
     await fetchAnnotations()
+    
+    // Clear canvas annotations after successful save
+    canvasAnnotations.value = []
+    redrawCanvas()
     
     // Show success message or notification here if needed
     console.log('Annotation saved successfully')
