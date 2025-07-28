@@ -302,11 +302,16 @@
             >
               Cancel
             </UButton>
+
+            <!-- Image Scale Info -->
+            <div v-if="imageScale < 1 && originalImageSize.width > 0" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+              Scaled to {{ Math.round(imageScale * 100) }}% ({{ originalImageSize.width }}×{{ originalImageSize.height }} → {{ displayImageSize.width }}×{{ displayImageSize.height }})
+            </div>
           </div>
 
           <!-- Canvas Container -->
-          <div v-if="isImageTask" class="flex-1 flex items-center justify-center">
-            <div class="relative" ref="canvasContainer">
+          <div v-if="isImageTask" class="flex-1 flex items-center justify-center p-4">
+            <div class="relative max-w-4xl max-h-full" ref="canvasContainer">
               <canvas 
                 ref="canvas"
                 @click="handleClick"
@@ -314,7 +319,7 @@
                 @mousedown="handleMouseDown"
                 @mouseup="handleMouseUp"
                 @dblclick="handleDoubleClick"
-                class="border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg"
+                class="border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg max-w-full max-h-full"
                 :class="{ 
                   'cursor-crosshair': !isAnnotating && !isDragging && currentTool !== 'select',
                   'cursor-pointer': isAnnotating || (currentTool === 'select' && hoveredAnnotation !== null),
@@ -523,6 +528,23 @@ const canvasContainer = ref<HTMLElement | null>(null)
 const ctx = ref<CanvasRenderingContext2D | null>(null)
 const backgroundImage = ref<HTMLImageElement | null>(null)
 
+// Image scaling state
+const imageScale = ref(1)
+const originalImageSize = ref({ width: 0, height: 0 })
+const displayImageSize = ref({ width: 0, height: 0 })
+
+// Maximum canvas size constraints - responsive to viewport
+const getMaxCanvasSize = () => {
+  // Use 80% of viewport or fixed max, whichever is smaller
+  const viewportWidth = window.innerWidth * 0.8
+  const viewportHeight = window.innerHeight * 0.6
+  
+  return {
+    width: Math.min(viewportWidth, 1200),
+    height: Math.min(viewportHeight, 800)
+  }
+}
+
 // Annotation tools state
 const tools = ['select', 'rectangle', 'polygon', 'dots']
 const currentTool = ref('rectangle')
@@ -702,10 +724,37 @@ const initializeCanvas = () => {
   img.crossOrigin = 'anonymous' // Handle cross-origin images
   
   img.onload = () => {
-    canvas.value!.width = img.width
-    canvas.value!.height = img.height
-    backgroundImage.value = img // Cache the image
-    ctx.value!.drawImage(img, 0, 0)
+    // Store original image dimensions
+    originalImageSize.value = { width: img.width, height: img.height }
+    
+    // Get responsive max canvas size
+    const maxSize = getMaxCanvasSize()
+    
+    // Calculate scale to fit within max dimensions while maintaining aspect ratio
+    const scaleX = maxSize.width / img.width
+    const scaleY = maxSize.height / img.height
+    imageScale.value = Math.min(scaleX, scaleY, 1) // Don't scale up, only down
+    
+    // Calculate display dimensions
+    displayImageSize.value = {
+      width: Math.floor(img.width * imageScale.value),
+      height: Math.floor(img.height * imageScale.value)
+    }
+    
+    console.log('Image scaling info:', {
+      original: originalImageSize.value,
+      scale: imageScale.value,
+      display: displayImageSize.value,
+      maxConstraints: maxSize
+    })
+    
+    // Set canvas size to display dimensions
+    canvas.value!.width = displayImageSize.value.width
+    canvas.value!.height = displayImageSize.value.height
+    
+    // Cache the image and draw it scaled
+    backgroundImage.value = img
+    ctx.value!.drawImage(img, 0, 0, displayImageSize.value.width, displayImageSize.value.height)
     drawExistingAnnotations()
   }
   
@@ -715,6 +764,35 @@ const initializeCanvas = () => {
   }
   
   img.src = taskData.value.dataUrl
+}
+
+// Coordinate conversion functions
+const displayToOriginal = (point: { x: number; y: number }): { x: number; y: number } => {
+  return {
+    x: Math.round(point.x / imageScale.value),
+    y: Math.round(point.y / imageScale.value)
+  }
+}
+
+const originalToDisplay = (point: { x: number; y: number }): { x: number; y: number } => {
+  return {
+    x: Math.round(point.x * imageScale.value),
+    y: Math.round(point.y * imageScale.value)
+  }
+}
+
+const displaySizeToOriginal = (size: { width: number; height: number }): { width: number; height: number } => {
+  return {
+    width: Math.round(size.width / imageScale.value),
+    height: Math.round(size.height / imageScale.value)
+  }
+}
+
+const originalSizeToDisplay = (size: { width: number; height: number }): { width: number; height: number } => {
+  return {
+    width: Math.round(size.width * imageScale.value),
+    height: Math.round(size.height * imageScale.value)
+  }
 }
 
 const selectTool = (tool: string) => {
@@ -1059,8 +1137,8 @@ const redrawCanvas = () => {
   // Clear canvas
   ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
   
-  // Draw cached background image immediately
-  ctx.value.drawImage(backgroundImage.value, 0, 0)
+  // Draw cached background image scaled to display size
+  ctx.value.drawImage(backgroundImage.value, 0, 0, displayImageSize.value.width, displayImageSize.value.height)
   
   // Draw annotations
   drawExistingAnnotations()
@@ -1255,12 +1333,39 @@ const saveAnnotation = async () => {
     
     if (!token.value) {
       throw new Error('Authentication required')
-    }    const annotationData = {
-      annotations: canvasAnnotations.value.map(annotation => ({
-        ...annotation,
-        // Include class information in the saved data
-        class: annotation.className
-      }))
+    }
+    
+    // Convert display coordinates to original image coordinates before saving
+    const annotationData = {
+      annotations: canvasAnnotations.value.map(annotation => {
+        const convertedAnnotation = { ...annotation, class: annotation.className }
+        
+        if (annotation.type === 'rectangle' && annotation.startPoint && annotation.width && annotation.height) {
+          const originalStartPoint = displayToOriginal(annotation.startPoint)
+          const originalSize = displaySizeToOriginal({ width: annotation.width, height: annotation.height })
+          return {
+            ...convertedAnnotation,
+            startPoint: originalStartPoint,
+            width: originalSize.width,
+            height: originalSize.height
+          }
+        } else if (annotation.type === 'polygon' && annotation.points) {
+          return {
+            ...convertedAnnotation,
+            points: annotation.points.map(point => displayToOriginal(point))
+          }
+        } else if (annotation.type === 'dot' && annotation.center && annotation.radius) {
+          const originalCenter = displayToOriginal(annotation.center)
+          const originalRadius = Math.round(annotation.radius / imageScale.value)
+          return {
+            ...convertedAnnotation,
+            center: originalCenter,
+            radius: originalRadius
+          }
+        }
+        
+        return convertedAnnotation
+      })
     }
 
     await $fetch(`http://localhost:8787/api/annotations`, {
@@ -1398,21 +1503,25 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
       if (ann.type === 'rectangle') {
         // Rectangle format: { type: 'rectangle', startPoint: {x, y}, width: number, height: number }
         if (ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
+          const displayStartPoint = originalToDisplay({ x: ann.startPoint.x, y: ann.startPoint.y })
+          const displaySize = originalSizeToDisplay({ width: ann.width, height: ann.height })
           canvasAnnotations.push({
             type: 'rectangle',
-            startPoint: { x: ann.startPoint.x, y: ann.startPoint.y },
-            width: ann.width,
-            height: ann.height,
+            startPoint: displayStartPoint,
+            width: displaySize.width,
+            height: displaySize.height,
             className: ann.className || ann.class
           })
         }
         // COCO bbox format: { type: 'rectangle', bbox: [x, y, width, height] }
         else if (ann.bbox && Array.isArray(ann.bbox) && ann.bbox.length >= 4) {
+          const displayStartPoint = originalToDisplay({ x: ann.bbox[0], y: ann.bbox[1] })
+          const displaySize = originalSizeToDisplay({ width: ann.bbox[2], height: ann.bbox[3] })
           canvasAnnotations.push({
             type: 'rectangle',
-            startPoint: { x: ann.bbox[0], y: ann.bbox[1] },
-            width: ann.bbox[2],
-            height: ann.bbox[3],
+            startPoint: displayStartPoint,
+            width: displaySize.width,
+            height: displaySize.height,
             className: ann.className || ann.class
           })
         }
@@ -1421,7 +1530,7 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
         if (ann.points && Array.isArray(ann.points) && ann.points.length >= 3) {
           canvasAnnotations.push({
             type: 'polygon',
-            points: ann.points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
+            points: ann.points.map((p: { x: number; y: number }) => originalToDisplay({ x: p.x, y: p.y })),
             className: ann.className || ann.class
           })
         }
@@ -1430,10 +1539,11 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
           const coords = ann.segmentation[0]
           const points = []
           
-          // Convert flat array to points array
+          // Convert flat array to points array and convert to display coordinates
           for (let i = 0; i < coords.length; i += 2) {
             if (i + 1 < coords.length) {
-              points.push({ x: coords[i], y: coords[i + 1] })
+              const originalPoint = { x: coords[i], y: coords[i + 1] }
+              points.push(originalToDisplay(originalPoint))
             }
           }
           
@@ -1448,10 +1558,12 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
       } else if (ann.type === 'dot') {
         // Dot format: { type: 'dot', center: {x, y}, radius: number }
         if (ann.center && typeof ann.radius === 'number') {
+          const displayCenter = originalToDisplay({ x: ann.center.x, y: ann.center.y })
+          const displayRadius = Math.round(ann.radius * imageScale.value)
           canvasAnnotations.push({
             type: 'dot',
-            center: { x: ann.center.x, y: ann.center.y },
-            radius: ann.radius,
+            center: displayCenter,
+            radius: displayRadius,
             className: ann.className || ann.class
           })
         }
@@ -1459,11 +1571,13 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
       // Handle legacy formats or other types
       else if (ann.bbox && Array.isArray(ann.bbox)) {
         // Fallback to bbox if type is not specified
+        const displayStartPoint = originalToDisplay({ x: ann.bbox[0], y: ann.bbox[1] })
+        const displaySize = originalSizeToDisplay({ width: ann.bbox[2], height: ann.bbox[3] })
         canvasAnnotations.push({
           type: 'rectangle',
-          startPoint: { x: ann.bbox[0], y: ann.bbox[1] },
-          width: ann.bbox[2],
-          height: ann.bbox[3],
+          startPoint: displayStartPoint,
+          width: displaySize.width,
+          height: displaySize.height,
           className: ann.className || ann.class
         })
       }
