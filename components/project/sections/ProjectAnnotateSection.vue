@@ -30,6 +30,16 @@
           <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-2" />
           Complete ({{ selectedAnnotatingTasks.length }})
         </UButton>
+        <UButton 
+          v-if="selectedCompletedTasks.length > 0" 
+          @click="reassignSelectedTasks" 
+          :loading="reassignLoading"
+          color="warning"
+          class="cursor-pointer"
+        >
+          <UIcon name="i-heroicons-arrow-uturn-left" class="w-4 h-4 mr-2" />
+          Reassign ({{ selectedCompletedTasks.length }})
+        </UButton>
         <UButton @click="refreshTasks" :loading="loading" variant="outline" color="secondary" class="cursor-pointer">
           <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
           Refresh
@@ -436,11 +446,28 @@
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Completed Tasks</h3>
             <p class="text-gray-500 dark:text-gray-400">Completed tasks will appear here.</p>
           </div>          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <div v-for="task in tasks.completed" :key="task.id" class="border border-purple-500 p-4 rounded">
-              <h4>Task {{ task.id }}</h4>
-              <p>Status: {{ task.status }}</p>
-              <p>Type: {{ task.dataType }}</p>
-              <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2" />
+            <div 
+              v-for="task in tasks.completed" 
+              :key="task.id" 
+              :class="[
+                'border p-4 rounded cursor-pointer transition-all',
+                selectedCompletedTasks.includes(task.id) 
+                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-900/20' 
+                  : 'border-purple-300 hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20'
+              ]"
+              @click="toggleCompletedTaskSelection(task.id)"
+            >
+              <div class="flex items-start justify-between mb-2">
+                <h4 class="font-medium">Task {{ task.id }}</h4>
+                <UCheckbox 
+                  :model-value="selectedCompletedTasks.includes(task.id)"
+                  @click.stop
+                  class="cursor-pointer"
+                />
+              </div>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Status: {{ task.status }}</p>
+              <p class="text-sm text-gray-600 dark:text-gray-400">Type: {{ task.dataType }}</p>
+              <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
             </div>
           </div>
 
@@ -489,8 +516,10 @@ const tasks = ref<TasksResponse['data'] | null>(null)
 const activeTab = ref<'unassigned' | 'annotating' | 'completed'>('unassigned')
 const selectedUnassignedTasks = ref<number[]>([])
 const selectedAnnotatingTasks = ref<number[]>([])
+const selectedCompletedTasks = ref<number[]>([])
 const assignLoading = ref(false)
 const completeLoading = ref(false)
+const reassignLoading = ref(false)
 
 // Export functionality
 const showExportModal = ref(false)
@@ -591,6 +620,15 @@ const toggleAnnotatingTaskSelection = (taskId: number) => {
   }
 }
 
+const toggleCompletedTaskSelection = (taskId: number) => {
+  const index = selectedCompletedTasks.value.indexOf(taskId)
+  if (index > -1) {
+    selectedCompletedTasks.value.splice(index, 1)
+  } else {
+    selectedCompletedTasks.value.push(taskId)
+  }
+}
+
 const assignSelectedTasks = async () => {
   if (selectedUnassignedTasks.value.length === 0) return
   
@@ -686,6 +724,57 @@ const completeSelectedTasks = async () => {
     })
   } finally {
     completeLoading.value = false
+  }
+}
+
+const reassignSelectedTasks = async () => {
+  if (selectedCompletedTasks.value.length === 0) return
+  
+  try {
+    reassignLoading.value = true
+    
+    if (!token.value) {
+      throw new Error('Authentication required')
+    }
+    
+    const response = await $fetch('http://localhost:8787/api/tasks/update', {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'Content-Type': 'application/json'
+      },
+      body: {
+        taskId: selectedCompletedTasks.value,
+        status: 'annotating'
+      }
+    })
+    
+    console.log('Tasks reassigned successfully:', response)
+    
+    // Show success toast
+    toast.add({
+      title: 'Tasks Reassigned',
+      description: `${selectedCompletedTasks.value.length} task(s) reassigned to annotation successfully`,
+      color: 'success'
+    })
+    
+    // Clear selection and refresh tasks
+    selectedCompletedTasks.value = []
+    await fetchTasks()
+    
+  } catch (err) {
+    console.error('Error reassigning tasks:', err)
+    const errorMessage = err instanceof Error ? err.message : 'Failed to reassign tasks'
+    error.value = errorMessage
+    
+    // Show error toast
+    toast.add({
+      title: 'Reassignment Failed',
+      description: errorMessage,
+      color: 'error'
+    })
+  } finally {
+    reassignLoading.value = false
   }
 }
 
@@ -880,6 +969,7 @@ watch(() => props.projectId, () => {
     // Clear selections when switching projects
     selectedUnassignedTasks.value = []
     selectedAnnotatingTasks.value = []
+    selectedCompletedTasks.value = []
     // Close modal when switching projects
     showExportModal.value = false
     fetchTasks()
