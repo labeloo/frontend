@@ -363,7 +363,7 @@
               <div 
                 v-if="showClassSelector && projectData?.labelConfig?.classes?.length"
                 data-class-selector
-                class="absolute bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-20 border border-gray-200 dark:border-gray-600 min-w-48"
+                class="fixed bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-50 border border-gray-200 dark:border-gray-600 min-w-48 max-w-64"
                 :style="{
                   left: `${classSelectorPosition.x}px`,
                   top: `${classSelectorPosition.y}px`,
@@ -980,20 +980,36 @@ const showClassSelectorPopup = (annotation: CanvasAnnotation, position: { x: num
   pendingAnnotation.value = annotation
   const rect = canvas.value.getBoundingClientRect()
   
-  // Position the popup near the mouse but ensure it stays within viewport
-  const popupWidth = 200 // Estimated popup width
-  const popupHeight = 150 // Estimated popup height
+  // Position the popup near the annotation but ensure it stays within viewport
+  const popupWidth = 250 // Estimated popup width with padding
+  const popupHeight = 250 // Estimated popup height
   
-  let x = position.x + rect.left + 10
-  let y = position.y + rect.top - 10
+  // Convert canvas coordinates to screen coordinates
+  let x = position.x + rect.left + 15
+  let y = position.y + rect.top - popupHeight - 15 // Position above the point by default
   
-  // Adjust if popup would go off screen
+  // Adjust horizontal position if popup would go off screen
   if (x + popupWidth > window.innerWidth) {
-    x = position.x + rect.left - popupWidth - 10
+    x = position.x + rect.left - popupWidth - 15
+  }
+  if (x < 10) {
+    x = 10
+  }
+  
+  // Adjust vertical position if popup would go off screen
+  if (y < 10) {
+    y = position.y + rect.top + 15 // Position below if no space above
   }
   if (y + popupHeight > window.innerHeight) {
-    y = position.y + rect.top - popupHeight + 10
+    y = window.innerHeight - popupHeight - 10
   }
+  
+  console.log('Popup positioning:', {
+    canvasPosition: position,
+    canvasRect: rect,
+    screenPosition: { x, y },
+    viewport: { width: window.innerWidth, height: window.innerHeight }
+  })
   
   classSelectorPosition.value = { x, y }
   showClassSelector.value = true
@@ -1040,7 +1056,10 @@ const completeRectangle = (endPoint: { x: number; y: number }) => {
   
   // Show class selector if classes are available
   if (projectData.value?.labelConfig?.classes?.length) {
-    showClassSelectorPopup(newAnnotation, endPoint)
+    // Use the center of the rectangle for popup position
+    const centerX = startPoint.value.x + (endPoint.x - startPoint.value.x) / 2
+    const centerY = startPoint.value.y + (endPoint.y - startPoint.value.y) / 2
+    showClassSelectorPopup(newAnnotation, { x: centerX, y: centerY })
   } else {
     // Add annotation without class if no classes available
     canvasAnnotations.value.push(newAnnotation)
@@ -1061,10 +1080,9 @@ const completePolygon = () => {
   
   // Show class selector if classes are available
   if (projectData.value?.labelConfig?.classes?.length) {
-    // Use the center of the polygon for popup position
-    const centerX = currentPath.value.reduce((sum, p) => sum + p.x, 0) / currentPath.value.length
-    const centerY = currentPath.value.reduce((sum, p) => sum + p.y, 0) / currentPath.value.length
-    showClassSelectorPopup(newAnnotation, { x: centerX, y: centerY })
+    // Use the last clicked point for popup position
+    const lastPoint = currentPath.value[currentPath.value.length - 1]
+    showClassSelectorPopup(newAnnotation, lastPoint)
   } else {
     // Add annotation without class if no classes available
     canvasAnnotations.value.push(newAnnotation)
