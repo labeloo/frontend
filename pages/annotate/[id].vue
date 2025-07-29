@@ -9,6 +9,7 @@
           </h1>
           <UButton
             @click="navigateBack"
+            color="secondary"
             variant="ghost"
             size="sm"
             icon="i-heroicons-arrow-left"

@@ -158,10 +158,10 @@
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <UButton 
-            color="primary" 
+            color="secondary" 
             variant="soft"
             icon="i-heroicons-plus"
-            class="justify-start"
+            class="justify-center"
             @click="createProject"
           >
             Create New Project
@@ -170,16 +170,16 @@
             color="success" 
             variant="soft"
             icon="i-heroicons-user-plus"
-            class="justify-start"
+            class="justify-center"
             @click="navigateToSection('users')"
           >
             Invite Members
           </UButton>
           <UButton 
-            color="secondary" 
+            color="info" 
             variant="soft"
             icon="i-heroicons-shield-check"
-            class="justify-start"
+            class="justify-center"
             @click="navigateToSection('roles')"
           >
             Manage Roles

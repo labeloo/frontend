@@ -6,7 +6,7 @@
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Users</h2>
         <p class="text-gray-600 dark:text-gray-400 mt-1">Manage organization members and their access</p>
       </div>
-      <UButton color="primary" icon="i-heroicons-plus" @click="toggleInviteModal">
+      <UButton color="secondary" variant="solid" class="cursor-pointer" icon="i-heroicons-plus" @click="toggleInviteModal">
         Invite User
       </UButton>
     </div>    <!-- Invite User Modal -->

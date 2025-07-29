@@ -6,7 +6,8 @@
         <div class="flex items-center space-x-4 mb-4">
           <UButton
             icon="i-heroicons-arrow-left"
-            variant="ghost"
+            color="secondary"
+            variant="outline"
             @click="goBack"
             class="flex-shrink-0"
           >
@@ -244,7 +245,7 @@
                     <div
                       v-for="(className, index) in projectForm.classes"
                       :key="index"
-                      class="flex items-center space-x-2 bg-primary/10 text-primary px-3 py-2 rounded-lg border border-primary/20"
+                      class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-100 text-primary dark:text-black px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-200"
                     >
                       <span class="text-sm font-medium">{{ className }}</span>
                       <UButton
@@ -308,7 +309,7 @@
                     </div>
                     <UButton
                       type="button"
-                      color="primary"
+                      color="secondary"
                       variant="outline"
                       icon="i-heroicons-folder-open"
                       :disabled="creating || isUploading"
@@ -425,7 +426,7 @@
                         @click="videoSettings.fps = preset"
                         variant="outline"
                         size="xs"
-                        :color="videoSettings.fps === preset ? 'primary' : 'secondary'"
+                        :color="videoSettings.fps === preset ? 'info' : 'secondary'"
                         :disabled="creating || isUploadingVideos"
                       >
                         {{ preset }} FPS
@@ -470,7 +471,7 @@
                     </div>
                     <UButton
                       type="button"
-                      color="primary"
+                      color="secondary"
                       variant="outline"
                       icon="i-heroicons-folder-open"
                       :disabled="creating || isUploadingVideos || !videoSettings.fps"

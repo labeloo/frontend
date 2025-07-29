@@ -6,7 +6,7 @@
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Projects</h2>
         <p class="text-gray-600 dark:text-gray-400 mt-1">Manage and view all projects in this organization</p>
       </div>
-      <UButton color="primary" icon="i-heroicons-plus" @click="createProject">
+      <UButton color="secondary" icon="i-heroicons-plus" class="cursor-pointer" @click="createProject">
         Create Project
       </UButton>
     </div>    <!-- Projects Loading -->
