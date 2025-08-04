@@ -36,15 +36,15 @@ The app will be available at: http://localhost:3000
 
 ```
 
-##💡 Philosophy
+## 💡 Philosophy
 We believe annotation tools shouldn't be clunky or slow.
 Labeloo Frontend puts speed and usability first — giving professionals the comfort they’ve been missing.
 
-##🤝 Contributing
+## 🤝 Contributing
 We welcome contributions!
 Check out the issues and feel free to:
 
-###Submit ideas
+### Submit ideas
 
 Improve performance
 
