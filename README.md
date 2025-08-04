@@ -37,7 +37,7 @@ The app will be available at: http://localhost:3000
 
 ## 💡 Philosophy
 We believe annotation tools shouldn't be clunky or slow.
-Labeloo Frontend puts speed and usability first — giving professionals the comfort they’ve been missing.
+Labeloo puts speed and usability first — giving professionals the comfort they’ve been missing.
 
 ## 🤝 Contributing
 We welcome contributions!
