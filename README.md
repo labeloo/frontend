@@ -20,7 +20,6 @@ This is the frontend of Labeloo — a modern, open-source tool for video and ima
 
 - **Framework**: Nuxt 3 (Vue 3)
 - **Styling**: TailwindCSS
-- **Deployment**: Vercel (or any static host)
 
 ---
 
