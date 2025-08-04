@@ -1,75 +1,54 @@
-# Nuxt Minimal Starter
+# 🖼️ Labeloo Frontend
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+**A blazing-fast, user-first annotation UI built with Nuxt 3.**
 
-## Setup
+This is the frontend of Labeloo — a modern, open-source tool for video and image annotation. Designed with performance and user experience in mind, it aims to redefine what labeling tools should feel like.
 
-Make sure to install dependencies:
+---
+
+## 🚀 Features
+
+- ⚡ **Built with Nuxt 3 (Vue 3)** – Fast, lightweight, and server-rendered
+- 🧠 **Customizable Keyboard Shortcuts** – Easily map actions like `next`, `save`, or `delete` to any key (`d`, `s`, `e`, etc.)
+- 🎯 **Ultra-fast annotation workflow** – Zero lag, smooth experience
+- 📱 **Fully responsive UI** – Works seamlessly across devices
+- ✨ **Minimalist and intuitive design** – Built for annotators, not engineers
+
+---
+
+## 📦 Tech Stack
+
+- **Framework**: Nuxt 3 (Vue 3)
+- **Styling**: TailwindCSS
+- **Deployment**: Vercel (or any static host)
+
+---
+
+## 🛠️ Getting Started
 
 ```bash
-# npm
+git clone https://github.com/labeloo/frontend
+cd frontend
 npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
-bun install
-```
-
-## Development Server
-
-Start the development server on `http://localhost:3000`:
-
-```bash
-# npm
 npm run dev
 
-# pnpm
-pnpm dev
+The app will be available at: http://localhost:3000
 
-# yarn
-yarn dev
-
-# bun
-bun run dev
 ```
 
-## Production
+💡 Philosophy
+We believe annotation tools shouldn't be clunky or slow.
+Labeloo Frontend puts speed and usability first — giving professionals the comfort they’ve been missing.
 
-Build the application for production:
+🤝 Contributing
+We welcome contributions!
+Check out the issues and feel free to:
 
-```bash
-# npm
-npm run build
+Submit ideas
 
-# pnpm
-pnpm build
+Improve performance
 
-# yarn
-yarn build
+Suggest UX enhancements
 
-# bun
-bun run build
-```
+Add keyboard shortcut features
 
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
