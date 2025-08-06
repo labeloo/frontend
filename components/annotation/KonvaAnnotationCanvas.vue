@@ -70,6 +70,7 @@
             <!-- Rectangle annotations -->
             <v-rect
               v-if="annotation.type === 'rectangle'"
+              :ref="(el: any) => { if (el) annotationRefs[`rect-${index}`] = el.getNode() }"
               :config="getRectConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -81,6 +82,7 @@
             <!-- Polygon annotations -->
             <v-line
               v-if="annotation.type === 'polygon'"
+              :ref="(el: any) => { if (el) annotationRefs[`polygon-${index}`] = el.getNode() }"
               :config="getPolygonConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -92,6 +94,7 @@
             <!-- Dot annotations -->
             <v-circle
               v-if="annotation.type === 'dot'"
+              :ref="(el: any) => { if (el) annotationRefs[`dot-${index}`] = el.getNode() }"
               :config="getDotConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -103,6 +106,7 @@
             <!-- Line annotations -->
             <v-line
               v-if="annotation.type === 'line'"
+              :ref="(el: any) => { if (el) annotationRefs[`line-${index}`] = el.getNode() }"
               :config="getLineConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -114,6 +118,7 @@
             <!-- Circle annotations -->
             <v-circle
               v-if="annotation.type === 'circle'"
+              :ref="(el: any) => { if (el) annotationRefs[`circle-${index}`] = el.getNode() }"
               :config="getCircleConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -125,6 +130,7 @@
             <!-- Freehand annotations -->
             <v-line
               v-if="annotation.type === 'freehand'"
+              :ref="(el: any) => { if (el) annotationRefs[`freehand-${index}`] = el.getNode() }"
               :config="getFreehandConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -143,26 +149,31 @@
           <!-- Current annotation being drawn -->
           <v-rect
             v-if="currentAnnotation && currentAnnotation.type === 'rectangle' && isDrawing"
+            :ref="(el: any) => { if (el) currentAnnotationRefs['current-rect'] = el.getNode() }"
             :config="getCurrentRectConfig()"
           />
           
           <v-line
             v-if="currentAnnotation && currentAnnotation.type === 'line' && isDrawing"
+            :ref="(el: any) => { if (el) currentAnnotationRefs['current-line'] = el.getNode() }"
             :config="getCurrentLineConfig()"
           />
           
           <v-circle
             v-if="currentAnnotation && currentAnnotation.type === 'circle' && isDrawing"
+            :ref="(el: any) => { if (el) currentAnnotationRefs['current-circle'] = el.getNode() }"
             :config="getCurrentCircleConfig()"
           />
           
           <v-line
             v-if="currentAnnotation && currentAnnotation.type === 'freehand' && isDrawing"
+            :ref="(el: any) => { if (el) currentAnnotationRefs['current-freehand'] = el.getNode() }"
             :config="getCurrentFreehandConfig()"
           />
           
           <v-line
             v-if="currentAnnotation && currentAnnotation.type === 'polygon' && currentPath.length > 0"
+            :ref="(el: any) => { if (el) currentAnnotationRefs['current-polygon'] = el.getNode() }"
             :config="getCurrentPolygonConfig()"
           />
           
@@ -273,6 +284,10 @@ const transformer = ref<any>(null)
 const stageContainer = ref<HTMLElement | null>(null)
 const imageLayer = ref<any>(null)
 const annotationLayer = ref<any>(null)
+
+// Annotation node refs for caching
+const annotationRefs = ref<Record<string, any>>({})
+const currentAnnotationRefs = ref<Record<string, any>>({})
 
 // State
 const imageObj = ref<any>(null)
@@ -478,6 +493,54 @@ const originalSizeToDisplay = (size: { width: number; height: number }) => ({
   width: size.width * imageScale.value,
   height: size.height * imageScale.value
 })
+
+// Helper function to cache annotation nodes for performance
+const cacheAnnotationNode = (node: any, key: string) => {
+  if (!node) return
+  
+  try {
+    // Clear existing cache first
+    node.clearCache()
+    
+    // Apply cache to improve rendering performance
+    node.cache()
+    
+    // Store reference for future cache management
+    annotationRefs.value[key] = node
+  } catch (error) {
+    console.warn('Failed to cache annotation node:', error)
+  }
+}
+
+// Helper function to invalidate and recache a node
+const updateAnnotationCache = (node: any, key: string) => {
+  if (!node) return
+  
+  try {
+    node.clearCache()
+    // Use nextTick to ensure the node is fully updated before caching
+    nextTick(() => {
+      node.cache()
+      annotationRefs.value[key] = node
+    })
+  } catch (error) {
+    console.warn('Failed to update annotation cache:', error)
+  }
+}
+
+// Helper function to clear all annotation caches
+const clearAllAnnotationCaches = () => {
+  Object.values(annotationRefs.value).forEach(node => {
+    if (node && typeof node.clearCache === 'function') {
+      try {
+        node.clearCache()
+      } catch (error) {
+        console.warn('Failed to clear cache:', error)
+      }
+    }
+  })
+  annotationRefs.value = {}
+}
 
 // Helper function to calculate inverse scale for UI elements to maintain visual consistency
 const getUIScale = () => 1 / stageScale.value
@@ -1248,6 +1311,10 @@ const handleDragEnd = (index: number, e: any) => {
       updatedAnnotation = annotation
   }
   
+  // Update cache after drag operation
+  const cacheKey = `${annotation.type}-${index}`
+  updateAnnotationCache(node, cacheKey)
+  
   emit('annotation-updated', updatedAnnotation, index)
 }
 
@@ -1280,6 +1347,10 @@ const handleTransformEnd = (index: number, e: any) => {
     node.position(constrainedCanvasStart)
     node.size(constrainedCanvasSize)
     
+    // Update cache after transform operation
+    const cacheKey = `${annotation.type}-${index}`
+    updateAnnotationCache(node, cacheKey)
+    
     emit('annotation-updated', updatedAnnotation, index)
   }
 }
@@ -1295,10 +1366,30 @@ const editAnnotation = () => {
 
 const deleteAnnotation = () => {
   if (selectedAnnotationIndex.value !== null) {
+    const annotation = props.annotations[selectedAnnotationIndex.value]
+    if (annotation) {
+      // Clear cache for the deleted annotation
+      const cacheKey = `${annotation.type}-${selectedAnnotationIndex.value}`
+      const node = annotationRefs.value[cacheKey]
+      if (node && typeof node.clearCache === 'function') {
+        try {
+          node.clearCache()
+        } catch (error) {
+          console.warn('Failed to clear cache for deleted annotation:', error)
+        }
+      }
+      delete annotationRefs.value[cacheKey]
+    }
+    
     emit('annotation-deleted', selectedAnnotationIndex.value)
     selectedAnnotationIndex.value = null
     showAnnotationTools.value = false
     updateTransformer()
+    
+    // Recache remaining annotations after deletion
+    nextTick(() => {
+      cacheAllAnnotations()
+    })
   }
 }
 
@@ -1379,11 +1470,51 @@ watch(() => props.imageUrl, async (newUrl) => {
   }
 }, { immediate: true })
 
+// Watch annotations for cache management
+watch(() => props.annotations, (newAnnotations, oldAnnotations) => {
+  // Clear caches when annotations change significantly
+  if (!oldAnnotations || newAnnotations.length !== oldAnnotations.length) {
+    clearAllAnnotationCaches()
+  }
+  
+  // Cache new annotations after they're rendered
+  nextTick(() => {
+    cacheAllAnnotations()
+  })
+}, { deep: true })
+
+// Watch stage scale changes to invalidate caches when zoom changes significantly
+watch(stageScale, (newScale, oldScale) => {
+  if (oldScale && Math.abs(newScale - oldScale) > 0.2) {
+    // Clear and recache all annotations when zoom changes significantly
+    clearAllAnnotationCaches()
+    nextTick(() => {
+      cacheAllAnnotations()
+    })
+  }
+})
+
 watch(selectedAnnotationIndex, () => {
   nextTick(() => {
     updateTransformer()
   })
 })
+
+// Function to cache all visible annotations
+const cacheAllAnnotations = () => {
+  props.annotations.forEach((annotation, index) => {
+    const cacheKey = `${annotation.type}-${index}`
+    const node = annotationRefs.value[cacheKey]
+    if (node) {
+      cacheAnnotationNode(node, cacheKey)
+    }
+  })
+  
+  // Batch draw after all caching is complete
+  if (annotationLayer.value) {
+    annotationLayer.value.getNode().batchDraw()
+  }
+}
 
 // Performance optimization: debounce transformer updates
 let transformerUpdateTimeout: number | null = null
@@ -1404,12 +1535,32 @@ onMounted(() => {
       console.error('KonvaAnnotationCanvas: Manual image load failed:', error)
     })
   }
+  
+  // Cache annotations after component is mounted
+  nextTick(() => {
+    cacheAllAnnotations()
+  })
 })
 
 onUnmounted(() => {
   if (transformerUpdateTimeout) {
     clearTimeout(transformerUpdateTimeout)
   }
+  
+  // Clear all caches on unmount to prevent memory leaks
+  clearAllAnnotationCaches()
+  
+  // Clear current annotation refs
+  Object.values(currentAnnotationRefs.value).forEach(node => {
+    if (node && typeof node.clearCache === 'function') {
+      try {
+        node.clearCache()
+      } catch (error) {
+        console.warn('Failed to clear current annotation cache:', error)
+      }
+    }
+  })
+  currentAnnotationRefs.value = {}
 })
 
 // Expose methods to parent with enhanced functionality
@@ -1444,6 +1595,25 @@ defineExpose({
     }
     
     stageScale.value = newScale
+  },
+  // Cache management methods
+  cacheAllAnnotations,
+  clearAllAnnotationCaches,
+  updateAnnotationCache: (index: number) => {
+    const annotation = props.annotations[index]
+    if (annotation) {
+      const cacheKey = `${annotation.type}-${index}`
+      const node = annotationRefs.value[cacheKey]
+      if (node) {
+        updateAnnotationCache(node, cacheKey)
+      }
+    }
+  },
+  // Performance method to force batch draw
+  batchDraw: () => {
+    if (annotationLayer.value) {
+      annotationLayer.value.getNode().batchDraw()
+    }
   }
 })
 </script>
