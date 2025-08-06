@@ -14,6 +14,7 @@ interface LineConfig {
   points: number[]
   stroke: string
   strokeWidth: number
+  hitStrokeWidth: number
   draggable: boolean
   listening: boolean
   lineCap: string
@@ -58,6 +59,7 @@ export function useLineConfig() {
       points: points,
       stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
       strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
+      hitStrokeWidth: 20, // Increase hit area for easier selection
       draggable: true,
       listening: true,
       lineCap: 'round',

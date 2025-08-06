@@ -15,30 +15,31 @@ export function handleLineDragEnd(params: DragEndParams): CanvasAnnotation {
     return annotation
   }
 
-  // Get the new position and constrain to image bounds
-  let newPos = { x: node.x(), y: node.y() }
+  // Get the drag position from the node
+  const newPos = { x: node.x(), y: node.y() }
   
-  // Calculate line dimensions to ensure it stays within bounds
-  const lineWidth = Math.abs(annotation.endPoint.x - annotation.startPoint.x)
-  const lineHeight = Math.abs(annotation.endPoint.y - annotation.startPoint.y)
+  // Simple approach: just convert the drag position to original coordinates
+  // and apply the offset to both points
+  const originalNewPos = displayToOriginal(newPos)
+  const originalZero = displayToOriginal({ x: 0, y: 0 })
   
-  // Clamp position to ensure line stays within image bounds
-  newPos.x = Math.max(imageOffset.x, Math.min(newPos.x, imageOffset.x + displayImageSize.width - lineWidth))
-  newPos.y = Math.max(imageOffset.y, Math.min(newPos.y, imageOffset.y + displayImageSize.height - lineHeight))
+  // Calculate the offset in original coordinates
+  const offsetX = originalNewPos.x - originalZero.x
+  const offsetY = originalNewPos.y - originalZero.y
   
-  node.position(newPos)
+  // Reset node position to prevent accumulation
+  node.position({ x: 0, y: 0 })
   
-  // Calculate the offset and apply to both points
-  const originalStart = displayToOriginal(newPos)
-  const deltaX = originalStart.x - annotation.startPoint.x
-  const deltaY = originalStart.y - annotation.startPoint.y
-  
+  // Apply the offset to both start and end points
   return {
     ...annotation,
-    startPoint: originalStart,
+    startPoint: {
+      x: annotation.startPoint.x + offsetX,
+      y: annotation.startPoint.y + offsetY
+    },
     endPoint: {
-      x: annotation.endPoint.x + deltaX,
-      y: annotation.endPoint.y + deltaY
+      x: annotation.endPoint.x + offsetX,
+      y: annotation.endPoint.y + offsetY
     }
   }
 }

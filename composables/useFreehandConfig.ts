@@ -40,6 +40,7 @@ export const useFreehandConfig = () => {
       closed: false,
       draggable: true,
       listening: true,
+      hitStrokeWidth: 20, // Increase hit area for better selection
       tension: 0.3,
       lineCap: 'round',
       lineJoin: 'round',

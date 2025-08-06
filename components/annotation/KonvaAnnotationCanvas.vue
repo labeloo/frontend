@@ -73,6 +73,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`rect-${index}`] = el.getNode() }"
               :config="getRectConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -85,6 +86,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`polygon-${index}`] = el.getNode() }"
               :config="getPolygonConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -97,6 +99,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`dot-${index}`] = el.getNode() }"
               :config="getDotConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -109,6 +112,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`line-${index}`] = el.getNode() }"
               :config="getLineConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -121,6 +125,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`circle-${index}`] = el.getNode() }"
               :config="getCircleConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -133,6 +138,7 @@
               :ref="(el: any) => { if (el) annotationRefs[`freehand-${index}`] = el.getNode() }"
               :config="getFreehandConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
+              @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
               @click="handleAnnotationClick(index, $event)"
               @mouseover="handleAnnotationMouseOver(index)"
@@ -313,6 +319,9 @@ const isDrawingPolygon = ref(false)
 const startPoint = ref<{ x: number; y: number } | null>(null)
 const currentPath = ref<{ x: number; y: number }[]>([])
 const mousePosition = ref<{ x: number; y: number } | null>(null)
+
+// Drag state tracking
+const isDraggingAnnotation = ref(false)
 
 // UI state
 const showAnnotationTools = ref(false)
@@ -998,6 +1007,31 @@ const handleStageMouseUp = (e: any) => {
   
   isDrawing.value = false
   
+  // Don't show class selector if we're currently dragging an annotation
+  if (isDraggingAnnotation.value) {
+    return
+  }
+  
+  // Only proceed with annotation completion logic if we're actually creating a new annotation
+  // (not dragging an existing one). Check if this is a drag operation by looking at the event target
+  const target = e.target
+  const isTargetAnnotation = target && (
+    target.hasName && (
+      target.hasName('line') || 
+      target.hasName('rectangle') || 
+      target.hasName('circle') || 
+      target.hasName('polygon') || 
+      target.hasName('dot') || 
+      target.hasName('freehand')
+    )
+  )
+  
+  // If the event target is an existing annotation, don't trigger completion logic
+  if (isTargetAnnotation) {
+    resetAnnotationState()
+    return
+  }
+  
   if (currentAnnotation.value) {
     const minSize = 5 / imageScale.value // Minimum size in original coordinates
     let shouldComplete = false
@@ -1233,6 +1267,10 @@ const handleAnnotationMouseOut = (index: number) => {
   }
 }
 
+const handleDragStart = (index: number, e: any) => {
+  isDraggingAnnotation.value = true
+}
+
 const handleDragEnd = (index: number, e: any) => {
   const originalAnnotation = props.annotations[index]
   if (!originalAnnotation) return
@@ -1316,6 +1354,9 @@ const handleDragEnd = (index: number, e: any) => {
   updateAnnotationCache(node, cacheKey)
   
   emit('annotation-updated', updatedAnnotation, index)
+  
+  // Reset drag state
+  isDraggingAnnotation.value = false
 }
 
 const handleTransformEnd = (index: number, e: any) => {
@@ -1431,18 +1472,25 @@ const updateTransformer = () => {
   const transformerNode = transformer.value.getNode()
   
   if (selectedAnnotationIndex.value !== null) {
-    // Find the selected annotation node
-    const layer = annotationLayer.value?.getNode()
-    if (layer) {
-      const nodes = layer.getChildren()
-      const selectedNode = nodes.find((node: any, index: number) => {
-        // Skip text nodes (labels)
-        return node.getClassName() !== 'Text' && index === selectedAnnotationIndex.value! * 2 // *2 because of text labels
-      })
+    // Find the selected annotation node by looking for the ref key
+    const selectedAnnotation = props.annotations[selectedAnnotationIndex.value]
+    if (selectedAnnotation) {
+      const cacheKey = `${selectedAnnotation.type}-${selectedAnnotationIndex.value}`
+      const selectedNode = annotationRefs.value[cacheKey]
       
       if (selectedNode) {
-        transformerNode.nodes([selectedNode])
+        // Only apply transformer to transformable annotation types
+        if (selectedAnnotation.type === 'rectangle') {
+          transformerNode.nodes([selectedNode])
+        } else {
+          // For non-transformable types (like freehand), don't show transformer
+          transformerNode.nodes([])
+        }
+      } else {
+        transformerNode.nodes([])
       }
+    } else {
+      transformerNode.nodes([])
     }
   } else {
     transformerNode.nodes([])
