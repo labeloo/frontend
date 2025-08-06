@@ -226,6 +226,14 @@
 </template>
 
 <script setup lang="ts">
+import { useRectConfig } from '~/composables/useRectConfig';
+import { usePolygonConfig } from '~/composables/usePolygonConfig';
+import { useCircleConfig } from '~/composables/useCircleConfig';
+import { useLineConfig } from '~/composables/useLineConfig';
+import { useFreehandConfig } from '~/composables/useFreehandConfig';
+
+// import useRectConfig from '~/composables/useRectConfig';
+
 // Remove direct Konva import to avoid SSR issues
 // Konva will be available through vue-konva plugin
 
@@ -444,90 +452,53 @@ const isPointInImageBounds = (point: { x: number; y: number }) => {
 }
 
 // Annotation configuration methods with improved styling
+// Use the composables for annotation configuration
+const { createRectangleConfig } = useRectConfig()
+const { createPolygonConfig } = usePolygonConfig()
+const { createCircleConfig } = useCircleConfig()
+const { createLineConfig } = useLineConfig()
+const { createFreehandConfig } = useFreehandConfig()
+
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.startPoint || annotation.width === undefined || annotation.height === undefined) {
-    return {}
-  }
-  
-  const displayStart = originalToDisplay(annotation.startPoint)
-  const displaySize = originalSizeToDisplay({ width: annotation.width, height: annotation.height })
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  
-  return {
-    x: displayStart.x,
-    y: displayStart.y,
-    width: displaySize.width,
-    height: displaySize.height,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
-    draggable: true,
-    listening: true,
-    perfectDrawEnabled: false // Better performance
-  }
+  return createRectangleConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    originalToDisplay,
+    originalSizeToDisplay
+  )
 }
 
 const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.points) return {}
-  
-  const displayPoints = annotation.points
-    .map(point => originalToDisplay(point))
-    .flatMap(point => [point.x, point.y])
-  
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  
-  return {
-    points: displayPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
-    closed: true,
-    draggable: true,
-    listening: true,
-    perfectDrawEnabled: false
-  }
+  return createPolygonConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    originalToDisplay
+  )
 }
 
 const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.startPoint || !annotation.endPoint) return {}
-  
-  const displayStart = originalToDisplay(annotation.startPoint)
-  const displayEnd = originalToDisplay(annotation.endPoint)
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  
-  return {
-    points: [displayStart.x, displayStart.y, displayEnd.x, displayEnd.y],
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
-    draggable: true,
-    listening: true,
-    lineCap: 'round',
-    perfectDrawEnabled: false
-  }
+  return createLineConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    originalToDisplay
+  )
 }
 
 const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.center || annotation.radius === undefined) return {}
-  
-  const displayCenter = originalToDisplay(annotation.center)
-  const displayRadius = annotation.radius * imageScale.value
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  
-  return {
-    x: displayCenter.x,
-    y: displayCenter.y,
-    radius: displayRadius,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
-    draggable: true,
-    listening: true,
-    perfectDrawEnabled: false
-  }
+  return createCircleConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    originalToDisplay,
+    imageScale.value
+  )
 }
 
 const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -659,28 +630,13 @@ const getVertexConfig = (point: { x: number; y: number }, index: number) => {
 }
 
 const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.points) return {}
-  
-  const displayPoints = annotation.points
-    .map(point => originalToDisplay(point))
-    .flatMap(point => [point.x, point.y])
-  
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  
-  return {
-    points: displayPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
-    fill: 'transparent',
-    closed: false,
-    draggable: true,
-    listening: true,
-    tension: 0.3,
-    lineCap: 'round',
-    lineJoin: 'round',
-    perfectDrawEnabled: false
-  }
+  return createFreehandConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    originalToDisplay
+  )
 }
 
 const getCurrentCircleConfig = () => {
