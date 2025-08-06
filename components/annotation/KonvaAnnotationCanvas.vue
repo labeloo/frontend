@@ -231,14 +231,9 @@ import { usePolygonConfig } from '~/composables/usePolygonConfig';
 import { useCircleConfig } from '~/composables/useCircleConfig';
 import { useLineConfig } from '~/composables/useLineConfig';
 import { useFreehandConfig } from '~/composables/useFreehandConfig';
-import { 
-  handleRectangleDragEnd,
-  handlePolygonDragEnd,
-  handleDotDragEnd,
-  handleLineDragEnd,
-  handleCircleDragEnd,
-  handleFreehandDragEnd
-} from './handlers'
+import { useAnnotationLifecycle } from '~/composables/useAnnotationLifecycle';
+import { useAnnotationDragHandlers } from '~/composables/useAnnotationDragHandlers';
+import { useAnnotationTransformHandlers } from '~/composables/useAnnotationTransformHandlers';
 import type { CanvasAnnotation } from './types'
 
 // Remove direct Konva import to avoid SSR issues
@@ -453,6 +448,40 @@ const { createPolygonConfig } = usePolygonConfig()
 const { createCircleConfig } = useCircleConfig()
 const { createLineConfig } = useLineConfig()
 const { createFreehandConfig } = useFreehandConfig()
+
+// Use annotation drag handlers composable
+const {
+  handleRectangleDragEnd,
+  handlePolygonDragEnd,
+  handleDotDragEnd,
+  handleLineDragEnd,
+  handleCircleDragEnd,
+  handleFreehandDragEnd
+} = useAnnotationDragHandlers()
+
+// Use annotation transform handlers composable
+const { handleRectangleTransformEnd } = useAnnotationTransformHandlers()
+
+// Use annotation lifecycle composable
+const {
+  completeAnnotation,
+  completePolygon,
+  completeCurrentAnnotation,
+  cancelCurrentAnnotation,
+  resetAnnotationState,
+  startAnnotation,
+  isAnnotationInProgress,
+  currentAnnotationType
+} = useAnnotationLifecycle({
+  currentAnnotation,
+  currentPath,
+  startPoint,
+  isDrawing,
+  isDrawingPolygon,
+  mousePosition,
+  emit: emit as (event: string, ...args: any[]) => void,
+  classes: props.classes
+})
 
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
   return createRectangleConfig(
@@ -709,43 +738,13 @@ const handleStageMouseDown = (e: any) => {
   
   // Auto-start annotating for rectangle, line, circle when tool is selected
   if (props.currentTool === 'rectangle' || props.currentTool === 'line' || props.currentTool === 'circle') {
-    if (!props.isAnnotating) {
-      emit('update:isAnnotating', true)
-    }
-    
-    startPoint.value = pos
-    isDrawing.value = true
-    
-    if (props.currentTool === 'rectangle') {
-      currentAnnotation.value = {
-        type: 'rectangle',
-        startPoint: displayToOriginal(pos),
-        width: 0,
-        height: 0
-      }
-    } else if (props.currentTool === 'line') {
-      currentAnnotation.value = {
-        type: 'line',
-        startPoint: displayToOriginal(pos),
-        endPoint: displayToOriginal(pos)
-      }
-    } else if (props.currentTool === 'circle') {
-      currentAnnotation.value = {
-        type: 'circle',
-        center: displayToOriginal(pos),
-        radius: 0
-      }
-    }
+    const originalPos = displayToOriginal(pos)
+    startAnnotation(props.currentTool as any, originalPos)
+    startPoint.value = pos // Keep display coordinates for calculations
   } else if (props.currentTool === 'freehand') {
-    if (!props.isAnnotating) {
-      emit('update:isAnnotating', true)
-    }
-    isDrawing.value = true
-    currentPath.value = [pos]
-    currentAnnotation.value = {
-      type: 'freehand',
-      points: [displayToOriginal(pos)]
-    }
+    const originalPos = displayToOriginal(pos)
+    startAnnotation('freehand', originalPos)
+    currentPath.value = [pos] // Keep display coordinates for drawing
   }
 }
 
@@ -850,11 +849,14 @@ const handleStageMouseUp = (e: any) => {
         // Complete annotation without class
         completeAnnotation(currentAnnotation.value)
       }
+    } else {
+      // If annotation doesn't meet minimum requirements, cancel it
+      cancelCurrentAnnotation()
     }
+  } else {
+    // Reset state if no current annotation
+    resetAnnotationState()
   }
-  
-  currentAnnotation.value = null
-  startPoint.value = null
 }
 
 const handleStageClick = (e: any) => {
@@ -868,13 +870,9 @@ const handleStageClick = (e: any) => {
   if (props.currentTool === 'polygon') {
     if (!props.isAnnotating) {
       // Start new polygon
-      emit('update:isAnnotating', true)
-      isDrawingPolygon.value = true
-      currentPath.value = [pos]
-      currentAnnotation.value = {
-        type: 'polygon',
-        points: [displayToOriginal(pos)]
-      }
+      const originalPos = displayToOriginal(pos)
+      startAnnotation('polygon', originalPos)
+      currentPath.value = [pos] // Keep display coordinates for drawing
     } else {
       // Add point to current polygon
       if (currentAnnotation.value && currentAnnotation.value.points) {
@@ -1031,68 +1029,29 @@ const handleTransformEnd = (index: number, e: any) => {
   const node = e.target
   
   if (annotation.type === 'rectangle') {
-    let newSize = displaySizeToOriginal({
-      width: node.width() * node.scaleX(),
-      height: node.height() * node.scaleY()
+    const updatedAnnotation = handleRectangleTransformEnd({
+      annotation,
+      node,
+      displaySizeToOriginal,
+      displayToOriginal,
+      originalImageSize: originalImageSize.value
     })
-    let newStart = displayToOriginal({ x: node.x(), y: node.y() })
-    
-    // Constrain the rectangle to stay within image bounds
-    newStart.x = Math.max(0, Math.min(newStart.x, originalImageSize.value.width - newSize.width))
-    newStart.y = Math.max(0, Math.min(newStart.y, originalImageSize.value.height - newSize.height))
-    
-    // Ensure minimum size
-    newSize.width = Math.max(5, newSize.width)
-    newSize.height = Math.max(5, newSize.height)
-    
-    // Ensure the annotation doesn't extend beyond image bounds
-    if (newStart.x + newSize.width > originalImageSize.value.width) {
-      newSize.width = originalImageSize.value.width - newStart.x
-    }
-    if (newStart.y + newSize.height > originalImageSize.value.height) {
-      newSize.height = originalImageSize.value.height - newStart.y
-    }
-    
-    annotation.startPoint = newStart
-    annotation.width = newSize.width
-    annotation.height = newSize.height
     
     // Update node position and size to reflect constrained values
-    const constrainedDisplayStart = originalToDisplay(newStart)
-    const constrainedDisplaySize = originalSizeToDisplay(newSize)
+    const constrainedDisplayStart = originalToDisplay(updatedAnnotation.startPoint!)
+    const constrainedDisplaySize = originalSizeToDisplay({
+      width: updatedAnnotation.width!,
+      height: updatedAnnotation.height!
+    })
     
     node.position(constrainedDisplayStart)
     node.size(constrainedDisplaySize)
     
-    // Reset scale to 1 after transform
-    node.scaleX(1)
-    node.scaleY(1)
-    
-    emit('annotation-updated', annotation, index)
+    emit('annotation-updated', updatedAnnotation, index)
   }
 }
 
-// Annotation management methods
-const completeAnnotation = (annotation: CanvasAnnotation) => {
-  emit('annotation-completed', annotation)
-  emit('update:isAnnotating', false)
-  currentAnnotation.value = null
-  currentPath.value = []
-}
-
-const completePolygon = () => {
-  if (currentAnnotation.value && currentAnnotation.value.points) {
-    if (props.classes && props.classes.length > 0) {
-      const centerX = currentPath.value.reduce((sum, p) => sum + p.x, 0) / currentPath.value.length
-      const centerY = currentPath.value.reduce((sum, p) => sum + p.y, 0) / currentPath.value.length
-      emit('show-class-selector', currentAnnotation.value, { x: centerX, y: centerY })
-    } else {
-      completeAnnotation(currentAnnotation.value)
-    }
-  }
-  emit('update:isAnnotating', false)
-  isDrawingPolygon.value = false
-}
+// Annotation management methods - now handled by useAnnotationLifecycle composable
 
 const editAnnotation = () => {
   if (selectedAnnotationIndex.value !== null) {
@@ -1168,25 +1127,7 @@ const updateTransformer = () => {
   transformerNode.getLayer()?.batchDraw()
 }
 
-// Public methods
-const completeCurrentAnnotation = (className?: string) => {
-  if (currentAnnotation.value) {
-    if (className) {
-      currentAnnotation.value.className = className
-    }
-    completeAnnotation(currentAnnotation.value)
-  }
-}
-
-const cancelCurrentAnnotation = () => {
-  currentAnnotation.value = null
-  currentPath.value = []
-  startPoint.value = null
-  isDrawing.value = false
-  isDrawingPolygon.value = false
-  mousePosition.value = null
-  emit('update:isAnnotating', false)
-}
+// Public methods - now handled by useAnnotationLifecycle composable
 
 // Watchers with performance optimizations
 watch(() => props.imageUrl, async (newUrl) => {
