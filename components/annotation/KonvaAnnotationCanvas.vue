@@ -1032,8 +1032,12 @@ const handleStageClick = (e: any) => {
           const distance = Math.hypot(canvasPos.x - firstPoint.x, canvasPos.y - firstPoint.y)
           
           if (distance < 15 && currentPath.value.length > 2) {
-            // Close polygon - snap to first point
-            completePolygon()
+            // Close polygon - check for class selection
+            if (props.classes && props.classes.length > 0 && currentAnnotation.value) {
+              emit('show-class-selector', currentAnnotation.value, pointer)
+            } else {
+              completePolygon()
+            }
           } else {
             currentPath.value.push(canvasPos)
             currentAnnotation.value.points.push(originalPos)
@@ -1057,9 +1061,16 @@ const handleStageClick = (e: any) => {
   }
 }
 
-const handleStageDoubleClick = () => {
+const handleStageDoubleClick = (e: any) => {
   if (props.currentTool === 'polygon' && props.isAnnotating && currentPath.value.length > 2) {
-    completePolygon()
+    // Check for class selection before completing polygon
+    if (props.classes && props.classes.length > 0 && currentAnnotation.value) {
+      const stageNode = e.target.getStage()
+      const pointer = stageNode.getPointerPosition()
+      emit('show-class-selector', currentAnnotation.value, pointer || { x: 0, y: 0 })
+    } else {
+      completePolygon()
+    }
   }
 }
 
