@@ -10,6 +10,7 @@
           @mouseup="handleStageMouseUp"
           @click="handleStageClick"
           @dblclick="handleStageDoubleClick"
+          @wheel="handleStageWheel"
         >
         <!-- Background layer for image -->
         <v-layer ref="imageLayer">
@@ -281,6 +282,13 @@ const originalImageSize = ref({ width: 0, height: 0 })
 const displayImageSize = ref({ width: 0, height: 0 })
 const stageSize = ref({ width: props.canvasWidth, height: props.canvasHeight })
 
+// Zoom state
+const stageScale = ref(1)
+const stagePosition = ref({ x: 0, y: 0 })
+const minScale = ref(0.1)
+const maxScale = ref(5)
+const scaleBy = 1.05
+
 // Annotation state
 const selectedAnnotationIndex = ref<number | null>(null)
 const hoveredAnnotationIndex = ref<number | null>(null)
@@ -299,7 +307,11 @@ const annotationToolsPosition = ref<{ x: number; y: number } | null>(null)
 const stageConfig = computed(() => ({
   width: stageSize.value.width,
   height: stageSize.value.height,
-  draggable: false
+  draggable: props.currentTool === 'pan' || (props.currentTool === 'select' && selectedAnnotationIndex.value === null),
+  scaleX: stageScale.value,
+  scaleY: stageScale.value,
+  x: stagePosition.value.x,
+  y: stagePosition.value.y
 }))
 
 const imageConfig = computed(() => {
@@ -319,43 +331,47 @@ const imageConfig = computed(() => {
   return config
 })
 
-const transformerConfig = computed(() => ({
-  enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right'],
-  rotateEnabled: false,
-  anchorStroke: '#4285f4',
-  anchorFill: '#ffffff',
-  anchorStrokeWidth: 2,
-  anchorSize: 8,
-  borderStroke: '#4285f4',
-  borderStrokeWidth: 2,
-  borderDash: [3, 3],
-  keepRatio: false,
-  centeredScaling: false,
-  // Constrain transformer boundaries to image bounds
-  boundBoxFunc: (oldBox: any, newBox: any) => {
-    // Convert to original coordinates for bounds checking
-    const newBoxOriginal = {
-      x: (newBox.x - imageOffset.value.x) / imageScale.value,
-      y: (newBox.y - imageOffset.value.y) / imageScale.value,
-      width: newBox.width / imageScale.value,
-      height: newBox.height / imageScale.value
+const transformerConfig = computed(() => {
+  const uiScale = getUIScale()
+  
+  return {
+    enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right'],
+    rotateEnabled: false,
+    anchorStroke: '#4285f4',
+    anchorFill: '#ffffff',
+    anchorStrokeWidth: 2 * uiScale,
+    anchorSize: 8 * uiScale,
+    borderStroke: '#4285f4',
+    borderStrokeWidth: 2 * uiScale,
+    borderDash: [3 * uiScale, 3 * uiScale],
+    keepRatio: false,
+    centeredScaling: false,
+    // Constrain transformer boundaries to image bounds
+    boundBoxFunc: (oldBox: any, newBox: any) => {
+      // Convert to original coordinates for bounds checking
+      const newBoxOriginal = {
+        x: (newBox.x - imageOffset.value.x) / imageScale.value,
+        y: (newBox.y - imageOffset.value.y) / imageScale.value,
+        width: newBox.width / imageScale.value,
+        height: newBox.height / imageScale.value
+      }
+      
+      // Check bounds and constrain if necessary
+      if (newBoxOriginal.x < 0 || newBoxOriginal.y < 0 || 
+          newBoxOriginal.x + newBoxOriginal.width > originalImageSize.value.width ||
+          newBoxOriginal.y + newBoxOriginal.height > originalImageSize.value.height) {
+        return oldBox
+      }
+      
+      // Ensure minimum size
+      if (newBox.width < 10 * uiScale || newBox.height < 10 * uiScale) {
+        return oldBox
+      }
+      
+      return newBox
     }
-    
-    // Check bounds and constrain if necessary
-    if (newBoxOriginal.x < 0 || newBoxOriginal.y < 0 || 
-        newBoxOriginal.x + newBoxOriginal.width > originalImageSize.value.width ||
-        newBoxOriginal.y + newBoxOriginal.height > originalImageSize.value.height) {
-      return oldBox
-    }
-    
-    // Ensure minimum size
-    if (newBox.width < 10 || newBox.height < 10) {
-      return oldBox
-    }
-    
-    return newBox
   }
-}))
+})
 
 // Methods
 const loadImage = async (url: string) => {
@@ -412,16 +428,46 @@ const loadImage = async (url: string) => {
   })
 }
 
-// Coordinate conversion utilities with image offset support
-const displayToOriginal = (point: { x: number; y: number }) => ({
-  x: (point.x - imageOffset.value.x) / imageScale.value,
-  y: (point.y - imageOffset.value.y) / imageScale.value
-})
+// Coordinate conversion utilities with proper canvas transformation
+const canvasToOriginal = (canvasPoint: { x: number; y: number }) => {
+  return {
+    x: (canvasPoint.x - imageOffset.value.x) / imageScale.value,
+    y: (canvasPoint.y - imageOffset.value.y) / imageScale.value
+  }
+}
 
-const originalToDisplay = (point: { x: number; y: number }) => ({
-  x: point.x * imageScale.value + imageOffset.value.x,
-  y: point.y * imageScale.value + imageOffset.value.y
-})
+const originalToCanvas = (point: { x: number; y: number }) => {
+  return {
+    x: point.x * imageScale.value + imageOffset.value.x,
+    y: point.y * imageScale.value + imageOffset.value.y
+  }
+}
+
+// Legacy functions for backward compatibility - now use canvas coordinates properly
+const displayToOriginal = (stagePoint: { x: number; y: number }) => {
+  if (!stage.value) return stagePoint
+  
+  const stageNode = stage.value.getNode()
+  const canvasPoint = getCanvasPointerPosition(stageNode)
+  
+  if (!canvasPoint) {
+    // Fallback to manual transformation if getCanvasPointerPosition fails
+    const transform = stageNode.getAbsoluteTransform().copy().invert()
+    const transformedPoint = transform.point(stagePoint)
+    return canvasToOriginal(transformedPoint)
+  }
+  
+  return canvasToOriginal(canvasPoint)
+}
+
+const originalToDisplay = (point: { x: number; y: number }) => {
+  if (!stage.value) return point
+  
+  const canvasPoint = originalToCanvas(point)
+  const stageNode = stage.value.getNode()
+  const transform = stageNode.getAbsoluteTransform()
+  return transform.point(canvasPoint)
+}
 
 const displaySizeToOriginal = (size: { width: number; height: number }) => ({
   width: size.width / imageScale.value,
@@ -433,12 +479,31 @@ const originalSizeToDisplay = (size: { width: number; height: number }) => ({
   height: size.height * imageScale.value
 })
 
+// Helper function to calculate inverse scale for UI elements to maintain visual consistency
+const getUIScale = () => 1 / stageScale.value
+
+// Helper function to convert pointer position to canvas coordinates
+const getCanvasPointerPosition = (stageNode: any) => {
+  const pointer = stageNode.getPointerPosition()
+  if (!pointer) return null
+  
+  // Get the absolute transform and invert it to convert from screen to canvas coordinates
+  const transform = stageNode.getAbsoluteTransform().copy().invert()
+  return transform.point(pointer)
+}
+
 // Utility to check if a point is within the image bounds
-const isPointInImageBounds = (point: { x: number; y: number }) => {
-  return point.x >= imageOffset.value.x &&
-         point.x <= imageOffset.value.x + displayImageSize.value.width &&
-         point.y >= imageOffset.value.y &&
-         point.y <= imageOffset.value.y + displayImageSize.value.height
+const isPointInImageBounds = (stagePoint: { x: number; y: number }) => {
+  if (!stage.value) return false
+  
+  const stageNode = stage.value.getNode()
+  const transform = stageNode.getAbsoluteTransform().copy().invert()
+  const canvasPoint = transform.point(stagePoint)
+  
+  return canvasPoint.x >= imageOffset.value.x &&
+         canvasPoint.x <= imageOffset.value.x + displayImageSize.value.width &&
+         canvasPoint.y >= imageOffset.value.y &&
+         canvasPoint.y <= imageOffset.value.y + displayImageSize.value.height
 }
 
 // Annotation configuration methods with improved styling
@@ -484,61 +549,94 @@ const {
 })
 
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
-  return createRectangleConfig(
+  const baseConfig = createRectangleConfig(
     annotation,
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToDisplay,
-    originalSizeToDisplay
+    originalToCanvas,
+    (size: { width: number; height: number }) => ({
+      width: size.width * imageScale.value,
+      height: size.height * imageScale.value
+    })
   )
+  
+  // Apply UI scaling to stroke properties
+  const uiScale = getUIScale()
+  return {
+    ...baseConfig,
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
+    dash: (baseConfig as any).dash ? (baseConfig as any).dash.map((d: number) => d * uiScale) : undefined
+  }
 }
 
 const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
-  return createPolygonConfig(
+  const baseConfig = createPolygonConfig(
     annotation,
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToDisplay
+    originalToCanvas
   )
+  
+  // Apply UI scaling to stroke properties
+  const uiScale = getUIScale()
+  return {
+    ...baseConfig,
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+  }
 }
 
 const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
-  return createLineConfig(
+  const baseConfig = createLineConfig(
     annotation,
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToDisplay
+    originalToCanvas
   )
+  
+  // Apply UI scaling to stroke properties
+  const uiScale = getUIScale()
+  return {
+    ...baseConfig,
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+  }
 }
 
 const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
-  return createCircleConfig(
+  const baseConfig = createCircleConfig(
     annotation,
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToDisplay,
+    originalToCanvas,
     imageScale.value
   )
+  
+  // Apply UI scaling to stroke properties
+  const uiScale = getUIScale()
+  return {
+    ...baseConfig,
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+  }
 }
 
 const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
   if (!annotation.center || annotation.radius === undefined) return {}
   
-  const displayCenter = originalToDisplay(annotation.center)
-  const displayRadius = annotation.radius * imageScale.value
+  const canvasCenter = originalToCanvas(annotation.center)
+  const canvasRadius = annotation.radius * imageScale.value
   const isSelected = selectedAnnotationIndex.value === index
   const isHovered = hoveredAnnotationIndex.value === index
+  const uiScale = getUIScale()
   
   return {
-    x: displayCenter.x,
-    y: displayCenter.y,
-    radius: displayRadius,
+    x: canvasCenter.x,
+    y: canvasCenter.y,
+    radius: canvasRadius,
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
     fill: isSelected ? 'rgba(66, 133, 244, 0.2)' : (isHovered ? 'rgba(52, 168, 83, 0.1)' : 'rgba(0, 200, 81, 0.1)'),
     draggable: true,
     listening: true,
@@ -549,31 +647,32 @@ const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
 const getLabelConfig = (annotation: CanvasAnnotation, index: number) => {
   let position = { x: 0, y: 0 }
   const isSelected = selectedAnnotationIndex.value === index
+  const uiScale = getUIScale()
   
   if (annotation.type === 'rectangle' && annotation.startPoint) {
-    position = originalToDisplay(annotation.startPoint)
-    position.y -= 8 // Position above the rectangle
+    position = originalToCanvas(annotation.startPoint)
+    position.y -= 8 * uiScale // Position above the rectangle
   } else if (annotation.type === 'polygon' && annotation.points && annotation.points.length > 0) {
     const firstPoint = annotation.points[0]
     if (firstPoint) {
-      position = originalToDisplay(firstPoint)
-      position.y -= 8
+      position = originalToCanvas(firstPoint)
+      position.y -= 8 * uiScale
     }
   } else if (annotation.type === 'dot' && annotation.center) {
-    position = originalToDisplay(annotation.center)
-    position.y -= (annotation.radius || 5) * imageScale.value + 8
+    position = originalToCanvas(annotation.center)
+    position.y -= (annotation.radius || 5) * imageScale.value + 8 * uiScale
   }
   
   return {
     x: position.x,
     y: position.y,
     text: annotation.className,
-    fontSize: 12,
+    fontSize: 12 * uiScale,
     fontFamily: 'Arial, sans-serif',
     fontStyle: 'bold',
     fill: isSelected ? '#4285f4' : '#00c851',
     stroke: '#ffffff',
-    strokeWidth: 2,
+    strokeWidth: 2 * uiScale,
     listening: false,
     perfectDrawEnabled: false
   }
@@ -584,8 +683,9 @@ const getCurrentRectConfig = () => {
   
   const width = Math.abs((currentAnnotation.value.width || 0) * imageScale.value)
   const height = Math.abs((currentAnnotation.value.height || 0) * imageScale.value)
+  const uiScale = getUIScale()
   
-  // Calculate proper top-left position for negative dimensions
+  // Calculate proper top-left position for negative dimensions in canvas coordinates
   const x = Math.min(startPoint.value.x, startPoint.value.x + (currentAnnotation.value.width || 0) * imageScale.value)
   const y = Math.min(startPoint.value.y, startPoint.value.y + (currentAnnotation.value.height || 0) * imageScale.value)
   
@@ -595,9 +695,9 @@ const getCurrentRectConfig = () => {
     width: width,
     height: height,
     stroke: '#4285f4',
-    strokeWidth: 2,
+    strokeWidth: 2 * uiScale,
     fill: 'rgba(66, 133, 244, 0.1)',
-    dash: [5, 5],
+    dash: [5 * uiScale, 5 * uiScale],
     listening: false
   }
 }
@@ -606,11 +706,12 @@ const getCurrentPolygonConfig = () => {
   if (!currentAnnotation.value || currentPath.value.length === 0) return {}
   
   const points = currentPath.value.flatMap(point => [point.x, point.y])
+  const uiScale = getUIScale()
   
   return {
     points: points,
     stroke: '#4285f4',
-    strokeWidth: 3,
+    strokeWidth: 3 * uiScale,
     fill: 'rgba(66, 133, 244, 0.1)',
     closed: false,
     listening: false,
@@ -625,11 +726,13 @@ const getPolygonPreviewConfig = () => {
   const lastPoint = currentPath.value[currentPath.value.length - 1]
   if (!lastPoint) return {}
   
+  const uiScale = getUIScale()
+  
   return {
     points: [lastPoint.x, lastPoint.y, mousePosition.value.x, mousePosition.value.y],
     stroke: '#4285f4',
-    strokeWidth: 2,
-    dash: [3, 3],
+    strokeWidth: 2 * uiScale,
+    dash: [3 * uiScale, 3 * uiScale],
     listening: false,
     opacity: 0.7
   }
@@ -638,62 +741,72 @@ const getPolygonPreviewConfig = () => {
 const getVertexConfig = (point: { x: number; y: number }, index: number) => {
   const isFirst = index === 0
   const isLast = index === currentPath.value.length - 1
+  const uiScale = getUIScale()
   
   return {
     x: point.x,
     y: point.y,
-    radius: 4,
+    radius: 4 * uiScale,
     fill: isFirst ? '#ff4444' : (isLast ? '#4285f4' : '#ffffff'),
     stroke: '#4285f4',
-    strokeWidth: 2,
+    strokeWidth: 2 * uiScale,
     listening: false,
     shadowColor: 'rgba(0,0,0,0.3)',
-    shadowBlur: 2,
-    shadowOffsetY: 1
+    shadowBlur: 2 * uiScale,
+    shadowOffsetY: 1 * uiScale
   }
 }
 
 const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
-  return createFreehandConfig(
+  const baseConfig = createFreehandConfig(
     annotation,
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToDisplay
+    originalToCanvas
   )
+  
+  // Apply UI scaling to stroke properties
+  const uiScale = getUIScale()
+  return {
+    ...baseConfig,
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+  }
 }
 
 const getCurrentCircleConfig = () => {
   if (!currentAnnotation.value || !currentAnnotation.value.center || currentAnnotation.value.radius === undefined) return {}
   
-  const displayCenter = originalToDisplay(currentAnnotation.value.center)
-  const displayRadius = currentAnnotation.value.radius * imageScale.value
+  const canvasCenter = originalToCanvas(currentAnnotation.value.center)
+  const canvasRadius = currentAnnotation.value.radius * imageScale.value
+  const uiScale = getUIScale()
   
   return {
-    x: displayCenter.x,
-    y: displayCenter.y,
-    radius: displayRadius,
+    x: canvasCenter.x,
+    y: canvasCenter.y,
+    radius: canvasRadius,
     stroke: '#4285f4',
-    strokeWidth: 3,
+    strokeWidth: 3 * uiScale,
     fill: 'rgba(66, 133, 244, 0.1)',
     listening: false,
-    dash: [5, 5]
+    dash: [5 * uiScale, 5 * uiScale]
   }
 }
 
 const getCurrentLineConfig = () => {
   if (!currentAnnotation.value || !currentAnnotation.value.startPoint || !currentAnnotation.value.endPoint) return {}
   
-  const displayStart = originalToDisplay(currentAnnotation.value.startPoint)
-  const displayEnd = originalToDisplay(currentAnnotation.value.endPoint)
+  const canvasStart = originalToCanvas(currentAnnotation.value.startPoint)
+  const canvasEnd = originalToCanvas(currentAnnotation.value.endPoint)
+  const uiScale = getUIScale()
   
   return {
-    points: [displayStart.x, displayStart.y, displayEnd.x, displayEnd.y],
+    points: [canvasStart.x, canvasStart.y, canvasEnd.x, canvasEnd.y],
     stroke: '#4285f4',
-    strokeWidth: 3,
+    strokeWidth: 3 * uiScale,
     listening: false,
     lineCap: 'round',
-    dash: [5, 5]
+    dash: [5 * uiScale, 5 * uiScale]
   }
 }
 
@@ -701,28 +814,32 @@ const getCurrentFreehandConfig = () => {
   if (!currentAnnotation.value || currentPath.value.length === 0) return {}
   
   const points = currentPath.value.flatMap(point => [point.x, point.y])
+  const uiScale = getUIScale()
   
   return {
     points: points,
     stroke: '#4285f4',
-    strokeWidth: 3,
+    strokeWidth: 3 * uiScale,
     fill: 'transparent',
     closed: false,
     listening: false,
     tension: 0.3,
     lineCap: 'round',
     lineJoin: 'round',
-    dash: [5, 5]
+    dash: [5 * uiScale, 5 * uiScale]
   }
 }
 
-// Event handlers with improved bounds checking
+// Event handlers with proper coordinate transformation
 const handleStageMouseDown = (e: any) => {
-  const pos = e.target.getStage().getPointerPosition()
+  const stageNode = e.target.getStage()
+  const pointer = stageNode.getPointerPosition()
+  
+  if (!pointer) return
   
   if (props.currentTool === 'select') {
     // Check if clicking on empty area
-    const clickedOnEmpty = e.target === e.target.getStage()
+    const clickedOnEmpty = e.target === stageNode
     if (clickedOnEmpty) {
       selectedAnnotationIndex.value = null
       showAnnotationTools.value = false
@@ -732,68 +849,82 @@ const handleStageMouseDown = (e: any) => {
   }
   
   // Only allow annotation creation within image bounds
-  if (!isPointInImageBounds(pos)) {
+  if (!isPointInImageBounds(pointer)) {
     return
   }
   
+  // Convert to canvas coordinates
+  const transform = stageNode.getAbsoluteTransform().copy().invert()
+  const canvasPos = transform.point(pointer)
+  const originalPos = canvasToOriginal(canvasPos)
+  
   // Auto-start annotating for rectangle, line, circle when tool is selected
   if (props.currentTool === 'rectangle' || props.currentTool === 'line' || props.currentTool === 'circle') {
-    const originalPos = displayToOriginal(pos)
     startAnnotation(props.currentTool as any, originalPos)
-    startPoint.value = pos // Keep display coordinates for calculations
+    startPoint.value = canvasPos // Keep canvas coordinates for calculations
   } else if (props.currentTool === 'freehand') {
-    const originalPos = displayToOriginal(pos)
     startAnnotation('freehand', originalPos)
-    currentPath.value = [pos] // Keep display coordinates for drawing
+    currentPath.value = [canvasPos] // Keep canvas coordinates for drawing
   }
 }
 
 const handleStageMouseMove = (e: any) => {
-  const pos = e.target.getStage().getPointerPosition()
-  mousePosition.value = pos
+  const stageNode = e.target.getStage()
+  const pointer = stageNode.getPointerPosition()
+  
+  if (!pointer) return
+  
+  // Convert pointer to canvas coordinates for consistent coordinate handling
+  const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
+  const mouseCanvasPos = mouseTransform.point(pointer)
+  mousePosition.value = mouseCanvasPos
   
   if (!isDrawing.value || !startPoint.value || !currentAnnotation.value) return
   
-  // Clamp position to image bounds
-  const clampedPos = {
-    x: Math.max(imageOffset.value.x, Math.min(pos.x, imageOffset.value.x + displayImageSize.value.width)),
-    y: Math.max(imageOffset.value.y, Math.min(pos.y, imageOffset.value.y + displayImageSize.value.height))
+  // Convert to canvas coordinates
+  const transform = stageNode.getAbsoluteTransform().copy().invert()
+  const canvasPos = transform.point(pointer)
+  
+  // Clamp position to image bounds in canvas coordinates
+  const clampedCanvasPos = {
+    x: Math.max(imageOffset.value.x, Math.min(canvasPos.x, imageOffset.value.x + displayImageSize.value.width)),
+    y: Math.max(imageOffset.value.y, Math.min(canvasPos.y, imageOffset.value.y + displayImageSize.value.height))
   }
   
   if (props.currentTool === 'rectangle') {
-    const width = Math.abs(clampedPos.x - startPoint.value.x)
-    const height = Math.abs(clampedPos.y - startPoint.value.y)
+    const width = Math.abs(clampedCanvasPos.x - startPoint.value.x)
+    const height = Math.abs(clampedCanvasPos.y - startPoint.value.y)
     
     // Update current annotation for display
     currentAnnotation.value.width = width / imageScale.value
     currentAnnotation.value.height = height / imageScale.value
     
     // Handle negative dimensions by adjusting start point
-    if (clampedPos.x < startPoint.value.x) {
-      currentAnnotation.value.startPoint = displayToOriginal({
-        x: clampedPos.x,
+    if (clampedCanvasPos.x < startPoint.value.x) {
+      currentAnnotation.value.startPoint = canvasToOriginal({
+        x: clampedCanvasPos.x,
         y: currentAnnotation.value.startPoint!.y * imageScale.value + imageOffset.value.y
       })
     }
-    if (clampedPos.y < startPoint.value.y) {
-      currentAnnotation.value.startPoint = displayToOriginal({
+    if (clampedCanvasPos.y < startPoint.value.y) {
+      currentAnnotation.value.startPoint = canvasToOriginal({
         x: currentAnnotation.value.startPoint!.x * imageScale.value + imageOffset.value.x,
-        y: clampedPos.y
+        y: clampedCanvasPos.y
       })
     }
   } else if (props.currentTool === 'line') {
-    currentAnnotation.value.endPoint = displayToOriginal(clampedPos)
+    currentAnnotation.value.endPoint = canvasToOriginal(clampedCanvasPos)
   } else if (props.currentTool === 'circle') {
-    const distance = Math.hypot(clampedPos.x - startPoint.value.x, clampedPos.y - startPoint.value.y)
+    const distance = Math.hypot(clampedCanvasPos.x - startPoint.value.x, clampedCanvasPos.y - startPoint.value.y)
     currentAnnotation.value.radius = distance / imageScale.value
   } else if (props.currentTool === 'freehand' && currentAnnotation.value?.points) {
     // Add point to freehand path if distance is sufficient
     const lastPoint = currentPath.value[currentPath.value.length - 1]
     if (lastPoint) {
-      const distance = Math.hypot(clampedPos.x - lastPoint.x, clampedPos.y - lastPoint.y)
+      const distance = Math.hypot(clampedCanvasPos.x - lastPoint.x, clampedCanvasPos.y - lastPoint.y)
       if (distance > 2) { // Minimum distance to reduce noise
-        currentPath.value.push(clampedPos)
-        currentAnnotation.value.points.push(displayToOriginal(clampedPos))
+        currentPath.value.push(clampedCanvasPos)
+        currentAnnotation.value.points.push(canvasToOriginal(clampedCanvasPos))
       }
     }
   }
@@ -805,37 +936,49 @@ const handleStageMouseUp = (e: any) => {
   isDrawing.value = false
   
   if (currentAnnotation.value) {
-    const minSize = 5
+    const minSize = 5 / imageScale.value // Minimum size in original coordinates
     let shouldComplete = false
     
     if (props.currentTool === 'rectangle') {
       const width = Math.abs(currentAnnotation.value.width || 0)
       const height = Math.abs(currentAnnotation.value.height || 0)
-      shouldComplete = width > minSize / imageScale.value && height > minSize / imageScale.value
+      shouldComplete = width > minSize && height > minSize
       
       // Normalize the rectangle to have positive dimensions
       if (shouldComplete && startPoint.value) {
-        const pos = e.target.getStage().getPointerPosition()
-        const topLeft = {
-          x: Math.min(startPoint.value.x, pos.x),
-          y: Math.min(startPoint.value.y, pos.y)
+        const stageNode = e.target.getStage()
+        const pointer = stageNode.getPointerPosition()
+        if (pointer) {
+          const transform = stageNode.getAbsoluteTransform().copy().invert()
+          const canvasPos = transform.point(pointer)
+          
+          const topLeft = {
+            x: Math.min(startPoint.value.x, canvasPos.x),
+            y: Math.min(startPoint.value.y, canvasPos.y)
+          }
+          const bottomRight = {
+            x: Math.max(startPoint.value.x, canvasPos.x),
+            y: Math.max(startPoint.value.y, canvasPos.y)
+          }
+          
+          currentAnnotation.value.startPoint = canvasToOriginal(topLeft)
+          currentAnnotation.value.width = (bottomRight.x - topLeft.x) / imageScale.value
+          currentAnnotation.value.height = (bottomRight.y - topLeft.y) / imageScale.value
         }
-        const bottomRight = {
-          x: Math.max(startPoint.value.x, pos.x),
-          y: Math.max(startPoint.value.y, pos.y)
-        }
-        
-        currentAnnotation.value.startPoint = displayToOriginal(topLeft)
-        currentAnnotation.value.width = (bottomRight.x - topLeft.x) / imageScale.value
-        currentAnnotation.value.height = (bottomRight.y - topLeft.y) / imageScale.value
       }
     } else if (props.currentTool === 'line') {
-      const startPt = startPoint.value
-      const pos = e.target.getStage().getPointerPosition()
-      const distance = Math.hypot(pos.x - startPt!.x, pos.y - startPt!.y)
-      shouldComplete = distance > minSize
+      if (startPoint.value) {
+        const stageNode = e.target.getStage()
+        const pointer = stageNode.getPointerPosition()
+        if (pointer) {
+          const transform = stageNode.getAbsoluteTransform().copy().invert()
+          const canvasPos = transform.point(pointer)
+          const distance = Math.hypot(canvasPos.x - startPoint.value.x, canvasPos.y - startPoint.value.y)
+          shouldComplete = distance > 5 // Minimum distance in canvas pixels
+        }
+      }
     } else if (props.currentTool === 'circle') {
-      shouldComplete = (currentAnnotation.value.radius || 0) > minSize / imageScale.value
+      shouldComplete = (currentAnnotation.value.radius || 0) > minSize
     } else if (props.currentTool === 'freehand') {
       shouldComplete = currentPath.value.length > 3
     }
@@ -843,8 +986,9 @@ const handleStageMouseUp = (e: any) => {
     if (shouldComplete) {
       if (props.classes && props.classes.length > 0) {
         // Show class selector
-        const pos = e.target.getStage().getPointerPosition()
-        emit('show-class-selector', currentAnnotation.value, pos)
+        const stageNode = e.target.getStage()
+        const pointer = stageNode.getPointerPosition()
+        emit('show-class-selector', currentAnnotation.value, pointer || { x: 0, y: 0 })
       } else {
         // Complete annotation without class
         completeAnnotation(currentAnnotation.value)
@@ -860,32 +1004,39 @@ const handleStageMouseUp = (e: any) => {
 }
 
 const handleStageClick = (e: any) => {
-  const pos = e.target.getStage().getPointerPosition()
+  const stageNode = e.target.getStage()
+  const pointer = stageNode.getPointerPosition()
+  
+  if (!pointer) return
   
   // Only allow interaction within image bounds
-  if (!isPointInImageBounds(pos)) {
+  if (!isPointInImageBounds(pointer)) {
     return
   }
+  
+  // Convert to canvas coordinates
+  const transform = stageNode.getAbsoluteTransform().copy().invert()
+  const canvasPos = transform.point(pointer)
+  const originalPos = canvasToOriginal(canvasPos)
   
   if (props.currentTool === 'polygon') {
     if (!props.isAnnotating) {
       // Start new polygon
-      const originalPos = displayToOriginal(pos)
       startAnnotation('polygon', originalPos)
-      currentPath.value = [pos] // Keep display coordinates for drawing
+      currentPath.value = [canvasPos] // Keep canvas coordinates for drawing
     } else {
       // Add point to current polygon
       if (currentAnnotation.value && currentAnnotation.value.points) {
         const firstPoint = currentPath.value[0]
         if (firstPoint) {
-          const distance = Math.hypot(pos.x - firstPoint.x, pos.y - firstPoint.y)
+          const distance = Math.hypot(canvasPos.x - firstPoint.x, canvasPos.y - firstPoint.y)
           
           if (distance < 15 && currentPath.value.length > 2) {
             // Close polygon - snap to first point
             completePolygon()
           } else {
-            currentPath.value.push(pos)
-            currentAnnotation.value.points.push(displayToOriginal(pos))
+            currentPath.value.push(canvasPos)
+            currentAnnotation.value.points.push(originalPos)
           }
         }
       }
@@ -894,12 +1045,12 @@ const handleStageClick = (e: any) => {
     // Create dot annotation
     const dotAnnotation: CanvasAnnotation = {
       type: 'dot',
-      center: displayToOriginal(pos),
+      center: originalPos,
       radius: 5
     }
     
     if (props.classes && props.classes.length > 0) {
-      emit('show-class-selector', dotAnnotation, pos)
+      emit('show-class-selector', dotAnnotation, pointer)
     } else {
       completeAnnotation(dotAnnotation)
     }
@@ -909,6 +1060,71 @@ const handleStageClick = (e: any) => {
 const handleStageDoubleClick = () => {
   if (props.currentTool === 'polygon' && props.isAnnotating && currentPath.value.length > 2) {
     completePolygon()
+  }
+}
+
+const handleStageWheel = (e: any) => {
+  // Prevent default scroll behavior
+  e.evt.preventDefault()
+  
+  if (!stage.value) return
+  
+  const stageNode = stage.value.getNode()
+  const pointer = stageNode.getPointerPosition()
+  
+  if (!pointer) return
+  
+  // Calculate new scale
+  const scaleDirection = e.evt.deltaY > 0 ? -1 : 1
+  const newScale = Math.min(Math.max(stageScale.value * (scaleBy ** scaleDirection), minScale.value), maxScale.value)
+  
+  // If scale doesn't change (hit min/max), don't do anything
+  if (newScale === stageScale.value) return
+  
+  // Get current stage position and scale from the actual stage node
+  const currentStagePos = stageNode.position()
+  const currentStageScale = stageNode.scaleX()
+  
+  // Calculate mouse point relative to the current stage transformation
+  const mousePointTo = {
+    x: (pointer.x - currentStagePos.x) / currentStageScale,
+    y: (pointer.y - currentStagePos.y) / currentStageScale
+  }
+  
+  // Calculate new position to zoom relative to pointer
+  const newPos = {
+    x: pointer.x - mousePointTo.x * newScale,
+    y: pointer.y - mousePointTo.y * newScale
+  }
+  
+  // Update stage scale and position
+  stageScale.value = newScale
+  stagePosition.value = newPos
+}
+
+// Zoom utility functions
+const resetZoom = () => {
+  stageScale.value = 1
+  stagePosition.value = { x: 0, y: 0 }
+}
+
+const fitToScreen = () => {
+  if (!imageObj.value) return
+  
+  // Calculate the scale needed to fit the image in the stage
+  const scaleX = stageSize.value.width / displayImageSize.value.width
+  const scaleY = stageSize.value.height / displayImageSize.value.height
+  const fitScale = Math.min(scaleX, scaleY, 1) // Don't scale up beyond 100%
+  
+  stageScale.value = fitScale
+  
+  // Center the image
+  const scaledImageWidth = displayImageSize.value.width * fitScale
+  const scaledImageHeight = displayImageSize.value.height * fitScale
+  
+  stagePosition.value = {
+    x: (stageSize.value.width - scaledImageWidth) / 2 - imageOffset.value.x * fitScale,
+    y: (stageSize.value.height - scaledImageHeight) / 2 - imageOffset.value.y * fitScale
   }
 }
 
@@ -959,8 +1175,11 @@ const handleDragEnd = (index: number, e: any) => {
         node,
         imageOffset: imageOffset.value,
         displayImageSize: displayImageSize.value,
-        originalSizeToDisplay,
-        displayToOriginal
+        originalSizeToDisplay: (size: { width: number; height: number }) => ({
+          width: size.width * imageScale.value,
+          height: size.height * imageScale.value
+        }),
+        displayToOriginal: (point: { x: number; y: number }) => canvasToOriginal(point)
       })
       break
       
@@ -980,7 +1199,7 @@ const handleDragEnd = (index: number, e: any) => {
         imageOffset: imageOffset.value,
         displayImageSize: displayImageSize.value,
         imageScale: imageScale.value,
-        displayToOriginal
+        displayToOriginal: (point: { x: number; y: number }) => canvasToOriginal(point)
       })
       break
       
@@ -990,7 +1209,7 @@ const handleDragEnd = (index: number, e: any) => {
         node,
         imageOffset: imageOffset.value,
         displayImageSize: displayImageSize.value,
-        displayToOriginal
+        displayToOriginal: (point: { x: number; y: number }) => canvasToOriginal(point)
       })
       break
       
@@ -1001,7 +1220,7 @@ const handleDragEnd = (index: number, e: any) => {
         imageOffset: imageOffset.value,
         displayImageSize: displayImageSize.value,
         imageScale: imageScale.value,
-        displayToOriginal
+        displayToOriginal: (point: { x: number; y: number }) => canvasToOriginal(point)
       })
       break
       
@@ -1032,20 +1251,23 @@ const handleTransformEnd = (index: number, e: any) => {
     const updatedAnnotation = handleRectangleTransformEnd({
       annotation,
       node,
-      displaySizeToOriginal,
-      displayToOriginal,
+      displaySizeToOriginal: (size: { width: number; height: number }) => ({
+        width: size.width / imageScale.value,
+        height: size.height / imageScale.value
+      }),
+      displayToOriginal: (point: { x: number; y: number }) => canvasToOriginal(point),
       originalImageSize: originalImageSize.value
     })
     
     // Update node position and size to reflect constrained values
-    const constrainedDisplayStart = originalToDisplay(updatedAnnotation.startPoint!)
-    const constrainedDisplaySize = originalSizeToDisplay({
-      width: updatedAnnotation.width!,
-      height: updatedAnnotation.height!
-    })
+    const constrainedCanvasStart = originalToCanvas(updatedAnnotation.startPoint!)
+    const constrainedCanvasSize = {
+      width: updatedAnnotation.width! * imageScale.value,
+      height: updatedAnnotation.height! * imageScale.value
+    }
     
-    node.position(constrainedDisplayStart)
-    node.size(constrainedDisplaySize)
+    node.position(constrainedCanvasStart)
+    node.size(constrainedCanvasSize)
     
     emit('annotation-updated', updatedAnnotation, index)
   }
@@ -1188,7 +1410,29 @@ defineExpose({
   getOriginalImageSize: () => originalImageSize.value,
   getDisplayImageSize: () => displayImageSize.value,
   isPointInBounds: isPointInImageBounds,
-  convertToOriginal: displayToOriginal,
-  convertToDisplay: originalToDisplay
+  convertToOriginal: canvasToOriginal,
+  convertToDisplay: originalToCanvas,
+  // Zoom methods
+  resetZoom,
+  fitToScreen,
+  getStageScale: () => stageScale.value,
+  getStagePosition: () => stagePosition.value,
+  setZoom: (scale: number, center?: { x: number; y: number }) => {
+    const newScale = Math.min(Math.max(scale, minScale.value), maxScale.value)
+    
+    if (center && stage.value) {
+      const stageNode = stage.value.getNode()
+      // Zoom to specific point using proper coordinate transformation
+      const transform = stageNode.getAbsoluteTransform().copy().invert()
+      const canvasPoint = transform.point(center)
+      
+      stagePosition.value = {
+        x: center.x - canvasPoint.x * newScale,
+        y: center.y - canvasPoint.y * newScale
+      }
+    }
+    
+    stageScale.value = newScale
+  }
 })
 </script>
