@@ -1,0 +1,6 @@
+export { handleRectangleDragEnd } from './handleRectangleDragEnd'
+export { handlePolygonDragEnd } from './handlePolygonDragEnd'
+export { handleDotDragEnd } from './handleDotDragEnd'
+export { handleLineDragEnd } from './handleLineDragEnd'
+export { handleCircleDragEnd } from './handleCircleDragEnd'
+export { handleFreehandDragEnd } from './handleFreehandDragEnd'

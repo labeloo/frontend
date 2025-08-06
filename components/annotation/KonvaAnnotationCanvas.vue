@@ -231,23 +231,18 @@ import { usePolygonConfig } from '~/composables/usePolygonConfig';
 import { useCircleConfig } from '~/composables/useCircleConfig';
 import { useLineConfig } from '~/composables/useLineConfig';
 import { useFreehandConfig } from '~/composables/useFreehandConfig';
-
-// import useRectConfig from '~/composables/useRectConfig';
+import { 
+  handleRectangleDragEnd,
+  handlePolygonDragEnd,
+  handleDotDragEnd,
+  handleLineDragEnd,
+  handleCircleDragEnd,
+  handleFreehandDragEnd
+} from './handlers'
+import type { CanvasAnnotation } from './types'
 
 // Remove direct Konva import to avoid SSR issues
 // Konva will be available through vue-konva plugin
-
-interface CanvasAnnotation {
-  type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
-  startPoint?: { x: number; y: number }
-  endPoint?: { x: number; y: number }
-  width?: number
-  height?: number
-  points?: { x: number; y: number }[]
-  center?: { x: number; y: number }
-  radius?: number
-  className?: string
-}
 
 interface Props {
   imageUrl: string
@@ -957,48 +952,75 @@ const handleDragEnd = (index: number, e: any) => {
   const annotation: CanvasAnnotation = { ...originalAnnotation }
   const node = e.target
   
-  // Get the new position and constrain to image bounds
-  let newPos = { x: node.x(), y: node.y() }
+  let updatedAnnotation: CanvasAnnotation
   
-  // Clamp position to ensure annotation stays within image bounds
-  if (annotation.type === 'rectangle' && annotation.width && annotation.height) {
-    const displaySize = originalSizeToDisplay({ width: annotation.width, height: annotation.height })
-    newPos.x = Math.max(imageOffset.value.x, Math.min(newPos.x, imageOffset.value.x + displayImageSize.value.width - displaySize.width))
-    newPos.y = Math.max(imageOffset.value.y, Math.min(newPos.y, imageOffset.value.y + displayImageSize.value.height - displaySize.height))
-    
-    node.position(newPos)
-    annotation.startPoint = displayToOriginal(newPos)
-  } else if (annotation.type === 'polygon' && annotation.points) {
-    const dx = node.x() / imageScale.value
-    const dy = node.y() / imageScale.value
-    
-    // Validate that all points would remain within bounds
-    const newPoints = annotation.points.map(point => ({
-      x: point.x + dx,
-      y: point.y + dy
-    }))
-    
-    const allPointsValid = newPoints.every(point => 
-      point.x >= 0 && point.x <= originalImageSize.value.width &&
-      point.y >= 0 && point.y <= originalImageSize.value.height
-    )
-    
-    if (allPointsValid) {
-      annotation.points = newPoints
-    }
-    
-    // Reset node position after updating points
-    node.position({ x: 0, y: 0 })
-  } else if (annotation.type === 'dot' && annotation.center && annotation.radius) {
-    const displayRadius = annotation.radius * imageScale.value
-    newPos.x = Math.max(imageOffset.value.x + displayRadius, Math.min(newPos.x, imageOffset.value.x + displayImageSize.value.width - displayRadius))
-    newPos.y = Math.max(imageOffset.value.y + displayRadius, Math.min(newPos.y, imageOffset.value.y + displayImageSize.value.height - displayRadius))
-    
-    node.position(newPos)
-    annotation.center = displayToOriginal(newPos)
+  switch (annotation.type) {
+    case 'rectangle':
+      updatedAnnotation = handleRectangleDragEnd({
+        annotation,
+        node,
+        imageOffset: imageOffset.value,
+        displayImageSize: displayImageSize.value,
+        originalSizeToDisplay,
+        displayToOriginal
+      })
+      break
+      
+    case 'polygon':
+      updatedAnnotation = handlePolygonDragEnd({
+        annotation,
+        node,
+        imageScale: imageScale.value,
+        originalImageSize: originalImageSize.value
+      })
+      break
+      
+    case 'dot':
+      updatedAnnotation = handleDotDragEnd({
+        annotation,
+        node,
+        imageOffset: imageOffset.value,
+        displayImageSize: displayImageSize.value,
+        imageScale: imageScale.value,
+        displayToOriginal
+      })
+      break
+      
+    case 'line':
+      updatedAnnotation = handleLineDragEnd({
+        annotation,
+        node,
+        imageOffset: imageOffset.value,
+        displayImageSize: displayImageSize.value,
+        displayToOriginal
+      })
+      break
+      
+    case 'circle':
+      updatedAnnotation = handleCircleDragEnd({
+        annotation,
+        node,
+        imageOffset: imageOffset.value,
+        displayImageSize: displayImageSize.value,
+        imageScale: imageScale.value,
+        displayToOriginal
+      })
+      break
+      
+    case 'freehand':
+      updatedAnnotation = handleFreehandDragEnd({
+        annotation,
+        node,
+        imageScale: imageScale.value,
+        originalImageSize: originalImageSize.value
+      })
+      break
+      
+    default:
+      updatedAnnotation = annotation
   }
   
-  emit('annotation-updated', annotation, index)
+  emit('annotation-updated', updatedAnnotation, index)
 }
 
 const handleTransformEnd = (index: number, e: any) => {
