@@ -2,6 +2,22 @@
   <div class="w-full h-full flex items-center justify-center">
     <ClientOnly>
       <div ref="stageContainer" class="relative border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
+        <!-- Performance Indicator -->
+        <div 
+          v-if="isPerformanceMode" 
+          class="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-bold z-10 pointer-events-none"
+        >
+          PERFORMANCE MODE
+        </div>
+        
+        <!-- Sliding Buffer Status -->
+        <div 
+          v-if="props.currentTool === 'freehand' && isDrawing" 
+          class="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-mono z-10 pointer-events-none"
+        >
+          Buffer: {{ getBufferStatus() }}
+        </div>
+        
         <v-stage
           ref="stage"
           :config="stageConfig"
@@ -11,6 +27,8 @@
           @click="handleStageClick"
           @dblclick="handleStageDoubleClick"
           @wheel="handleStageWheel"
+          @dragstart="handleStageDragStart"
+          @dragend="handleStageDragEnd"
         >
         <!-- Background layer for image -->
         <v-layer ref="imageLayer">
@@ -238,6 +256,26 @@
           <UIcon name="i-heroicons-document-duplicate" class="w-5 h-5" />
         </button>
       </div>
+      
+      <!-- Performance Mode Indicator -->
+      <div 
+        v-if="isPerformanceMode"
+        class="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium z-20 flex items-center space-x-2"
+      >
+        <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+        <span>Performance Mode</span>
+      </div>
+      
+      <!-- Debug Info for Polygon Optimizations (development mode) -->
+      <div 
+        v-if="isDevelopmentMode"
+        class="absolute top-4 left-4 bg-black bg-opacity-75 text-white px-3 py-2 rounded text-xs z-20 space-y-1"
+      >
+        <div>Zoom: {{ stageScale.toFixed(2) }}x</div>
+        <div>Polygons: {{ polygonCount }}</div>
+        <div>Complex: {{ complexPolygonCount }}</div>
+        <div v-if="isPerformanceMode" class="text-orange-300">⚡ Performance Mode</div>
+      </div>
     </div>
     </ClientOnly>
   </div>
@@ -252,6 +290,9 @@ import { useFreehandConfig } from '~/composables/useFreehandConfig';
 import { useAnnotationLifecycle } from '~/composables/useAnnotationLifecycle';
 import { useAnnotationDragHandlers } from '~/composables/useAnnotationDragHandlers';
 import { useAnnotationTransformHandlers } from '~/composables/useAnnotationTransformHandlers';
+import { polygonPerformanceMonitor } from '~/utils/polygonPerformanceMonitor';
+import { slidingBufferOptimizer } from '~/utils/slidingBufferOptimization';
+import { workerManager } from '~/utils/polygonWorkerManager';
 import type { CanvasAnnotation } from './types'
 
 // Remove direct Konva import to avoid SSR issues
@@ -322,6 +363,21 @@ const mousePosition = ref<{ x: number; y: number } | null>(null)
 
 // Drag state tracking
 const isDraggingAnnotation = ref(false)
+
+// Double-click timing state for improved polygon completion
+const lastClickTime = ref(0)
+const doubleClickThreshold = 250 // Reduced from default ~500ms to 250ms for faster double-click
+
+// Polygon performance optimization state
+const isZooming = ref(false)
+const isDraggingStage = ref(false)
+const polygonLayerVisible = ref(true)
+const isPerformanceMode = ref(false)
+
+// Debounce timers for performance optimization
+let zoomDebounceTimer: number | null = null
+let dragDebounceTimer: number | null = null
+let cacheUpdateTimer: number | null = null
 
 // UI state
 const showAnnotationTools = ref(false)
@@ -395,6 +451,21 @@ const transformerConfig = computed(() => {
       return newBox
     }
   }
+})
+
+// Development mode and polygon stats computed properties
+const isDevelopmentMode = computed(() => process.env.NODE_ENV === 'development')
+
+const polygonCount = computed(() => {
+  return props.annotations.filter(a => a.type === 'polygon' || a.type === 'freehand').length
+})
+
+const complexPolygonCount = computed(() => {
+  return props.annotations.filter(a => 
+    (a.type === 'polygon' || a.type === 'freehand') && 
+    a.points && 
+    a.points.length > 10 // Reduced from 20 to 10 to match performance threshold
+  ).length
 })
 
 // Methods
@@ -512,7 +583,17 @@ const cacheAnnotationNode = (node: any, key: string) => {
     node.clearCache()
     
     // Apply cache to improve rendering performance
-    node.cache()
+    // For polygons and freehand, apply optimized caching settings
+    if (key.includes('polygon') || key.includes('freehand')) {
+      // Use lower quality cache for complex shapes to balance performance
+      node.cache({
+        pixelRatio: 1, // Use 1:1 pixel ratio for complex shapes
+        imageSmoothingEnabled: false // Disable smoothing for performance
+      })
+    } else {
+      // Use standard caching for simple shapes
+      node.cache()
+    }
     
     // Store reference for future cache management
     annotationRefs.value[key] = node
@@ -521,7 +602,7 @@ const cacheAnnotationNode = (node: any, key: string) => {
   }
 }
 
-// Helper function to invalidate and recache a node
+// Helper function to invalidate and recache a node with polygon-specific optimization
 const updateAnnotationCache = (node: any, key: string) => {
   if (!node) return
   
@@ -529,17 +610,30 @@ const updateAnnotationCache = (node: any, key: string) => {
     node.clearCache()
     // Use nextTick to ensure the node is fully updated before caching
     nextTick(() => {
-      node.cache()
+      // Apply optimized caching for polygons and freehand
+      if (key.includes('polygon') || key.includes('freehand')) {
+        node.cache({
+          pixelRatio: 1,
+          imageSmoothingEnabled: false
+        })
+      } else {
+        node.cache()
+      }
       annotationRefs.value[key] = node
+      
+      // Use efficient layer batch draw instead of stage redraw
+      if (annotationLayer.value) {
+        annotationLayer.value.getNode().batchDraw()
+      }
     })
   } catch (error) {
     console.warn('Failed to update annotation cache:', error)
   }
 }
 
-// Helper function to clear all annotation caches
+// Helper function to clear all annotation caches with polygon-specific handling
 const clearAllAnnotationCaches = () => {
-  Object.values(annotationRefs.value).forEach(node => {
+  Object.entries(annotationRefs.value).forEach(([key, node]) => {
     if (node && typeof node.clearCache === 'function') {
       try {
         node.clearCache()
@@ -553,6 +647,56 @@ const clearAllAnnotationCaches = () => {
 
 // Helper function to calculate inverse scale for UI elements to maintain visual consistency
 const getUIScale = () => 1 / stageScale.value
+
+// Performance optimization functions
+const enterPerformanceMode = () => {
+  isPerformanceMode.value = true
+  polygonLayerVisible.value = false
+  polygonPerformanceMonitor.setPerformanceMode(true)
+  
+  // Clear polygon caches during performance mode
+  Object.entries(annotationRefs.value).forEach(([key, node]) => {
+    if ((key.includes('polygon') || key.includes('freehand')) && node && typeof node.clearCache === 'function') {
+      try {
+        node.clearCache()
+      } catch (error) {
+        console.warn('Failed to clear polygon cache during performance mode:', error)
+      }
+    }
+  })
+}
+
+const exitPerformanceMode = () => {
+  isPerformanceMode.value = false
+  polygonLayerVisible.value = true
+  polygonPerformanceMonitor.setPerformanceMode(false)
+  
+  // Recache polygons after exiting performance mode
+  debouncedCachePolygons()
+}
+
+const debouncedCachePolygons = () => {
+  if (cacheUpdateTimer) {
+    clearTimeout(cacheUpdateTimer)
+  }
+  
+  cacheUpdateTimer = window.setTimeout(() => {
+    props.annotations.forEach((annotation, index) => {
+      if (annotation.type === 'polygon' || annotation.type === 'freehand') {
+        const cacheKey = `${annotation.type}-${index}`
+        const node = annotationRefs.value[cacheKey]
+        if (node) {
+          cacheAnnotationNode(node, cacheKey)
+        }
+      }
+    })
+    
+    // Batch draw after caching
+    if (annotationLayer.value) {
+      annotationLayer.value.getNode().batchDraw()
+    }
+  }, 150) // 150ms debounce
+}
 
 // Helper function to convert pointer position to canvas coordinates
 const getCanvasPointerPosition = (stageNode: any) => {
@@ -648,15 +792,47 @@ const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToCanvas
+    originalToCanvas,
+    stageScale.value, // Pass current zoom level for adaptive simplification
+    !isPerformanceMode.value // Disable interaction during performance mode
   )
+  
+  // Return early if config is empty (invalid annotation)
+  if (!baseConfig || !('points' in baseConfig)) {
+    return baseConfig
+  }
   
   // Apply UI scaling to stroke properties
   const uiScale = getUIScale()
-  return {
+  const config = {
     ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
+    visible: polygonLayerVisible.value // Use visibility control for performance
+  } as any
+  
+  // More aggressive performance optimizations based on total polygon count
+  const totalPolygons = polygonCount.value
+  const isComplex = annotation.points && annotation.points.length > 10
+  
+  // Apply optimizations if we have many polygons OR this is a complex polygon
+  if (totalPolygons >= 8 || isComplex) { // Start optimizations at 8 total polygons
+    config.perfectDrawEnabled = false
+    
+    // Only allow listening for selected annotation when there are many polygons
+    if (totalPolygons >= 12) {
+      config.listening = selectedAnnotationIndex.value === index
+    } else {
+      config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
+    }
+    
+    // Use more aggressive caching for scenes with many polygons
+    if (totalPolygons >= 15) {
+      config.shadowEnabled = false // Disable shadows for better performance
+      config.hitStrokeWidth = 0 // Reduce hit area calculation overhead
+    }
   }
+  
+  return config
 }
 
 const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -835,15 +1011,52 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
     index,
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
-    originalToCanvas
+    originalToCanvas,
+    stageScale.value, // Pass current zoom level for adaptive simplification
+    !isPerformanceMode.value // Disable interaction during performance mode
   )
+  
+  // Return early if config is empty (invalid annotation)
+  if (!baseConfig || !('points' in baseConfig)) {
+    return baseConfig
+  }
   
   // Apply UI scaling to stroke properties
   const uiScale = getUIScale()
-  return {
+  const config = {
     ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
+    visible: polygonLayerVisible.value // Use visibility control for performance
+  } as any
+  
+  // More aggressive performance optimizations for freehand
+  const totalPolygons = polygonCount.value
+  const isComplex = annotation.points && annotation.points.length > 15
+  
+  // Apply optimizations if we have many polygons OR this is a complex freehand
+  if (totalPolygons >= 6 || isComplex) { // Even more aggressive for freehand (6 total polygons)
+    config.perfectDrawEnabled = false
+    
+    // Reduce tension for better performance on complex paths
+    if (isComplex) {
+      config.tension = 0.1 // Reduce from default 0.3
+    }
+    
+    // Only allow listening for selected annotation when there are many polygons
+    if (totalPolygons >= 10) {
+      config.listening = selectedAnnotationIndex.value === index
+    } else {
+      config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
+    }
+    
+    // Use more aggressive optimizations for scenes with many freehand annotations
+    if (totalPolygons >= 12) {
+      config.shadowEnabled = false
+      config.hitStrokeWidth = 0
+    }
   }
+  
+  return config
 }
 
 const getCurrentCircleConfig = () => {
@@ -937,6 +1150,8 @@ const handleStageMouseDown = (e: any) => {
   } else if (props.currentTool === 'freehand') {
     startAnnotation('freehand', originalPos)
     currentPath.value = [canvasPos] // Keep canvas coordinates for drawing
+    slidingBufferOptimizer.reset() // Reset buffer for new annotation
+    console.log('🎯 Starting new freehand annotation with sliding buffer optimization')
   }
 }
 
@@ -990,13 +1205,31 @@ const handleStageMouseMove = (e: any) => {
     const distance = Math.hypot(clampedCanvasPos.x - startPoint.value.x, clampedCanvasPos.y - startPoint.value.y)
     currentAnnotation.value.radius = distance / imageScale.value
   } else if (props.currentTool === 'freehand' && currentAnnotation.value?.points) {
-    // Add point to freehand path if distance is sufficient
-    const lastPoint = currentPath.value[currentPath.value.length - 1]
-    if (lastPoint) {
-      const distance = Math.hypot(clampedCanvasPos.x - lastPoint.x, clampedCanvasPos.y - lastPoint.y)
-      if (distance > 2) { // Minimum distance to reduce noise
-        currentPath.value.push(clampedCanvasPos)
-        currentAnnotation.value.points.push(canvasToOriginal(clampedCanvasPos))
+    // Use sliding buffer optimization for freehand drawing
+    const flatPoints = slidingBufferOptimizer.addPoint(clampedCanvasPos.x, clampedCanvasPos.y)
+    
+    if (flatPoints !== null) {
+      // Convert flat points back to coordinate objects for currentPath
+      const pathPoints = []
+      for (let i = 0; i < flatPoints.length - 1; i += 2) {
+        pathPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
+      }
+      currentPath.value = pathPoints
+      
+      // Update annotation points (original coordinates) - convert to coordinate objects
+      const originalPoints: { x: number; y: number }[] = []
+      for (let i = 0; i < flatPoints.length - 1; i += 2) {
+        const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
+        originalPoints.push(canvasToOriginal(canvasPoint))
+      }
+      currentAnnotation.value.points = originalPoints
+      
+      // Real-time performance monitoring during freehand drawing  
+      const pointCount = flatPoints.length / 2
+      if (pointCount % 5 === 0) { // Check every 5 rendered points
+        polygonPerformanceMonitor.updateMetrics([...props.annotations, currentAnnotation.value])
+        const bufferStatus = slidingBufferOptimizer.getStatus()
+        console.log(`🎯 Freehand optimization: ${bufferStatus.totalPoints} total, ${bufferStatus.renderPoints} rendered (${bufferStatus.compressionRatio.toFixed(1)}% shown)`)
       }
     }
   }
@@ -1111,6 +1344,17 @@ const handleStageClick = (e: any) => {
     return
   }
   
+  // Improved double-click detection
+  const currentTime = Date.now()
+  const timeSinceLastClick = currentTime - lastClickTime.value
+  lastClickTime.value = currentTime
+  
+  // If this is a potential double-click, wait to see if actual double-click event fires
+  if (timeSinceLastClick < doubleClickThreshold && props.currentTool === 'polygon') {
+    // Don't process this click as it might be part of a double-click
+    return
+  }
+  
   // Convert to canvas coordinates
   const transform = stageNode.getAbsoluteTransform().copy().invert()
   const canvasPos = transform.point(pointer)
@@ -1121,6 +1365,7 @@ const handleStageClick = (e: any) => {
       // Start new polygon
       startAnnotation('polygon', originalPos)
       currentPath.value = [canvasPos] // Keep canvas coordinates for drawing
+      console.log('🎯 Starting new polygon annotation')
     } else {
       // Add point to current polygon
       if (currentAnnotation.value && currentAnnotation.value.points) {
@@ -1136,8 +1381,10 @@ const handleStageClick = (e: any) => {
               completePolygon()
             }
           } else {
+            // For polygons, directly add vertices without sliding buffer optimization
             currentPath.value.push(canvasPos)
             currentAnnotation.value.points.push(originalPos)
+            console.log(`🎯 Polygon vertex added: ${currentAnnotation.value.points.length} points`)
           }
         }
       }
@@ -1159,6 +1406,9 @@ const handleStageClick = (e: any) => {
 }
 
 const handleStageDoubleClick = (e: any) => {
+  // Reset the click timer to prevent false single clicks
+  lastClickTime.value = 0
+  
   if (props.currentTool === 'polygon' && props.isAnnotating && currentPath.value.length > 2) {
     // Check for class selection before completing polygon
     if (props.classes && props.classes.length > 0 && currentAnnotation.value) {
@@ -1182,12 +1432,30 @@ const handleStageWheel = (e: any) => {
   
   if (!pointer) return
   
+  // Enter performance mode during zoom
+  if (!isZooming.value) {
+    isZooming.value = true
+    enterPerformanceMode()
+  }
+  
+  // Clear existing zoom debounce timer
+  if (zoomDebounceTimer) {
+    clearTimeout(zoomDebounceTimer)
+  }
+  
   // Calculate new scale
   const scaleDirection = e.evt.deltaY > 0 ? -1 : 1
   const newScale = Math.min(Math.max(stageScale.value * (scaleBy ** scaleDirection), minScale.value), maxScale.value)
   
   // If scale doesn't change (hit min/max), don't do anything
-  if (newScale === stageScale.value) return
+  if (newScale === stageScale.value) {
+    // Still need to reset zoom state
+    zoomDebounceTimer = window.setTimeout(() => {
+      isZooming.value = false
+      exitPerformanceMode()
+    }, 150)
+    return
+  }
   
   // Get current stage position and scale from the actual stage node
   const currentStagePos = stageNode.position()
@@ -1208,6 +1476,12 @@ const handleStageWheel = (e: any) => {
   // Update stage scale and position
   stageScale.value = newScale
   stagePosition.value = newPos
+  
+  // Set debounced timer to exit performance mode after zoom ends
+  zoomDebounceTimer = window.setTimeout(() => {
+    isZooming.value = false
+    exitPerformanceMode()
+  }, 150) // 150ms delay after last zoom event
 }
 
 // Zoom utility functions
@@ -1234,6 +1508,25 @@ const fitToScreen = () => {
     x: (stageSize.value.width - scaledImageWidth) / 2 - imageOffset.value.x * fitScale,
     y: (stageSize.value.height - scaledImageHeight) / 2 - imageOffset.value.y * fitScale
   }
+}
+
+// Stage drag handlers for performance optimization
+const handleStageDragStart = (e: any) => {
+  isDraggingStage.value = true
+  enterPerformanceMode()
+}
+
+const handleStageDragEnd = (e: any) => {
+  // Clear existing drag debounce timer
+  if (dragDebounceTimer) {
+    clearTimeout(dragDebounceTimer)
+  }
+  
+  // Set debounced timer to exit performance mode after drag ends
+  dragDebounceTimer = window.setTimeout(() => {
+    isDraggingStage.value = false
+    exitPerformanceMode()
+  }, 100) // 100ms delay after drag ends
 }
 
 const handleAnnotationClick = (index: number, e: any) => {
@@ -1269,6 +1562,20 @@ const handleAnnotationMouseOut = (index: number) => {
 
 const handleDragStart = (index: number, e: any) => {
   isDraggingAnnotation.value = true
+  
+  // Clear cache for the annotation being dragged (especially for polygons and freehand)
+  const annotation = props.annotations[index]
+  if (annotation && (annotation.type === 'polygon' || annotation.type === 'freehand')) {
+    const cacheKey = `${annotation.type}-${index}`
+    const node = annotationRefs.value[cacheKey]
+    if (node && typeof node.clearCache === 'function') {
+      try {
+        node.clearCache()
+      } catch (error) {
+        console.warn('Failed to clear cache during drag start:', error)
+      }
+    }
+  }
 }
 
 const handleDragEnd = (index: number, e: any) => {
@@ -1349,9 +1656,21 @@ const handleDragEnd = (index: number, e: any) => {
       updatedAnnotation = annotation
   }
   
-  // Update cache after drag operation
+  // Update cache after drag operation (especially important for polygons and freehand)
   const cacheKey = `${annotation.type}-${index}`
-  updateAnnotationCache(node, cacheKey)
+  if (annotation.type === 'polygon' || annotation.type === 'freehand') {
+    // Clear cache immediately for modified complex shapes
+    try {
+      node.clearCache()
+    } catch (error) {
+      console.warn('Failed to clear cache after drag:', error)
+    }
+    // For complex shapes, use debounced caching to avoid performance issues
+    debouncedCachePolygons()
+  } else {
+    // For simple shapes, cache immediately
+    updateAnnotationCache(node, cacheKey)
+  }
   
   emit('annotation-updated', updatedAnnotation, index)
   
@@ -1432,6 +1751,12 @@ const deleteAnnotation = () => {
       cacheAllAnnotations()
     })
   }
+}
+
+// Performance monitoring functions
+const getBufferStatus = () => {
+  const status = slidingBufferOptimizer.getStatus()
+  return `${status.renderPoints}/${status.totalPoints} (${status.compressionRatio.toFixed(0)}%)`
 }
 
 const duplicateAnnotation = () => {
@@ -1518,11 +1843,34 @@ watch(() => props.imageUrl, async (newUrl) => {
   }
 }, { immediate: true })
 
-// Watch annotations for cache management
+// Watch annotations for cache management and auto performance mode
 watch(() => props.annotations, (newAnnotations, oldAnnotations) => {
+  // Update performance metrics
+  polygonPerformanceMonitor.updateMetrics(newAnnotations)
+  
   // Clear caches when annotations change significantly
   if (!oldAnnotations || newAnnotations.length !== oldAnnotations.length) {
     clearAllAnnotationCaches()
+  }
+  
+  // Auto-enable performance mode when we have many polygons
+  const polygonCount = newAnnotations.filter(a => a.type === 'polygon' || a.type === 'freehand').length
+  
+  // Use performance monitor to determine if performance mode should be activated
+  if (polygonPerformanceMonitor.shouldActivatePerformanceMode() && !isZooming.value && !isDraggingStage.value) {
+    // Auto-enable performance mode for heavy polygon scenes
+    if (!isPerformanceMode.value) {
+      console.log(`Auto-enabling performance mode: ${polygonCount} polygons detected`)
+      polygonPerformanceMonitor.logPerformanceSummary()
+      enterPerformanceMode()
+      
+      // Auto-exit after a delay to allow for interaction
+      setTimeout(() => {
+        if (!isZooming.value && !isDraggingStage.value) {
+          exitPerformanceMode()
+        }
+      }, 1000)
+    }
   }
   
   // Cache new annotations after they're rendered
@@ -1548,19 +1896,60 @@ watch(selectedAnnotationIndex, () => {
   })
 })
 
-// Function to cache all visible annotations
+// Function to cache all visible annotations with polygon-specific optimization
 const cacheAllAnnotations = () => {
+  const polygonNodes: any[] = []
+  const simpleNodes: any[] = []
+  
+  // Separate polygon/freehand from simple annotations for batch processing
   props.annotations.forEach((annotation, index) => {
     const cacheKey = `${annotation.type}-${index}`
     const node = annotationRefs.value[cacheKey]
     if (node) {
-      cacheAnnotationNode(node, cacheKey)
+      if (annotation.type === 'polygon' || annotation.type === 'freehand') {
+        polygonNodes.push({ node, key: cacheKey })
+      } else {
+        simpleNodes.push({ node, key: cacheKey })
+      }
     }
   })
   
-  // Batch draw after all caching is complete
-  if (annotationLayer.value) {
-    annotationLayer.value.getNode().batchDraw()
+  // Cache simple annotations first (faster)
+  simpleNodes.forEach(({ node, key }) => {
+    cacheAnnotationNode(node, key)
+  })
+  
+  // Cache complex polygons with a slight delay to prevent UI blocking
+  if (polygonNodes.length > 0) {
+    let processedPolygons = 0
+    const batchSize = 3 // Process 3 polygons at a time
+    
+    const processBatch = () => {
+      const batch = polygonNodes.slice(processedPolygons, processedPolygons + batchSize)
+      batch.forEach(({ node, key }) => {
+        cacheAnnotationNode(node, key)
+      })
+      
+      processedPolygons += batch.length
+      
+      if (processedPolygons < polygonNodes.length) {
+        // Use requestAnimationFrame for smooth processing
+        requestAnimationFrame(processBatch)
+      } else {
+        // Final batch draw after all caching is complete
+        if (annotationLayer.value) {
+          annotationLayer.value.getNode().batchDraw()
+        }
+      }
+    }
+    
+    // Start batch processing
+    requestAnimationFrame(processBatch)
+  } else {
+    // Batch draw after all caching is complete (no polygons case)
+    if (annotationLayer.value) {
+      annotationLayer.value.getNode().batchDraw()
+    }
   }
 }
 
@@ -1576,7 +1965,19 @@ const debouncedUpdateTransformer = () => {
 }
 
 // Lifecycle with cleanup
-onMounted(() => {
+onMounted(async () => {
+  // Configure sliding buffer optimizer for optimal performance
+  slidingBufferOptimizer.updateConfig(PerformancePresets.BALANCED)
+  console.log('🎯 Sliding buffer optimizer initialized with BALANCED preset')
+  
+  // Initialize polygon simplification worker
+  try {
+    await workerManager.initialize()
+    console.log('🔧 Polygon simplification worker ready')
+  } catch (error) {
+    console.warn('🔧 Could not initialize polygon worker, using fallback:', error)
+  }
+  
   // Try to load image immediately if URL is available
   if (props.imageUrl) {
     loadImage(props.imageUrl).catch(error => {
@@ -1591,8 +1992,18 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  // Clean up all timers
   if (transformerUpdateTimeout) {
     clearTimeout(transformerUpdateTimeout)
+  }
+  if (zoomDebounceTimer) {
+    clearTimeout(zoomDebounceTimer)
+  }
+  if (dragDebounceTimer) {
+    clearTimeout(dragDebounceTimer)
+  }
+  if (cacheUpdateTimer) {
+    clearTimeout(cacheUpdateTimer)
   }
   
   // Clear all caches on unmount to prevent memory leaks
@@ -1644,7 +2055,7 @@ defineExpose({
     
     stageScale.value = newScale
   },
-  // Cache management methods
+  // Cache management methods with polygon-specific optimization
   cacheAllAnnotations,
   clearAllAnnotationCaches,
   updateAnnotationCache: (index: number) => {
@@ -1657,11 +2068,65 @@ defineExpose({
       }
     }
   },
+  // Performance monitoring and control methods
+  getPerformanceMode: () => isPerformanceMode.value,
+  setPerformanceMode: (enabled: boolean) => {
+    if (enabled) {
+      enterPerformanceMode()
+    } else {
+      exitPerformanceMode()
+    }
+  },
+  forcePolygonSimplification: (epsilon: number = 2.0) => {
+    // Force simplification of all polygon annotations with the given epsilon
+    props.annotations.forEach((annotation, index) => {
+      if ((annotation.type === 'polygon' || annotation.type === 'freehand') && annotation.points) {
+        const cacheKey = `${annotation.type}-${index}`
+        const node = annotationRefs.value[cacheKey]
+        if (node) {
+          // Clear cache before applying simplification
+          node.clearCache()
+        }
+      }
+    })
+    
+    // Trigger re-render with simplified polygons
+    nextTick(() => {
+      debouncedCachePolygons()
+    })
+  },
   // Performance method to force batch draw
   batchDraw: () => {
     if (annotationLayer.value) {
       annotationLayer.value.getNode().batchDraw()
     }
+  },
+  // Get polygon complexity statistics
+  getPolygonStats: () => {
+    const stats = {
+      totalPolygons: 0,
+      complexPolygons: 0, // > 50 points
+      veryComplexPolygons: 0, // > 100 points
+      totalPoints: 0,
+      averagePoints: 0
+    }
+    
+    props.annotations.forEach(annotation => {
+      if ((annotation.type === 'polygon' || annotation.type === 'freehand') && annotation.points) {
+        stats.totalPolygons++
+        stats.totalPoints += annotation.points.length
+        
+        if (annotation.points.length > 50) {
+          stats.complexPolygons++
+        }
+        if (annotation.points.length > 100) {
+          stats.veryComplexPolygons++
+        }
+      }
+    })
+    
+    stats.averagePoints = stats.totalPolygons > 0 ? stats.totalPoints / stats.totalPolygons : 0
+    return stats
   }
 })
 </script>

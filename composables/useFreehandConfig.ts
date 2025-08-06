@@ -1,3 +1,5 @@
+import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point } from '~/utils/polygonOptimization'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -16,21 +18,30 @@ export const useFreehandConfig = () => {
     index: number,
     selectedIndex: number | null,
     hoveredIndex: number | null,
-    displayTransform: (point: { x: number; y: number }) => { x: number; y: number }
+    displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
+    zoomLevel: number = 1.0,
+    interactionEnabled: boolean = true
   ) => {
     // Validate freehand annotation requirements
     if (annotation.type !== 'freehand' || !annotation.points || annotation.points.length === 0) {
       return {}
     }
 
+    // Determine if we should simplify the freehand path for performance
+    let processedPoints = annotation.points
+    if (shouldSimplifyPolygon(annotation.points.length, zoomLevel)) {
+      processedPoints = adaptiveSimplifyPolygon(annotation.points as Point[], zoomLevel, 2.0) // Higher epsilon for freehand
+    }
+
     // Convert all points to display coordinates and flatten them
-    const displayPoints = annotation.points
+    const displayPoints = processedPoints
       .map(point => displayTransform(point))
       .flatMap(point => [point.x, point.y])
 
     // Determine styling based on selection and hover state
     const isSelected = selectedIndex === index
     const isHovered = hoveredIndex === index
+    const isInteracting = isSelected || isHovered
 
     return {
       points: displayPoints,
@@ -38,13 +49,14 @@ export const useFreehandConfig = () => {
       strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
       fill: 'transparent',
       closed: false,
-      draggable: true,
-      listening: true,
+      draggable: isInteracting && interactionEnabled,
+      listening: isInteracting && interactionEnabled, // Only listen when interaction is needed
       hitStrokeWidth: 20, // Increase hit area for better selection
       tension: 0.3,
       lineCap: 'round',
       lineJoin: 'round',
-      perfectDrawEnabled: false
+      perfectDrawEnabled: false, // Better performance for complex paths
+      name: 'freehand' // Add name for easier identification
     }
   }
 

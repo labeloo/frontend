@@ -1,4 +1,6 @@
 import type { CanvasAnnotation } from '~/components/annotation/types'
+import { slidingBufferOptimizer } from '~/utils/slidingBufferOptimization'
+import { workerManager } from '~/utils/polygonWorkerManager'
 
 interface AnnotationLifecycleOptions {
   // Reactive refs that need to be reset
@@ -41,9 +43,46 @@ export const useAnnotationLifecycle = (options: AnnotationLifecycleOptions) => {
   /**
    * Complete a polygon annotation with special handling for class selection
    * Handles both class selection and direct completion
+   * Uses Web Worker for complex polygon simplification
    */
-  const completePolygon = () => {
+  const completePolygon = async () => {
     if (currentAnnotation.value && currentAnnotation.value.points) {
+      // For freehand annotations, use Web Worker for complex polygons
+      if (currentAnnotation.value.type === 'freehand') {
+        const pointCount = slidingBufferOptimizer.getStatus().totalPoints
+        
+        if (pointCount > 50) {
+          // Use Web Worker for complex polygons
+          try {
+            const optimizedPoints = await slidingBufferOptimizer.getOptimizedCompletePolygonAsync(2.0, true)
+            console.log(`🔧 Web Worker optimized freehand: ${pointCount} → ${optimizedPoints.length/2} points`)
+            
+            // Convert flat points to coordinate objects
+            const finalPoints: { x: number; y: number }[] = []
+            for (let i = 0; i < optimizedPoints.length - 1; i += 2) {
+              const x = optimizedPoints[i]
+              const y = optimizedPoints[i + 1]
+              if (x !== undefined && y !== undefined) {
+                // Note: These are already canvas coordinates, need conversion if required
+                finalPoints.push({ x, y })
+              }
+            }
+            
+            // Update the annotation with optimized points
+            currentAnnotation.value.points = finalPoints
+          } catch (error) {
+            console.warn('🔧 Web Worker optimization failed, using original points:', error)
+          }
+        }
+        
+        // Get final optimization statistics
+        const bufferInfo = slidingBufferOptimizer.getBufferInfo()
+        console.log(`📊 Freehand completion stats:`, bufferInfo)
+        
+        // Reset the sliding buffer
+        slidingBufferOptimizer.reset()
+      }
+      
       if (classes && classes.length > 0) {
         // Calculate center point for class selector positioning
         const centerX = currentPath.value.reduce((sum, p) => sum + p.x, 0) / currentPath.value.length
