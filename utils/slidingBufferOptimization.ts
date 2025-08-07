@@ -7,6 +7,7 @@
 
 import { workerManager } from './polygonWorkerManager'
 
+
 interface BufferConfig {
   maxVisiblePoints: number
   simplificationThreshold: number
@@ -330,6 +331,14 @@ class SlidingBufferOptimizer {
       memoryReduction: `${((1 - this.renderBuffer.length / this.fullBuffer.length) * 100).toFixed(1)}%`
     }
   }
+
+  /**
+   * Complete drawing and return final optimized points
+   */
+  complete(): number[] {
+    return this.getCompletePolygon()
+  }
+
 }
 
 // Global instance for polygon optimization

@@ -290,8 +290,8 @@ import { useFreehandConfig } from '~/composables/useFreehandConfig';
 import { useAnnotationLifecycle } from '~/composables/useAnnotationLifecycle';
 import { useAnnotationDragHandlers } from '~/composables/useAnnotationDragHandlers';
 import { useAnnotationTransformHandlers } from '~/composables/useAnnotationTransformHandlers';
+import { slidingBufferOptimizer, PerformancePresets } from '~/utils/slidingBufferOptimization';
 import { polygonPerformanceMonitor } from '~/utils/polygonPerformanceMonitor';
-import { slidingBufferOptimizer } from '~/utils/slidingBufferOptimization';
 import { workerManager } from '~/utils/polygonWorkerManager';
 import type { CanvasAnnotation } from './types'
 
@@ -1098,6 +1098,7 @@ const getCurrentLineConfig = () => {
 const getCurrentFreehandConfig = () => {
   if (!currentAnnotation.value || currentPath.value.length === 0) return {}
   
+  // Use optimized points for display
   const points = currentPath.value.flatMap(point => [point.x, point.y])
   const uiScale = getUIScale()
   
@@ -1107,7 +1108,9 @@ const getCurrentFreehandConfig = () => {
     strokeWidth: 3 * uiScale,
     fill: 'transparent',
     closed: false,
-    listening: false,
+    listening: false, // Disable interaction during drawing
+    hitGraphEnabled: false, // Critical: disable hit detection for performance
+    perfectDrawEnabled: false, // Better performance for real-time drawing
     tension: 0.3,
     lineCap: 'round',
     lineJoin: 'round',
@@ -1209,6 +1212,9 @@ const handleStageMouseMove = (e: any) => {
     const flatPoints = slidingBufferOptimizer.addPoint(clampedCanvasPos.x, clampedCanvasPos.y)
     
     if (flatPoints !== null) {
+      // Get buffer status for performance monitoring
+      const bufferStatus = slidingBufferOptimizer.getStatus()
+      
       // Convert flat points back to coordinate objects for currentPath
       const pathPoints = []
       for (let i = 0; i < flatPoints.length - 1; i += 2) {
@@ -1226,9 +1232,10 @@ const handleStageMouseMove = (e: any) => {
       
       // Real-time performance monitoring during freehand drawing  
       const pointCount = flatPoints.length / 2
-      if (pointCount % 5 === 0) { // Check every 5 rendered points
+      if (pointCount % 10 === 0) { // Reduced frequency to every 10 points for less console spam
         polygonPerformanceMonitor.updateMetrics([...props.annotations, currentAnnotation.value])
-        const bufferStatus = slidingBufferOptimizer.getStatus()
+        
+        // Performance logging
         console.log(`🎯 Freehand optimization: ${bufferStatus.totalPoints} total, ${bufferStatus.renderPoints} rendered (${bufferStatus.compressionRatio.toFixed(1)}% shown)`)
       }
     }
@@ -1311,6 +1318,23 @@ const handleStageMouseUp = (e: any) => {
       shouldComplete = (currentAnnotation.value.radius || 0) > minSize
     } else if (props.currentTool === 'freehand') {
       shouldComplete = currentPath.value.length > 3
+      
+      // Use enhanced completion for freehand to get final optimized points
+      if (shouldComplete && currentAnnotation.value) {
+        const finalPoints = slidingBufferOptimizer.complete()
+        
+        // Convert final points to coordinate objects for annotation
+        const finalOriginalPoints: { x: number; y: number }[] = []
+        for (let i = 0; i < finalPoints.length - 1; i += 2) {
+          const canvasPoint = { x: finalPoints[i]!, y: finalPoints[i + 1]! }
+          finalOriginalPoints.push(canvasToOriginal(canvasPoint))
+        }
+        currentAnnotation.value.points = finalOriginalPoints
+        
+        // Log completion metrics
+        const bufferStatus = slidingBufferOptimizer.getStatus()
+        console.log(`✅ Freehand completed: ${finalOriginalPoints.length} final points`)
+      }
     }
     
     if (shouldComplete) {
@@ -1985,8 +2009,9 @@ onMounted(async () => {
     })
   }
   
-  // Cache annotations after component is mounted
+  // Initialize after stage is ready
   nextTick(() => {
+    // Cache annotations after component is mounted
     cacheAllAnnotations()
   })
 })
