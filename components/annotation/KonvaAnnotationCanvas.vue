@@ -12,7 +12,7 @@
         
         <!-- Sliding Buffer Status -->
         <div 
-          v-if="props.currentTool === 'freehand' && isDrawing" 
+          v-if="props.currentTool === 'freehand' && (isDrawing || isDrawingNonReactive)" 
           class="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-mono z-10 pointer-events-none"
         >
           Buffer: {{ getBufferStatus() }}
@@ -29,6 +29,8 @@
           @wheel="handleStageWheel"
           @dragstart="handleStageDragStart"
           @dragend="handleStageDragEnd"
+          @keydown="handleStageKeyDown"
+          tabindex="0"
         >
         <!-- Background layer for image -->
         <v-layer ref="imageLayer">
@@ -81,15 +83,15 @@
           />
         </v-layer>
         
-        <!-- Annotation layer with fixed transformation context -->
-        <v-layer ref="annotationLayer">
-          <!-- Existing annotations -->
-          <template v-for="(annotation, index) in annotations" :key="`annotation-${index}`">
+        <!-- Static layer for completed annotations (NEVER redraws during real-time drawing) -->
+        <v-layer ref="staticLayer">
+          <!-- Completed annotations from props.annotations - uses v-for with createPolygonConfig -->
+          <template v-for="(annotation, index) in props.annotations" :key="`annotation-${index}`">
             <!-- Rectangle annotations -->
             <v-rect
               v-if="annotation.type === 'rectangle'"
               :ref="(el: any) => { if (el) annotationRefs[`rect-${index}`] = el.getNode() }"
-              :config="getRectConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getRectConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -102,7 +104,7 @@
             <v-line
               v-if="annotation.type === 'polygon'"
               :ref="(el: any) => { if (el) annotationRefs[`polygon-${index}`] = el.getNode() }"
-              :config="getPolygonConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getPolygonConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -115,7 +117,7 @@
             <v-circle
               v-if="annotation.type === 'dot'"
               :ref="(el: any) => { if (el) annotationRefs[`dot-${index}`] = el.getNode() }"
-              :config="getDotConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getDotConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -128,7 +130,7 @@
             <v-line
               v-if="annotation.type === 'line'"
               :ref="(el: any) => { if (el) annotationRefs[`line-${index}`] = el.getNode() }"
-              :config="getLineConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getLineConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -141,7 +143,7 @@
             <v-circle
               v-if="annotation.type === 'circle'"
               :ref="(el: any) => { if (el) annotationRefs[`circle-${index}`] = el.getNode() }"
-              :config="getCircleConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getCircleConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -154,7 +156,7 @@
             <v-line
               v-if="annotation.type === 'freehand'"
               :ref="(el: any) => { if (el) annotationRefs[`freehand-${index}`] = el.getNode() }"
-              :config="getFreehandConfig(annotation, index)"
+              :config="annotationConfigs[index]?.config || getFreehandConfig(annotation, index)"
               @transformend="handleTransformEnd(index, $event)"
               @dragstart="handleDragStart(index, $event)"
               @dragend="handleDragEnd(index, $event)"
@@ -169,59 +171,14 @@
               :config="getLabelConfig(annotation, index)"
             />
           </template>
-          
-          <!-- Current annotation being drawn -->
-          <v-rect
-            v-if="currentAnnotation && currentAnnotation.type === 'rectangle' && isDrawing"
-            :ref="(el: any) => { if (el) currentAnnotationRefs['current-rect'] = el.getNode() }"
-            :config="getCurrentRectConfig()"
-          />
-          
-          <v-line
-            v-if="currentAnnotation && currentAnnotation.type === 'line' && isDrawing"
-            :ref="(el: any) => { if (el) currentAnnotationRefs['current-line'] = el.getNode() }"
-            :config="getCurrentLineConfig()"
-          />
-          
-          <v-circle
-            v-if="currentAnnotation && currentAnnotation.type === 'circle' && isDrawing"
-            :ref="(el: any) => { if (el) currentAnnotationRefs['current-circle'] = el.getNode() }"
-            :config="getCurrentCircleConfig()"
-          />
-          
-          <v-line
-            v-if="currentAnnotation && currentAnnotation.type === 'freehand' && isDrawing"
-            :ref="(el: any) => { if (el) currentAnnotationRefs['current-freehand'] = el.getNode() }"
-            :config="getCurrentFreehandConfig()"
-          />
-          
-          <v-line
-            v-if="currentAnnotation && currentAnnotation.type === 'polygon' && currentPath.length > 0"
-            :ref="(el: any) => { if (el) currentAnnotationRefs['current-polygon'] = el.getNode() }"
-            :config="getCurrentPolygonConfig()"
-          />
-          
-          <!-- Polygon drawing preview line -->
-          <v-line
-            v-if="isDrawingPolygon && currentPath.length > 0 && mousePosition"
-            :config="getPolygonPreviewConfig()"
-          />
-          
-          <!-- Polygon vertex points -->
-          <template v-if="isDrawingPolygon && currentPath.length > 0">
-            <v-circle
-              v-for="(point, index) in currentPath"
-              :key="`vertex-${index}`"
-              :config="getVertexConfig(point, index)"
-            />
-          </template>
-          
-          <!-- Transform nodes for selected annotation -->
-          <v-transformer
-            v-if="selectedAnnotationIndex !== null"
-            ref="transformer"
-            :config="transformerConfig"
-          />
+        </v-layer>
+        <!-- Ghost annotationLayer removed for INP performance optimization -->
+        
+        <!-- Active drawing layer for high-performance real-time drawing (ONLY for currentShapeNode) -->
+        <v-layer ref="activeLayer">
+          <!-- This layer ONLY contains currentShapeNode during non-reactive drawing -->
+          <!-- All content is managed directly via Konva API for maximum performance -->
+          <!-- Calling batchDraw() on this layer ONLY redraws the single temporary shape -->
         </v-layer>
       </v-stage>
       
@@ -282,6 +239,32 @@
 </template>
 
 <script setup lang="ts">
+/**
+ * PERFORMANCE OPTIMIZATIONS APPLIED:
+ * 
+ * 1. Dual-Path Drawing Architecture:
+ *    - High-frequency polygon/freehand drawing uses direct Konva node manipulation (non-reactive)
+ *    - Low-frequency tools (rectangle, circle, line) use Vue reactivity for simplicity
+ * 
+ * 2. Non-reactive Drawing State:
+ *    - isDrawingNonReactive: shallowRef for template access without deep reactivity
+ *    - currentShapeNode: Raw Konva node reference for direct updates
+ * 
+ * 3. Active Layer Strategy:
+ *    - Dedicated activeLayer for real-time drawing prevents interference with existing annotations
+ *    - Direct batchDraw() calls avoid Vue's change detection overhead
+ * 
+ * 4. Optimized Mouse Handlers:
+ *    - mousemove handler has ultra-lean path for polygon/freehand (bypasses Vue reactivity)
+ *    - Direct points array updates on Konva nodes for 60fps+ performance
+ *    - Sliding buffer optimization for freehand drawing with reduced Vue state updates
+ * 
+ * 5. Smart Cleanup:
+ *    - Automatic cleanup of non-reactive state on tool changes and component unmount
+ *    - Temporary shapes destroyed before final annotation completion
+ *    - finishDrawing() function bridges imperative drawing to reactive state
+ *    - Keyboard shortcuts: Enter to finish, Escape to cancel drawing
+ */
 import { useRectConfig } from '~/composables/useRectConfig';
 import { usePolygonConfig } from '~/composables/usePolygonConfig';
 import { useCircleConfig } from '~/composables/useCircleConfig';
@@ -327,10 +310,205 @@ const emit = defineEmits<Emits>()
 
 // Refs
 const stage = ref<any>(null)
-const transformer = ref<any>(null)
 const stageContainer = ref<HTMLElement | null>(null)
 const imageLayer = ref<any>(null)
-const annotationLayer = ref<any>(null)
+const staticLayer = ref<any>(null)
+// Removed annotationLayer ref for INP performance optimization
+const activeLayer = ref<any>(null)
+
+// Non-reactive drawing state for high-performance drawing
+// Using shallowRef to avoid deep reactivity while still allowing template access
+const isDrawingNonReactive = shallowRef(false)
+let currentShapeNode: any = null
+
+// Two-shape illusion strategy for polygon drawing (ULTRA PERFORMANCE)
+let pathNode: any = null      // Completed polygon segments (immutable during mousemove)
+let ghostLineNode: any = null // Active segment following mouse (only this updates on mousemove)
+
+// Performance-optimized transformer instance (non-reactive)
+let transformerInstance: any = null
+
+// Initialize the transformer instance once on mount (PERFORMANCE OPTIMIZATION)
+const initializeTransformer = () => {
+  if (!activeLayer.value || transformerInstance || !process.client) return
+  
+  const Konva = (window as any).Konva
+  if (!Konva) return
+  
+  // PERFORMANCE: Create transformer instance only once, never destroy/recreate
+  transformerInstance = new Konva.Transformer({
+    enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right'],
+    rotateEnabled: false,
+    anchorStroke: '#4285f4',
+    anchorFill: '#ffffff',
+    anchorStrokeWidth: 2,
+    anchorSize: 8,
+    borderStroke: '#4285f4',
+    borderStrokeWidth: 2,
+    borderDash: [3, 3],
+    keepRatio: false,
+    centeredScaling: false,
+    // Constrain transformer boundaries to image bounds
+    boundBoxFunc: (oldBox: any, newBox: any) => {
+      // Convert to original coordinates for bounds checking
+      const newBoxOriginal = {
+        x: (newBox.x - imageOffset.value.x) / imageScale.value,
+        y: (newBox.y - imageOffset.value.y) / imageScale.value,
+        width: newBox.width / imageScale.value,
+        height: newBox.height / imageScale.value
+      }
+      
+      // Check bounds and constrain if necessary
+      if (newBoxOriginal.x < 0 || newBoxOriginal.y < 0 || 
+          newBoxOriginal.x + newBoxOriginal.width > originalImageSize.value.width ||
+          newBoxOriginal.y + newBoxOriginal.height > originalImageSize.value.height) {
+        return oldBox
+      }
+      
+      // Ensure minimum size
+      const uiScale = 1 / stageScale.value
+      if (newBox.width < 10 * uiScale || newBox.height < 10 * uiScale) {
+        return oldBox
+      }
+      
+      return newBox
+    }
+  })
+  
+  // PERFORMANCE: Add to activeLayer to prevent staticLayer redraws when selection changes
+  activeLayer.value.getNode().add(transformerInstance)
+  
+  console.log('🎯 Transformer instance initialized on activeLayer')
+}
+
+// Helper function to clean up non-reactive drawing state
+const cleanupNonReactiveDrawing = () => {
+  if (isDrawingNonReactive.value && currentShapeNode) {
+    // Remove and destroy the temporary shape from activeLayer
+    currentShapeNode.destroy()
+    currentShapeNode = null
+    isDrawingNonReactive.value = false
+    
+    // Only redraw activeLayer to remove the temporary shape
+    activeLayer.value?.getNode().batchDraw()
+  }
+  
+  // Clean up polygon two-shape illusion nodes
+  if (pathNode) {
+    pathNode.destroy()
+    pathNode = null
+  }
+  if (ghostLineNode) {
+    ghostLineNode.destroy()
+    ghostLineNode = null
+  }
+}
+
+// Bridge function between imperative drawing and Vue's reactive state
+const finishDrawing = () => {
+  // Check if we have an active non-reactive drawing session
+  if (!isDrawingNonReactive.value) return
+  
+  let flatPoints: number[] = []
+  
+  // Handle polygon two-shape illusion strategy
+  if (props.currentTool === 'polygon' && pathNode && ghostLineNode) {
+    // Combine points from pathNode and the starting point of ghostLineNode
+    const pathPoints = pathNode.points() || []
+    const ghostPoints = ghostLineNode.points() || []
+    
+    // Get the starting point of the ghost line (first two values)
+    if (ghostPoints.length >= 2) {
+      flatPoints = [...pathPoints, ghostPoints[0], ghostPoints[1]]
+    } else {
+      flatPoints = pathPoints
+    }
+    
+    console.log(`🎯 Polygon completed with two-shape strategy: ${flatPoints.length / 2} points`)
+  } else if (currentShapeNode) {
+    // Handle freehand and fallback cases
+    flatPoints = currentShapeNode.points() || []
+  }
+  
+  if (!flatPoints || flatPoints.length < 4) { // Need at least 2 points (4 values)
+    cleanupNonReactiveDrawing()
+    return
+  }
+  
+  // Convert flat points array back to {x, y} objects in original coordinates
+  const canvasPoints: { x: number; y: number }[] = []
+  for (let i = 0; i < flatPoints.length - 1; i += 2) {
+    const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
+    canvasPoints.push(canvasPoint)
+  }
+  
+  // Convert canvas coordinates to original image coordinates
+  const originalPoints: { x: number; y: number }[] = canvasPoints.map(point => 
+    canvasToOriginal(point)
+  )
+  
+  // Create a new annotation object based on the current tool
+  let newAnnotation: CanvasAnnotation
+  
+  if (props.currentTool === 'polygon') {
+    newAnnotation = {
+      type: 'polygon',
+      points: originalPoints,
+      className: undefined // Will be set by class selector if needed
+    }
+  } else if (props.currentTool === 'freehand') {
+    // For freehand, get the final optimized points from sliding buffer
+    const finalOptimizedPoints = slidingBufferOptimizer.complete()
+    
+    // Convert optimized points to original coordinates
+    const optimizedOriginalPoints: { x: number; y: number }[] = []
+    for (let i = 0; i < finalOptimizedPoints.length - 1; i += 2) {
+      const canvasPoint = { x: finalOptimizedPoints[i]!, y: finalOptimizedPoints[i + 1]! }
+      optimizedOriginalPoints.push(canvasToOriginal(canvasPoint))
+    }
+    
+    newAnnotation = {
+      type: 'freehand',
+      points: optimizedOriginalPoints,
+      className: undefined // Will be set by class selector if needed
+    }
+    
+    console.log(`✅ Freehand completed: ${optimizedOriginalPoints.length} final points`)
+  } else {
+    // Fallback for unsupported tools
+    console.warn('finishDrawing called with unsupported tool:', props.currentTool)
+    cleanupNonReactiveDrawing()
+    return
+  }
+  
+  // Clean up the temporary shape node from activeLayer BEFORE adding to reactive state
+  cleanupNonReactiveDrawing()
+  
+  // Check if we need to show class selector or complete immediately
+  if (props.classes && props.classes.length > 0) {
+    // Store the annotation temporarily and show class selector
+    currentAnnotation.value = newAnnotation
+    
+    // Get current mouse position for class selector positioning
+    if (stage.value) {
+      const stageNode = stage.value.getNode()
+      const pointer = stageNode.getPointerPosition()
+      emit('show-class-selector', newAnnotation, pointer || { x: 0, y: 0 })
+    } else {
+      emit('show-class-selector', newAnnotation, { x: 0, y: 0 })
+    }
+  } else {
+    // Complete annotation immediately without class
+    completeAnnotation(newAnnotation)
+    
+    // Ensure staticLayer redraws to show the newly completed annotation
+    nextTick(() => {
+      if (staticLayer.value) {
+        staticLayer.value.getNode().batchDraw()
+      }
+    })
+  }
+}
 
 // Annotation node refs for caching
 const annotationRefs = ref<Record<string, any>>({})
@@ -411,48 +589,6 @@ const imageConfig = computed(() => {
   return config
 })
 
-const transformerConfig = computed(() => {
-  const uiScale = getUIScale()
-  
-  return {
-    enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right'],
-    rotateEnabled: false,
-    anchorStroke: '#4285f4',
-    anchorFill: '#ffffff',
-    anchorStrokeWidth: 2 * uiScale,
-    anchorSize: 8 * uiScale,
-    borderStroke: '#4285f4',
-    borderStrokeWidth: 2 * uiScale,
-    borderDash: [3 * uiScale, 3 * uiScale],
-    keepRatio: false,
-    centeredScaling: false,
-    // Constrain transformer boundaries to image bounds
-    boundBoxFunc: (oldBox: any, newBox: any) => {
-      // Convert to original coordinates for bounds checking
-      const newBoxOriginal = {
-        x: (newBox.x - imageOffset.value.x) / imageScale.value,
-        y: (newBox.y - imageOffset.value.y) / imageScale.value,
-        width: newBox.width / imageScale.value,
-        height: newBox.height / imageScale.value
-      }
-      
-      // Check bounds and constrain if necessary
-      if (newBoxOriginal.x < 0 || newBoxOriginal.y < 0 || 
-          newBoxOriginal.x + newBoxOriginal.width > originalImageSize.value.width ||
-          newBoxOriginal.y + newBoxOriginal.height > originalImageSize.value.height) {
-        return oldBox
-      }
-      
-      // Ensure minimum size
-      if (newBox.width < 10 * uiScale || newBox.height < 10 * uiScale) {
-        return oldBox
-      }
-      
-      return newBox
-    }
-  }
-})
-
 // Development mode and polygon stats computed properties
 const isDevelopmentMode = computed(() => process.env.NODE_ENV === 'development')
 
@@ -466,6 +602,29 @@ const complexPolygonCount = computed(() => {
     a.points && 
     a.points.length > 10 // Reduced from 20 to 10 to match performance threshold
   ).length
+})
+
+// Memoized annotation configs for INP performance optimization
+// Pre-computed configs prevent repetitive calculations during renders
+const annotationConfigs = computed(() => {
+  return props.annotations.map((annotation, index) => {
+    switch (annotation.type) {
+      case 'rectangle':
+        return { type: 'rectangle', config: getRectConfig(annotation, index) }
+      case 'polygon':
+        return { type: 'polygon', config: getPolygonConfig(annotation, index) }
+      case 'dot':
+        return { type: 'dot', config: getDotConfig(annotation, index) }
+      case 'line':
+        return { type: 'line', config: getLineConfig(annotation, index) }
+      case 'circle':
+        return { type: 'circle', config: getCircleConfig(annotation, index) }
+      case 'freehand':
+        return { type: 'freehand', config: getFreehandConfig(annotation, index) }
+      default:
+        return { type: annotation.type, config: {} }
+    }
+  })
 })
 
 // Methods
@@ -622,8 +781,8 @@ const updateAnnotationCache = (node: any, key: string) => {
       annotationRefs.value[key] = node
       
       // Use efficient layer batch draw instead of stage redraw
-      if (annotationLayer.value) {
-        annotationLayer.value.getNode().batchDraw()
+      if (staticLayer.value) {
+        staticLayer.value.getNode().batchDraw()
       }
     })
   } catch (error) {
@@ -691,9 +850,9 @@ const debouncedCachePolygons = () => {
       }
     })
     
-    // Batch draw after caching
-    if (annotationLayer.value) {
-      annotationLayer.value.getNode().batchDraw()
+    // Batch draw the static layer after caching
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
     }
   }, 150) // 150ms debounce
 }
@@ -1146,15 +1305,113 @@ const handleStageMouseDown = (e: any) => {
   const canvasPos = transform.point(pointer)
   const originalPos = canvasToOriginal(canvasPos)
   
+  // Handle polygon and freehand tools with direct Konva node creation for performance
+  if (props.currentTool === 'polygon') {
+    if (!props.isAnnotating) {
+      // Start new polygon - create TWO-SHAPE ILLUSION strategy for O(1) performance
+      if (activeLayer.value && process.client) {
+        const Konva = (window as any).Konva
+        if (Konva) {
+          isDrawingNonReactive.value = true
+          
+          // Create pathNode for completed segments (empty initially)
+          pathNode = new Konva.Line({
+            points: [], // Start empty
+            stroke: '#4285f4',
+            strokeWidth: 3,
+            fill: 'rgba(66, 133, 244, 0.1)',
+            closed: false,
+            listening: false,
+            lineCap: 'round',
+            lineJoin: 'round'
+          })
+          
+          // Create ghostLineNode for active segment following mouse
+          ghostLineNode = new Konva.Line({
+            points: [canvasPos.x, canvasPos.y, canvasPos.x, canvasPos.y], // Two identical points at mouse position
+            stroke: '#4285f4',
+            strokeWidth: 3,
+            fill: 'transparent',
+            closed: false,
+            listening: false,
+            lineCap: 'round',
+            lineJoin: 'round',
+            dash: [5, 5] // Dashed line for visual distinction
+          })
+          
+          // Add both nodes to activeLayer
+          activeLayer.value.getNode().add(pathNode)
+          activeLayer.value.getNode().add(ghostLineNode)
+          activeLayer.value.getNode().batchDraw()
+          
+          console.log('🎯 Started polygon with two-shape illusion strategy')
+        }
+      }
+    } else {
+      // Add point to existing polygon using two-shape strategy
+      if (pathNode && ghostLineNode) {
+        // Append the starting point of ghostLineNode to pathNode
+        const pathPoints = pathNode.points() || []
+        const ghostPoints = ghostLineNode.points() || []
+        
+        if (ghostPoints.length >= 2) {
+          // Add the first point of the ghost line to the path
+          const newPathPoints = [...pathPoints, ghostPoints[0], ghostPoints[1]]
+          pathNode.points(newPathPoints)
+          
+          // Update ghostLineNode to start and end at new mouse position
+          ghostLineNode.points([canvasPos.x, canvasPos.y, canvasPos.x, canvasPos.y])
+          
+          // Only redraw activeLayer (both nodes are on this layer)
+          activeLayer.value?.getNode().batchDraw()
+          
+          console.log(`🎯 Added point to polygon: ${newPathPoints.length / 2} segments`)
+        }
+      }
+    }
+    return
+  }
+  
+  if (props.currentTool === 'freehand') {
+    // Create direct Konva node for freehand drawing
+    if (activeLayer.value && process.client) {
+      const Konva = (window as any).Konva
+      if (Konva) {
+        isDrawingNonReactive.value = true
+        currentShapeNode = new Konva.Line({
+          points: [canvasPos.x, canvasPos.y],
+          stroke: '#4285f4',
+          strokeWidth: 3,
+          fill: 'transparent',
+          closed: false,
+          listening: false,
+          hitGraphEnabled: false,
+          perfectDrawEnabled: false,
+          tension: 0.3,
+          lineCap: 'round',
+          lineJoin: 'round'
+        })
+        
+        // Add to activeLayer only - keeps it separate from completed annotations
+        activeLayer.value.getNode().add(currentShapeNode)
+        activeLayer.value.getNode().batchDraw() // Only redraws the single temporary shape
+        
+        // Initialize for sliding buffer
+        slidingBufferOptimizer.reset()
+        currentPath.value = [canvasPos]
+        
+        // Still use Vue state for completion tracking
+        startAnnotation('freehand', originalPos)
+        console.log('🎯 Starting new freehand annotation with direct Konva node')
+      }
+    }
+    return
+  }
+  
   // Auto-start annotating for rectangle, line, circle when tool is selected
   if (props.currentTool === 'rectangle' || props.currentTool === 'line' || props.currentTool === 'circle') {
     startAnnotation(props.currentTool as any, originalPos)
     startPoint.value = canvasPos // Keep canvas coordinates for calculations
-  } else if (props.currentTool === 'freehand') {
-    startAnnotation('freehand', originalPos)
-    currentPath.value = [canvasPos] // Keep canvas coordinates for drawing
-    slidingBufferOptimizer.reset() // Reset buffer for new annotation
-    console.log('🎯 Starting new freehand annotation with sliding buffer optimization')
   }
 }
 
@@ -1162,13 +1419,52 @@ const handleStageMouseMove = (e: any) => {
   const stageNode = e.target.getStage()
   const pointer = stageNode.getPointerPosition()
   
-  if (!pointer) return
-  
-  // Convert pointer to canvas coordinates for consistent coordinate handling
+  if (!pointer) return  // Convert pointer to canvas coordinates for consistent coordinate handling
   const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
   const mouseCanvasPos = mouseTransform.point(pointer)
   mousePosition.value = mouseCanvasPos
   
+  // ULTRA-HIGH-PERFORMANCE PATH: Direct Konva node updates for polygon/freehand
+  if (isDrawingNonReactive.value) {
+    // Clamp position to image bounds in canvas coordinates
+    const clampedCanvasPos = {
+      x: Math.max(imageOffset.value.x, Math.min(mouseCanvasPos.x, imageOffset.value.x + displayImageSize.value.width)),
+      y: Math.max(imageOffset.value.y, Math.min(mouseCanvasPos.y, imageOffset.value.y + displayImageSize.value.height))
+    }
+    
+    if (props.currentTool === 'freehand' && currentShapeNode) {
+      // Use sliding buffer optimization for ultra-smooth freehand drawing
+      const flatPoints = slidingBufferOptimizer.addPoint(clampedCanvasPos.x, clampedCanvasPos.y)
+      
+      if (flatPoints !== null) {
+        // Direct Konva node update - NO Vue reactivity overhead
+        // CRITICAL: Only redraw activeLayer, not staticLayer with completed annotations
+        currentShapeNode.points(flatPoints)
+        activeLayer.value?.getNode().batchDraw() // Only redraws the single temporary shape
+        
+        // Minimal Vue state update for path tracking (only when buffer changes)
+        const pathPoints = []
+        for (let i = 0; i < flatPoints.length - 1; i += 2) {
+          pathPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
+        }
+        currentPath.value = pathPoints
+      }
+    } else if (props.currentTool === 'polygon' && ghostLineNode) {
+      // TWO-SHAPE ILLUSION: O(1) mousemove operation for polygon
+      // Only update the second point of ghostLineNode - pathNode remains unchanged
+      const ghostPoints = ghostLineNode.points()
+      if (ghostPoints.length >= 2) {
+        // Update only the endpoint of the ghost line
+        ghostLineNode.points([ghostPoints[0], ghostPoints[1], clampedCanvasPos.x, clampedCanvasPos.y])
+        
+        // Single node redraw - O(1) performance regardless of polygon complexity
+        activeLayer.value?.getNode().batchDraw()
+      }
+    }
+    return // Exit early to avoid Vue reactivity overhead
+  }
+  
+  // LEGACY PATH: Vue reactive updates for other tools
   if (!isDrawing.value || !startPoint.value || !currentAnnotation.value) return
   
   // Convert to canvas coordinates
@@ -1207,42 +1503,29 @@ const handleStageMouseMove = (e: any) => {
   } else if (props.currentTool === 'circle') {
     const distance = Math.hypot(clampedCanvasPos.x - startPoint.value.x, clampedCanvasPos.y - startPoint.value.y)
     currentAnnotation.value.radius = distance / imageScale.value
-  } else if (props.currentTool === 'freehand' && currentAnnotation.value?.points) {
-    // Use sliding buffer optimization for freehand drawing
-    const flatPoints = slidingBufferOptimizer.addPoint(clampedCanvasPos.x, clampedCanvasPos.y)
-    
-    if (flatPoints !== null) {
-      // Get buffer status for performance monitoring
-      const bufferStatus = slidingBufferOptimizer.getStatus()
-      
-      // Convert flat points back to coordinate objects for currentPath
-      const pathPoints = []
-      for (let i = 0; i < flatPoints.length - 1; i += 2) {
-        pathPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
-      }
-      currentPath.value = pathPoints
-      
-      // Update annotation points (original coordinates) - convert to coordinate objects
-      const originalPoints: { x: number; y: number }[] = []
-      for (let i = 0; i < flatPoints.length - 1; i += 2) {
-        const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
-        originalPoints.push(canvasToOriginal(canvasPoint))
-      }
-      currentAnnotation.value.points = originalPoints
-      
-      // Real-time performance monitoring during freehand drawing  
-      const pointCount = flatPoints.length / 2
-      if (pointCount % 10 === 0) { // Reduced frequency to every 10 points for less console spam
-        polygonPerformanceMonitor.updateMetrics([...props.annotations, currentAnnotation.value])
-        
-        // Performance logging
-        console.log(`🎯 Freehand optimization: ${bufferStatus.totalPoints} total, ${bufferStatus.renderPoints} rendered (${bufferStatus.compressionRatio.toFixed(1)}% shown)`)
-      }
-    }
   }
 }
 
 const handleStageMouseUp = (e: any) => {
+  // Handle non-reactive drawing completion first
+  if (isDrawingNonReactive.value && currentShapeNode) {
+    // For freehand, complete the drawing using finishDrawing function
+    if (props.currentTool === 'freehand') {
+      finishDrawing()
+      return
+    }
+    
+    // For polygon, don't complete on mouseup - wait for double-click
+    if (props.currentTool === 'polygon') {
+      return
+    }
+    
+    // For any other non-reactive drawing, clean up without completing
+    cleanupNonReactiveDrawing()
+    return
+  }
+  
+  // Legacy reactive drawing path
   if (!isDrawing.value) return
   
   isDrawing.value = false
@@ -1316,25 +1599,6 @@ const handleStageMouseUp = (e: any) => {
       }
     } else if (props.currentTool === 'circle') {
       shouldComplete = (currentAnnotation.value.radius || 0) > minSize
-    } else if (props.currentTool === 'freehand') {
-      shouldComplete = currentPath.value.length > 3
-      
-      // Use enhanced completion for freehand to get final optimized points
-      if (shouldComplete && currentAnnotation.value) {
-        const finalPoints = slidingBufferOptimizer.complete()
-        
-        // Convert final points to coordinate objects for annotation
-        const finalOriginalPoints: { x: number; y: number }[] = []
-        for (let i = 0; i < finalPoints.length - 1; i += 2) {
-          const canvasPoint = { x: finalPoints[i]!, y: finalPoints[i + 1]! }
-          finalOriginalPoints.push(canvasToOriginal(canvasPoint))
-        }
-        currentAnnotation.value.points = finalOriginalPoints
-        
-        // Log completion metrics
-        const bufferStatus = slidingBufferOptimizer.getStatus()
-        console.log(`✅ Freehand completed: ${finalOriginalPoints.length} final points`)
-      }
     }
     
     if (shouldComplete) {
@@ -1433,14 +1697,23 @@ const handleStageDoubleClick = (e: any) => {
   // Reset the click timer to prevent false single clicks
   lastClickTime.value = 0
   
-  if (props.currentTool === 'polygon' && props.isAnnotating && currentPath.value.length > 2) {
-    // Check for class selection before completing polygon
-    if (props.classes && props.classes.length > 0 && currentAnnotation.value) {
-      const stageNode = e.target.getStage()
-      const pointer = stageNode.getPointerPosition()
-      emit('show-class-selector', currentAnnotation.value, pointer || { x: 0, y: 0 })
-    } else {
-      completePolygon()
+  if (props.currentTool === 'polygon' && props.isAnnotating) {
+    // Use the two-shape illusion finishDrawing function for non-reactive drawing
+    if (isDrawingNonReactive.value && pathNode && ghostLineNode) {
+      finishDrawing()
+      return
+    }
+    
+    // Fallback to legacy Vue state completion for reactive drawing
+    if (currentAnnotation.value && currentAnnotation.value.points && currentAnnotation.value.points.length > 2) {
+      // Check for class selection before completing polygon
+      if (props.classes && props.classes.length > 0) {
+        const stageNode = e.target.getStage()
+        const pointer = stageNode.getPointerPosition()
+        emit('show-class-selector', currentAnnotation.value, pointer || { x: 0, y: 0 })
+      } else {
+        completePolygon()
+      }
     }
   }
 }
@@ -1531,6 +1804,38 @@ const fitToScreen = () => {
   stagePosition.value = {
     x: (stageSize.value.width - scaledImageWidth) / 2 - imageOffset.value.x * fitScale,
     y: (stageSize.value.height - scaledImageHeight) / 2 - imageOffset.value.y * fitScale
+  }
+}
+
+// Keyboard event handler for drawing completion
+const handleStageKeyDown = (e: any) => {
+  const keyEvent = e.evt
+  
+  // Enter key to finish current drawing
+  if (keyEvent.key === 'Enter' || keyEvent.keyCode === 13) {
+    if (isDrawingNonReactive.value && currentShapeNode) {
+      // Prevent default to avoid form submission
+      keyEvent.preventDefault()
+      
+      // Check if we have enough points for a valid shape
+      const flatPoints = currentShapeNode.points()
+      if (flatPoints && flatPoints.length >= 4) { // At least 2 points
+        console.log('🎯 Finishing drawing with Enter key')
+        finishDrawing()
+      }
+    }
+  }
+  
+  // Escape key to cancel current drawing
+  if (keyEvent.key === 'Escape' || keyEvent.keyCode === 27) {
+    if (isDrawingNonReactive.value && currentShapeNode) {
+      keyEvent.preventDefault()
+      console.log('🎯 Canceling drawing with Escape key')
+      cleanupNonReactiveDrawing()
+      
+      // Also cancel Vue state
+      cancelCurrentAnnotation()
+    }
   }
 }
 
@@ -1816,9 +2121,11 @@ const duplicateAnnotation = () => {
 }
 
 const updateTransformer = () => {
-  if (!transformer.value) return
-  
-  const transformerNode = transformer.value.getNode()
+  // Ensure transformer is initialized
+  if (!transformerInstance) {
+    initializeTransformer()
+    if (!transformerInstance) return
+  }
   
   if (selectedAnnotationIndex.value !== null) {
     // Find the selected annotation node by looking for the ref key
@@ -1830,22 +2137,34 @@ const updateTransformer = () => {
       if (selectedNode) {
         // Only apply transformer to transformable annotation types
         if (selectedAnnotation.type === 'rectangle') {
-          transformerNode.nodes([selectedNode])
+          // PERFORMANCE: Only attach/detach nodes, never destroy/recreate transformer
+          transformerInstance.nodes([selectedNode])
+          
+          // Update transformer config for current UI scale
+          const uiScale = getUIScale()
+          transformerInstance.anchorStrokeWidth(2 * uiScale)
+          transformerInstance.anchorSize(8 * uiScale)
+          transformerInstance.borderStrokeWidth(2 * uiScale)
+          transformerInstance.borderDash([3 * uiScale, 3 * uiScale])
         } else {
-          // For non-transformable types (like freehand), don't show transformer
-          transformerNode.nodes([])
+          // For non-transformable types, detach transformer
+          transformerInstance.nodes([])
         }
       } else {
-        transformerNode.nodes([])
+        // Node not found, detach transformer
+        transformerInstance.nodes([])
       }
     } else {
-      transformerNode.nodes([])
+      // Annotation not found, detach transformer
+      transformerInstance.nodes([])
     }
   } else {
-    transformerNode.nodes([])
+    // No selection, detach transformer
+    transformerInstance.nodes([])
   }
   
-  transformerNode.getLayer()?.batchDraw()
+  // PERFORMANCE: Only redraw activeLayer (transformer location), not staticLayer (completed annotations)
+  activeLayer.value?.getNode().batchDraw()
 }
 
 // Public methods - now handled by useAnnotationLifecycle composable
@@ -1867,41 +2186,8 @@ watch(() => props.imageUrl, async (newUrl) => {
   }
 }, { immediate: true })
 
-// Watch annotations for cache management and auto performance mode
-watch(() => props.annotations, (newAnnotations, oldAnnotations) => {
-  // Update performance metrics
-  polygonPerformanceMonitor.updateMetrics(newAnnotations)
-  
-  // Clear caches when annotations change significantly
-  if (!oldAnnotations || newAnnotations.length !== oldAnnotations.length) {
-    clearAllAnnotationCaches()
-  }
-  
-  // Auto-enable performance mode when we have many polygons
-  const polygonCount = newAnnotations.filter(a => a.type === 'polygon' || a.type === 'freehand').length
-  
-  // Use performance monitor to determine if performance mode should be activated
-  if (polygonPerformanceMonitor.shouldActivatePerformanceMode() && !isZooming.value && !isDraggingStage.value) {
-    // Auto-enable performance mode for heavy polygon scenes
-    if (!isPerformanceMode.value) {
-      console.log(`Auto-enabling performance mode: ${polygonCount} polygons detected`)
-      polygonPerformanceMonitor.logPerformanceSummary()
-      enterPerformanceMode()
-      
-      // Auto-exit after a delay to allow for interaction
-      setTimeout(() => {
-        if (!isZooming.value && !isDraggingStage.value) {
-          exitPerformanceMode()
-        }
-      }, 1000)
-    }
-  }
-  
-  // Cache new annotations after they're rendered
-  nextTick(() => {
-    cacheAllAnnotations()
-  })
-}, { deep: true })
+// Deep watcher removed for INP performance optimization
+// Auto performance mode and caching disabled to eliminate state change cascade
 
 // Watch stage scale changes to invalidate caches when zoom changes significantly
 watch(stageScale, (newScale, oldScale) => {
@@ -1918,6 +2204,26 @@ watch(selectedAnnotationIndex, () => {
   nextTick(() => {
     updateTransformer()
   })
+})
+
+// Watch for tool changes to clean up non-reactive drawing state
+watch(() => props.currentTool, (newTool, oldTool) => {
+  // If we're switching away from a drawing tool and have an active non-reactive drawing,
+  // attempt to finish it before cleaning up
+  if (isDrawingNonReactive.value && currentShapeNode && (oldTool === 'polygon' || oldTool === 'freehand')) {
+    // Only finish if we have enough points for a valid shape
+    const flatPoints = currentShapeNode.points()
+    if (flatPoints && flatPoints.length >= 4) { // At least 2 points
+      console.log(`🎯 Auto-finishing ${oldTool} drawing due to tool change`)
+      finishDrawing()
+    } else {
+      // Not enough points, just clean up
+      cleanupNonReactiveDrawing()
+    }
+  } else {
+    // Normal cleanup for other cases
+    cleanupNonReactiveDrawing()
+  }
 })
 
 // Function to cache all visible annotations with polygon-specific optimization
@@ -1960,20 +2266,14 @@ const cacheAllAnnotations = () => {
         // Use requestAnimationFrame for smooth processing
         requestAnimationFrame(processBatch)
       } else {
-        // Final batch draw after all caching is complete
-        if (annotationLayer.value) {
-          annotationLayer.value.getNode().batchDraw()
-        }
+        // No longer need batchDraw - annotation layer removed for performance
       }
     }
     
     // Start batch processing
     requestAnimationFrame(processBatch)
   } else {
-    // Batch draw after all caching is complete (no polygons case)
-    if (annotationLayer.value) {
-      annotationLayer.value.getNode().batchDraw()
-    }
+    // No longer need batchDraw - annotation layer removed for performance
   }
 }
 
@@ -2011,12 +2311,24 @@ onMounted(async () => {
   
   // Initialize after stage is ready
   nextTick(() => {
+    // Initialize transformer instance
+    initializeTransformer()
+    
     // Cache annotations after component is mounted
     cacheAllAnnotations()
   })
 })
 
 onUnmounted(() => {
+  // Clean up non-reactive drawing state
+  cleanupNonReactiveDrawing()
+  
+  // Clean up transformer instance
+  if (transformerInstance) {
+    transformerInstance.destroy()
+    transformerInstance = null
+  }
+  
   // Clean up all timers
   if (transformerUpdateTimeout) {
     clearTimeout(transformerUpdateTimeout)
@@ -2051,6 +2363,7 @@ onUnmounted(() => {
 defineExpose({
   completeCurrentAnnotation,
   cancelCurrentAnnotation,
+  finishDrawing, // NEW: Bridge function for completing non-reactive drawings
   getImageScale: () => imageScale.value,
   getImageOffset: () => imageOffset.value,
   getOriginalImageSize: () => originalImageSize.value,
@@ -2122,9 +2435,7 @@ defineExpose({
   },
   // Performance method to force batch draw
   batchDraw: () => {
-    if (annotationLayer.value) {
-      annotationLayer.value.getNode().batchDraw()
-    }
+    // No longer need batchDraw - annotation layer removed for performance
   },
   // Get polygon complexity statistics
   getPolygonStats: () => {

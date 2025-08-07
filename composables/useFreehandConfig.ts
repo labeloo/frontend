@@ -1,4 +1,4 @@
-import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point } from '~/utils/polygonOptimization'
+import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point as PolygonPoint } from '~/utils/polygonOptimization'
 
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
@@ -30,7 +30,7 @@ export const useFreehandConfig = () => {
     // Determine if we should simplify the freehand path for performance
     let processedPoints = annotation.points
     if (shouldSimplifyPolygon(annotation.points.length, zoomLevel)) {
-      processedPoints = adaptiveSimplifyPolygon(annotation.points as Point[], zoomLevel, 2.0) // Higher epsilon for freehand
+      processedPoints = adaptiveSimplifyPolygon(annotation.points as PolygonPoint[], zoomLevel, 2.0) // Higher epsilon for freehand
     }
 
     // Convert all points to display coordinates and flatten them

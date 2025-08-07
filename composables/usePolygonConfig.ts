@@ -1,4 +1,4 @@
-import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point } from '~/utils/polygonOptimization'
+import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point as PolygonPoint } from '~/utils/polygonOptimization'
 
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
@@ -56,7 +56,7 @@ export function usePolygonConfig() {
     
     if (shouldSimplifyPolygon(annotation.points.length, zoomLevel)) {
       const originalCount = annotation.points.length
-      processedPoints = adaptiveSimplifyPolygon(annotation.points as Point[], zoomLevel, 1.0)
+      processedPoints = adaptiveSimplifyPolygon(annotation.points as PolygonPoint[], zoomLevel, 1.0)
       wasSimplified = processedPoints.length < originalCount
       
       // Debug log to see simplification in action
