@@ -236,7 +236,7 @@ const tools: Tool[] = [
     tooltip: 'Draw polygon annotations (P)'
   },
   {
-    id: 'dots',
+    id: 'dot',
     label: 'Point',
     icon: 'i-heroicons-map-pin',
     tooltip: 'Add point annotations (D)'
@@ -336,7 +336,7 @@ onMounted(() => {
         selectTool('polygon')
         break
       case 'd':
-        selectTool('dots')
+        selectTool('dot')
         break
       case 'l':
         selectTool('line')

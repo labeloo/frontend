@@ -454,7 +454,7 @@ interface CanvasAnnotation {
 
 
 // Annotation tools state
-const tools = ['select', 'rectangle', 'polygon', 'dots', 'line', 'circle', 'freehand']
+const tools = ['select', 'rectangle', 'polygon', 'dot', 'line', 'circle', 'freehand']
 const currentTool = ref('rectangle')
 const isAnnotating = ref(false)
 
@@ -801,6 +801,16 @@ const clearAllAnnotations = () => {
     addToHistory()
     canvasAnnotations.value = []
   }
+  
+  // Also clear any pending annotations and reset canvas state
+  if (konvaCanvas.value) {
+    konvaCanvas.value.cancelCurrentAnnotation()
+  }
+  
+  // Clear any pending annotation state
+  pendingAnnotation.value = null
+  showClassSelector.value = false
+  selectedAnnotationIndex.value = null
 }
 
 const exportAnnotations = () => {

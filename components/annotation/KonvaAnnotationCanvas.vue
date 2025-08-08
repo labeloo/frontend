@@ -281,6 +281,7 @@ Generated code
 import { useRectConfig } from '~/composables/useRectConfig';
 import { usePolygonConfig } from '~/composables/usePolygonConfig';
 import { useCircleConfig } from '~/composables/useCircleConfig';
+import { useDotConfig } from '~/composables/useDotConfig';
 import { useLineConfig } from '~/composables/useLineConfig';
 import { useFreehandConfig } from '~/composables/useFreehandConfig';
 import { useAnnotationDragHandlers } from '~/composables/useAnnotationDragHandlers';
@@ -610,8 +611,11 @@ const finishDrawing = () => {
   // 1. Set the pending state
   pendingAnnotation.value = newAnnotation
   
-  // 2. Clean up all temporary Konva nodes BEFORE emitting
-  cleanupNonReactiveDrawing()
+  // 2. For dots, keep the temporary visual until class selection is complete
+  // For other tools, clean up temporary nodes immediately
+  if (tool !== 'dot') {
+    cleanupNonReactiveDrawing()
+  }
   
   // 3. Ask the parent to show the class selector or finalize immediately
   if (props.classes && props.classes.length > 0) {
@@ -655,15 +659,20 @@ const finalizeAnnotation = (className: string) => {
   // b. Assign the className to it
   annotation.className = className || undefined
   
+  // c. For dots, clean up the temporary visual now that we're finalizing
+  if (annotation.type === 'dot') {
+    cleanupNonReactiveDrawing()
+  }
+  
   console.log('🎯 About to emit update:annotations with:', [...props.annotations, annotation].length, 'annotations')
   
-  // c. Push the completed annotation to the main props.annotations array via an emit
+  // d. Push the completed annotation to the main props.annotations array via an emit
   const newAnnotations = [...props.annotations, annotation]
   emit('update:annotations', newAnnotations)
   // REMOVED: emit('annotation-completed', annotation) - This was causing the parent to add a duplicate
   emit('update:isAnnotating', false)
   
-  // d. Set pendingAnnotation.value = null
+  // e. Set pendingAnnotation.value = null
   pendingAnnotation.value = null
   
   // Ensure static layer redraws to show the new annotation
@@ -934,6 +943,7 @@ const isPointInImageBounds = (stagePoint: { x: number; y: number }) => {
 const { createRectangleConfig } = useRectConfig()
 const { createPolygonConfig } = usePolygonConfig()
 const { createCircleConfig } = useCircleConfig()
+const { createDotConfig } = useDotConfig()
 const { createLineConfig } = useLineConfig()
 const { createFreehandConfig } = useFreehandConfig()
 
@@ -1069,26 +1079,14 @@ const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
 }
 
 const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
-  // Since all annotations are now in canvas coordinates, use them directly
-  if (!annotation.center || annotation.radius === undefined) {
-    return {}
-  }
-
-  const isSelected = selectedAnnotationIndex.value === index
-  const isHovered = hoveredAnnotationIndex.value === index
-  const uiScale = getUIScale()
-
-  return {
-    x: annotation.center.x,
-    y: annotation.center.y,
-    radius: annotation.radius,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
-    fill: isSelected ? 'rgba(66, 133, 244, 0.2)' : (isHovered ? 'rgba(52, 168, 83, 0.1)' : 'rgba(0, 200, 81, 0.1)'),
-    draggable: true,
-    listening: true,
-    perfectDrawEnabled: false
-  }
+  return createDotConfig(
+    annotation,
+    index,
+    selectedAnnotationIndex.value,
+    hoveredAnnotationIndex.value,
+    canvasToCanvas, // Since annotations are in canvas coordinates
+    1 // imageScale is 1 since we're already in canvas coordinates
+  )
 }
 
 const getLabelConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -1500,6 +1498,34 @@ const handleStageMouseDown = (e: any) => {
       console.log('🎯 Starting line with unified imperative approach')
       return
     }
+    
+    if (props.currentTool === 'dot') {
+      // Dots are single-click annotations - show immediately and complete
+      const defaultRadius = 5 // 5 pixels in canvas units
+      
+      currentShapeNode = new Konva.Circle({
+        x: canvasPos.x,
+        y: canvasPos.y,
+        radius: defaultRadius,
+        stroke: '#ff4444',
+        strokeWidth: 1,
+        fill: '#ff4444',
+        listening: false
+      })
+      
+      activeLayer.value.getNode().add(currentShapeNode)
+      activeLayer.value.getNode().batchDraw()
+      
+      // For dots, we want to show the visual immediately but not clean up the node
+      // until after class selection is complete
+      emit('update:isAnnotating', true)
+      
+      // Complete the annotation immediately since dots are single-click
+      finishDrawing()
+      
+      console.log('🎯 Created dot annotation with unified imperative approach')
+      return
+    }
   }
 }
 
@@ -1588,6 +1614,11 @@ const handleStageMouseUp = (e: any) => {
   
   // For polygon, don't complete on mouseup - wait for double-click or explicit completion
   if (props.currentTool === 'polygon') {
+    return
+  }
+  
+  // For dots, don't complete on mouseup - already completed in mousedown
+  if (props.currentTool === 'dot') {
     return
   }
   
