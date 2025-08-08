@@ -385,6 +385,17 @@ const initializeTransformer = () => {
   console.log('🎯 Transformer instance initialized on activeLayer')
 }
 
+// Helper function to check if a point is near the first vertex (for polygon completion)
+const isNearFirstVertex = (clickPos: { x: number; y: number }, threshold: number = 15) => {
+  if (!currentPathImperative || currentPathImperative.length === 0) return false
+  
+  const firstPoint = currentPathImperative[0]
+  if (!firstPoint) return false
+  
+  const distance = Math.hypot(clickPos.x - firstPoint.x, clickPos.y - firstPoint.y)
+  return distance <= threshold / stageScale.value // Adjust threshold based on zoom level
+}
+
 // Helper function to clean up non-reactive drawing state
 const cleanupNonReactiveDrawing = () => {
   if (isDrawingNonReactive.value && currentShapeNode) {
@@ -727,10 +738,6 @@ let isDraggingAnnotationNonReactive = false
 
 // Track if we're in the middle of potentially starting a drag
 let potentialDragStart = false
-
-// Double-click timing state for improved polygon completion
-const lastClickTime = ref(0)
-const doubleClickThreshold = 100
 
 // Polygon performance optimization state
 const isZooming = ref(false)
@@ -1246,7 +1253,7 @@ const handleStageMouseDown = (e: any) => {
         const firstVertex = new Konva.Circle({
           x: canvasPos.x,
           y: canvasPos.y,
-          radius: 4,
+          radius: 6, // Slightly larger for easier targeting
           fill: '#ff4444',
           stroke: '#4285f4',
           strokeWidth: 2,
@@ -1263,6 +1270,13 @@ const handleStageMouseDown = (e: any) => {
         emit('update:isAnnotating', true)
         console.log('🎯 Started polygon with unified imperative approach')
       } else {
+        // Check if click is near the first vertex to complete polygon
+        if (currentPathImperative.length >= 3 && isNearFirstVertex(canvasPos)) {
+          console.log('🎯 Clicked near first vertex, completing polygon')
+          finishDrawing()
+          return
+        }
+        
         if (pathNode && ghostLineNode && vertexGroup) {
           const currentPathPoints = pathNode.points() || []
           const newPathPoints = [...currentPathPoints, canvasPos.x, canvasPos.y]
@@ -1411,6 +1425,24 @@ const handleStageMouseMove = (e: any) => {
       const ghostPoints = ghostLineNode.points()
       if (ghostPoints.length >= 2) {
         ghostLineNode.points([ghostPoints[0], ghostPoints[1], clampedCanvasPos.x, clampedCanvasPos.y])
+        
+        // Visual feedback when hovering near the first vertex
+        if (currentPathImperative.length >= 3 && isNearFirstVertex(clampedCanvasPos)) {
+          // Change the first vertex appearance to indicate it can be clicked to finish
+          const firstVertex = vertexGroup?.children?.[0]
+          if (firstVertex) {
+            firstVertex.fill('#00ff00') // Green color to indicate completion target
+            firstVertex.radius(8) // Larger radius
+          }
+        } else {
+          // Reset first vertex appearance
+          const firstVertex = vertexGroup?.children?.[0]
+          if (firstVertex) {
+            firstVertex.fill('#ff4444') // Original red color
+            firstVertex.radius(6) // Original radius
+          }
+        }
+        
         activeLayer.value?.getNode().batchDraw()
       }
     } else if (props.currentTool === 'rectangle' && currentShapeNode && startPointImperative) {
@@ -1456,10 +1488,8 @@ const handleStageClick = (e: any) => {
 }
 
 const handleStageDoubleClick = (e: any) => {
-  // Complete polygon on double-click
-  if (props.currentTool === 'polygon' && isDrawingNonReactive.value) {
-    finishDrawing()
-  }
+  // Double-click functionality disabled for polygon
+  // Polygon now finishes when clicking near the first vertex
 }
 
 // Placeholder functions for missing handlers (implement as needed)
