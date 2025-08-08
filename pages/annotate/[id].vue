@@ -827,7 +827,7 @@ const selectAnnotationClass = (className: string) => {
   
   // Complete the annotation
   if (konvaCanvas.value) {
-    konvaCanvas.value.completeCurrentAnnotation(className)
+    konvaCanvas.value.finalizeAnnotation(className)
   }
   
   // Clean up
