@@ -183,9 +183,13 @@ Generated code
           />
         </template>
         
-        <!-- Class labels -->
+        <!-- Class labels with background for better visibility -->
+        <!-- Always show labels, even for unlabeled annotations -->
+        <v-rect
+          :config="getLabelBackgroundConfig(annotation, index)"
+        />
+        <!-- Text label -->
         <v-text
-          v-if="annotation.className"
           :config="getLabelConfig(annotation, index)"
         />
       </template>
@@ -1048,31 +1052,88 @@ const getLabelConfig = (annotation: CanvasAnnotation, index: number) => {
   let position = { x: 0, y: 0 }
   const isSelected = selectedAnnotationIndex.value === index
   const uiScale = getUIScale()
+  const padding = 4 * uiScale
   
   if (annotation.type === 'rectangle' && annotation.startPoint) {
     position = originalToCanvas(annotation.startPoint)
-    position.y -= 8 * uiScale
+    position.y -= 20 * uiScale // Increased spacing from annotation
   } else if (annotation.type === 'polygon' && annotation.points && annotation.points.length > 0) {
     const firstPoint = annotation.points[0]
     if (firstPoint) {
       position = originalToCanvas(firstPoint)
-      position.y -= 8 * uiScale
+      position.y -= 20 * uiScale // Increased spacing from annotation
     }
   } else if (annotation.type === 'dot' && annotation.center) {
     position = originalToCanvas(annotation.center)
-    position.y -= (annotation.radius || 5) * imageScale.value + 8 * uiScale
+    position.y -= (annotation.radius || 5) * imageScale.value + 20 * uiScale // Increased spacing from annotation
+  } else if (annotation.type === 'line' && annotation.startPoint) {
+    position = originalToCanvas(annotation.startPoint)
+    position.y -= 20 * uiScale // Added line support
+  } else if (annotation.type === 'circle' && annotation.center) {
+    const canvasCenter = originalToCanvas(annotation.center)
+    const canvasRadius = (annotation.radius || 5) * imageScale.value
+    position = { x: canvasCenter.x, y: canvasCenter.y - canvasRadius - 20 * uiScale } // Added circle support
+  } else if (annotation.type === 'freehand' && annotation.points && annotation.points.length > 0) {
+    const firstPoint = annotation.points[0]
+    if (firstPoint) {
+      position = originalToCanvas(firstPoint)
+      position.y -= 20 * uiScale // Added freehand support
+    }
   }
   
+  // Clean, readable text styling
   return {
-    x: position.x,
-    y: position.y,
-    text: annotation.className,
-    fontSize: 12 * uiScale,
+    x: position.x + padding,
+    y: position.y + padding,
+    text: annotation.className || 'Unlabeled',
+    fontSize: 12 * uiScale, // Normal font size
     fontFamily: 'Arial, sans-serif',
-    fontStyle: 'bold',
-    fill: isSelected ? '#4285f4' : '#00c851',
-    stroke: '#ffffff',
-    strokeWidth: 2 * uiScale,
+    fontStyle: 'normal', // Normal weight instead of bold
+    // Dark text for better readability on light background
+    fill: isSelected ? '#ffffff' : '#333333',
+    // No stroke for cleaner appearance
+    stroke: '',
+    strokeWidth: 0,
+    // No shadow for cleaner appearance
+    listening: false,
+    perfectDrawEnabled: false,
+    // Text alignment for better positioning
+    align: 'left',
+    verticalAlign: 'top'
+  }
+}
+
+const getLabelBackgroundConfig = (annotation: CanvasAnnotation, index: number) => {
+  const labelConfig = getLabelConfig(annotation, index)
+  const isSelected = selectedAnnotationIndex.value === index
+  const uiScale = getUIScale()
+  
+  // Calculate text dimensions for background sizing
+  const text = annotation.className || 'Unlabeled'
+  const fontSize = 12 * uiScale
+  const padding = 4 * uiScale
+  
+  // More accurate text width calculation based on character count and font size
+  const avgCharWidth = fontSize * 0.6 // Adjusted for normal font weight
+  const textWidth = Math.max(text.length * avgCharWidth, fontSize * 2) // Minimum width
+  const textHeight = fontSize * 1.1 // Line height
+  
+  return {
+    x: labelConfig.x - padding,
+    y: labelConfig.y - padding,
+    width: textWidth + (padding * 2),
+    height: textHeight + (padding * 2),
+    // Clean, simple background - light for readability
+    fill: isSelected ? 'rgba(66, 133, 244, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+    // Simple border
+    stroke: isSelected ? '#4285f4' : '#cccccc',
+    strokeWidth: 1 * uiScale,
+    cornerRadius: 3 * uiScale, // Small rounded corners
+    // Subtle shadow for depth
+    shadowColor: 'rgba(0, 0, 0, 0.2)',
+    shadowBlur: 2 * uiScale,
+    shadowOffsetX: 1 * uiScale,
+    shadowOffsetY: 1 * uiScale,
     listening: false,
     perfectDrawEnabled: false
   }
