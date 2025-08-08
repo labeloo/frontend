@@ -1,5 +1,3 @@
-import { adaptiveSimplifyPolygon, shouldSimplifyPolygon, type Point as PolygonPoint } from '~/utils/polygonOptimization'
-
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -27,14 +25,8 @@ export const useFreehandConfig = () => {
       return {}
     }
 
-    // Determine if we should simplify the freehand path for performance
-    let processedPoints = annotation.points
-    if (shouldSimplifyPolygon(annotation.points.length, zoomLevel)) {
-      processedPoints = adaptiveSimplifyPolygon(annotation.points as PolygonPoint[], zoomLevel, 2.0) // Higher epsilon for freehand
-    }
-
-    // Convert all points to display coordinates and flatten them
-    const displayPoints = processedPoints
+    // Convert all points to display coordinates and flatten them (no simplification for freehand)
+    const displayPoints = annotation.points
       .map(point => displayTransform(point))
       .flatMap(point => [point.x, point.y])
 
@@ -52,7 +44,7 @@ export const useFreehandConfig = () => {
       draggable: isInteracting && interactionEnabled,
       listening: isInteracting && interactionEnabled, // Only listen when interaction is needed
       hitStrokeWidth: 20, // Increase hit area for better selection
-      tension: 0.3,
+      tension: 0, // No smoothing for true freehand drawing
       lineCap: 'round',
       lineJoin: 'round',
       perfectDrawEnabled: false, // Better performance for complex paths

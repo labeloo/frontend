@@ -489,10 +489,10 @@ const finishDrawing = () => {
       return
     }
     
-    const finalOptimizedPoints = slidingBufferOptimizer.complete()
+    // Use the actual points from the shape node instead of optimizer
     const optimizedOriginalPoints: { x: number; y: number }[] = []
-    for (let i = 0; i < finalOptimizedPoints.length - 1; i += 2) {
-      const canvasPoint = { x: finalOptimizedPoints[i]!, y: finalOptimizedPoints[i + 1]! }
+    for (let i = 0; i < flatPoints.length - 1; i += 2) {
+      const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
       optimizedOriginalPoints.push(canvasToOriginal(canvasPoint))
     }
     
@@ -1470,18 +1470,18 @@ const handleStageMouseMove = (e: any) => {
     }
     
     if (props.currentTool === 'freehand' && currentShapeNode) {
-      const flatPoints = slidingBufferOptimizer.addPoint(clampedCanvasPos.x, clampedCanvasPos.y)
+      // Direct point addition for true freehand experience (bypass optimizer)
+      const currentPoints = currentShapeNode.points()
+      const newPoints = [...currentPoints, clampedCanvasPos.x, clampedCanvasPos.y]
       
-      if (flatPoints !== null) {
-        currentShapeNode.points(flatPoints)
-        activeLayer.value?.getNode().batchDraw()
-        
-        const pathPoints = []
-        for (let i = 0; i < flatPoints.length - 1; i += 2) {
-          pathPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
-        }
-        currentPathImperative = pathPoints
+      currentShapeNode.points(newPoints)
+      activeLayer.value?.getNode().batchDraw()
+      
+      const pathPoints = []
+      for (let i = 0; i < newPoints.length - 1; i += 2) {
+        pathPoints.push({ x: newPoints[i]!, y: newPoints[i + 1]! })
       }
+      currentPathImperative = pathPoints
     } else if (props.currentTool === 'polygon' && ghostLineNode) {
       const ghostPoints = ghostLineNode.points()
       if (ghostPoints.length >= 2) {
