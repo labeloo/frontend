@@ -390,8 +390,6 @@ const cleanupNonReactiveDrawing = () => {
   if (isDrawingNonReactive.value && currentShapeNode) {
     currentShapeNode.destroy()
     currentShapeNode = null
-    isDrawingNonReactive.value = false
-    activeLayer.value?.getNode().batchDraw()
   }
   
   // Clean up polygon two-shape illusion nodes
@@ -410,10 +408,18 @@ const cleanupNonReactiveDrawing = () => {
     vertexGroup = null
   }
   
+  // Always reset the drawing flag when cleaning up
+  isDrawingNonReactive.value = false
+  
   // Reset imperative state
   startPointImperative = null
   currentPathImperative = []
   mousePositionImperative = null
+  
+  // Redraw the active layer to remove any leftover visual artifacts
+  if (activeLayer.value) {
+    activeLayer.value.getNode().batchDraw()
+  }
   
   console.log('🧹 Cleaned up all non-reactive drawing state')
 }
@@ -666,6 +672,9 @@ const resetAnnotationState = () => {
   // Reset drag flags
   isDraggingAnnotationNonReactive = false
   isDraggingAnnotation.value = false
+  
+  // Emit that we're no longer annotating to hide the cancel button
+  emit('update:isAnnotating', false)
   
   console.log('🔄 Reset all annotation state')
 }
