@@ -465,15 +465,15 @@ const finishDrawing = () => {
       return
     }
     
-    const originalPoints: { x: number; y: number }[] = []
+    // Store raw canvas coordinates without conversion
+    const rawPoints: { x: number; y: number }[] = []
     for (let i = 0; i < flatPoints.length - 1; i += 2) {
-      const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
-      originalPoints.push(canvasToOriginal(canvasPoint))
+      rawPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
     }
     
     newAnnotation = {
       type: 'polygon',
-      points: originalPoints,
+      points: rawPoints,
       className: undefined
     }
   }
@@ -489,16 +489,15 @@ const finishDrawing = () => {
       return
     }
     
-    // Use the actual points from the shape node instead of optimizer
-    const optimizedOriginalPoints: { x: number; y: number }[] = []
+    // Store raw canvas coordinates without conversion
+    const rawPoints: { x: number; y: number }[] = []
     for (let i = 0; i < flatPoints.length - 1; i += 2) {
-      const canvasPoint = { x: flatPoints[i]!, y: flatPoints[i + 1]! }
-      optimizedOriginalPoints.push(canvasToOriginal(canvasPoint))
+      rawPoints.push({ x: flatPoints[i]!, y: flatPoints[i + 1]! })
     }
     
     newAnnotation = {
       type: 'freehand',
-      points: optimizedOriginalPoints,
+      points: rawPoints,
       className: undefined
     }
   }
@@ -519,13 +518,12 @@ const finishDrawing = () => {
       return
     }
     
-    const startOriginal = canvasToOriginal({ x, y })
-    
+    // Store raw canvas coordinates without any conversion
     newAnnotation = {
       type: 'rectangle',
-      startPoint: startOriginal,
-      width: width / imageScale.value,
-      height: height / imageScale.value,
+      startPoint: { x, y },
+      width: width,
+      height: height,
       className: undefined
     }
   }
@@ -545,13 +543,11 @@ const finishDrawing = () => {
       return
     }
     
-    const centerOriginal = canvasToOriginal({ x: centerX, y: centerY })
-    const radiusOriginal = radius / imageScale.value
-    
+    // Store raw canvas coordinates without any conversion
     newAnnotation = {
       type: 'circle',
-      center: centerOriginal,
-      radius: radiusOriginal,
+      center: { x: centerX, y: centerY },
+      radius: radius,
       className: undefined
     }
   }
@@ -567,12 +563,15 @@ const finishDrawing = () => {
       return
     }
     
-    const startOriginal = canvasToOriginal({ x: flatPoints[0]!, y: flatPoints[1]! })
-    const endOriginal = canvasToOriginal({ x: flatPoints[2]!, y: flatPoints[3]! })
+    // Store raw canvas coordinates without conversion
+    const rawPoints = [
+      { x: flatPoints[0]!, y: flatPoints[1]! },
+      { x: flatPoints[2]!, y: flatPoints[3]! }
+    ]
     
-    // Edge case: line must have meaningful length
-    const distance = Math.hypot(endOriginal.x - startOriginal.x, endOriginal.y - startOriginal.y)
-    const minDistance = 2 / imageScale.value // 2 pixels in original coordinates
+    // Edge case: line must have meaningful length (check in raw coordinates)
+    const distance = Math.hypot(rawPoints[1]!.x - rawPoints[0]!.x, rawPoints[1]!.y - rawPoints[0]!.y)
+    const minDistance = 2 / stageScale.value // 2 pixels at current zoom
     if (distance < minDistance) {
       console.warn('Line too short, cleaning up')
       cleanupNonReactiveDrawing()
@@ -581,20 +580,20 @@ const finishDrawing = () => {
     
     newAnnotation = {
       type: 'line',
-      startPoint: startOriginal,
-      endPoint: endOriginal,
+      startPoint: rawPoints[0]!,
+      endPoint: rawPoints[1]!,
       className: undefined
     }
   }
   
   // Handle dot tool (if implemented)
   else if (tool === 'dot' && startPointImperative) {
-    const centerOriginal = canvasToOriginal(startPointImperative)
-    const defaultRadius = 5 / imageScale.value // 5 pixels in original coordinates
+    // Store raw canvas coordinates without any conversion
+    const defaultRadius = 5 // 5 pixels in raw canvas units
     
     newAnnotation = {
       type: 'dot',
-      center: centerOriginal,
+      center: { x: startPointImperative.x, y: startPointImperative.y },
       radius: defaultRadius,
       className: undefined
     }
@@ -870,6 +869,9 @@ const loadImage = async (url: string) => {
 
 // Coordinate conversion utilities
 const canvasToOriginal = (canvasPoint: { x: number; y: number }) => {
+  // This function now correctly assumes the input point has already been
+  // adjusted for stage pan and zoom, which our drawing logic does.
+  // It only needs to handle the initial image offset and scaling.
   return {
     x: (canvasPoint.x - imageOffset.value.x) / imageScale.value,
     y: (canvasPoint.y - imageOffset.value.y) / imageScale.value
@@ -877,6 +879,9 @@ const canvasToOriginal = (canvasPoint: { x: number; y: number }) => {
 }
 
 const originalToCanvas = (point: { x: number; y: number }) => {
+  // This function should only convert from original image coordinates to the
+  // base, un-transformed canvas coordinates. Konva will handle the stage's
+  // pan and zoom automatically when it renders the shape.
   return {
     x: point.x * imageScale.value + imageOffset.value.x,
     y: point.y * imageScale.value + imageOffset.value.y

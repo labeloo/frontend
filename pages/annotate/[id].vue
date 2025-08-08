@@ -905,32 +905,57 @@ const saveAnnotation = async () => {
     if (!token.value) throw new Error('Authentication required');
 
     // Get all necessary info and functions from the Konva component
-    const imageScale = konvaCanvas.value.getImageScale();
-    const originalImageSize = konvaCanvas.value.getOriginalImageSize();
-    const displayImageSize = konvaCanvas.value.getDisplayImageSize();
     const convertToOriginal = konvaCanvas.value.convertToOriginal;
+    const imageScale = konvaCanvas.value.getImageScale();
 
-    if (imageScale <= 0 || originalImageSize.width <= 0) {
-      throw new Error('Invalid image scaling information from canvas component.');
+    if (!convertToOriginal || imageScale <= 0) {
+      throw new Error('Invalid conversion functions or scaling information from canvas component.');
     }
 
     const annotationData = {
       annotations: canvasAnnotations.value.map((ann) => {
         const converted: any = { type: ann.type, className: ann.className };
 
-        if (ann.type === 'rectangle' && ann.startPoint && ann.width && ann.height) {
-          converted.startPoint = convertToOriginal(ann.startPoint);
-          converted.width = ann.width / imageScale;
-          converted.height = ann.height / imageScale;
+        // Get the conversion function and imageScale from the child component
+        const convertToOriginal = konvaCanvas.value.convertToOriginal;
+        const imageScale = konvaCanvas.value.getImageScale();
+
+        if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
+          // For rectangles: Define the two opposite corners in raw canvas space
+          const topLeft = ann.startPoint;
+          const bottomRight = {
+            x: ann.startPoint.x + ann.width,
+            y: ann.startPoint.y + ann.height
+          };
+          
+          // Convert both corner points using convertToOriginal
+          const convertedTopLeft = convertToOriginal(topLeft);
+          const convertedBottomRight = convertToOriginal(bottomRight);
+          
+          // Calculate the final, correct top-left startPoint, positive width and height
+          converted.startPoint = {
+            x: Math.min(convertedTopLeft.x, convertedBottomRight.x),
+            y: Math.min(convertedTopLeft.y, convertedBottomRight.y)
+          };
+          converted.width = Math.abs(convertedBottomRight.x - convertedTopLeft.x);
+          converted.height = Math.abs(convertedBottomRight.y - convertedTopLeft.y);
+          
         } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
+          // For polygons and freehand: Convert each point
           converted.points = ann.points.map(p => convertToOriginal(p));
-        } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center && ann.radius) {
-          converted.center = convertToOriginal(ann.center);
-          converted.radius = ann.radius / imageScale;
+          
         } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
+          // For lines: Convert both endpoints
           converted.startPoint = convertToOriginal(ann.startPoint);
           converted.endPoint = convertToOriginal(ann.endPoint);
+          
+        } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center && ann.radius) {
+          // For circles and dots: Convert center and scale radius
+          converted.center = convertToOriginal(ann.center);
+          // Convert radius by dividing by imageScale (raw radius is in canvas units)
+          converted.radius = ann.radius / imageScale;
         }
+        
         return converted;
       })
     };
@@ -939,7 +964,13 @@ const saveAnnotation = async () => {
       taskId: parseInt(taskId),
       projectId: taskData.value.projectId,
       annotationData,
-      metadata: { /* ... your metadata ... */ }
+      metadata: { 
+        timestamp: Date.now(),
+        canvasSize: { 
+          width: konvaCanvas.value.getDisplayImageSize().width, 
+          height: konvaCanvas.value.getDisplayImageSize().height 
+        }
+      }
     };
 
     await $fetch(`http://localhost:8787/api/annotations`, {
@@ -1021,27 +1052,48 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
   const annotationsToProcess = annotationData.annotations || (Array.isArray(annotationData) ? annotationData : [annotationData]);
 
   for (const ann of annotationsToProcess) {
-    if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number') {
-      const displayStartPoint = originalToDisplay(ann.startPoint);
-      const displayEndPoint = originalToDisplay({ x: ann.startPoint.x + ann.width, y: ann.startPoint.y + ann.height });
+    if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
+      // Convert the start point from original to raw canvas coordinates
+      const canvasStartPoint = originalToDisplay(ann.startPoint);
+      
+      // Scale the dimensions from original to raw canvas coordinates
+      const canvasWidth = ann.width * imageScale;
+      const canvasHeight = ann.height * imageScale;
+      
       convertedAnnotations.push({
         type: 'rectangle',
-        startPoint: displayStartPoint,
-        width: displayEndPoint.x - displayStartPoint.x,
-        height: displayEndPoint.y - displayStartPoint.y,
+        startPoint: canvasStartPoint,
+        width: canvasWidth,
+        height: canvasHeight,
         className: ann.className || ann.class
       });
+      
     } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
       convertedAnnotations.push({
         type: ann.type,
         points: ann.points.map((p: { x: number; y: number }) => originalToDisplay(p)),
         className: ann.className || ann.class,
       });
-    } else if (ann.type === 'dot' && ann.center) {
+      
+    } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
       convertedAnnotations.push({
-        type: 'dot',
-        center: originalToDisplay(ann.center),
-        radius: (ann.radius || 5) * imageScale, // Convert radius using scale
+        type: 'line',
+        startPoint: originalToDisplay(ann.startPoint),
+        endPoint: originalToDisplay(ann.endPoint),
+        className: ann.className || ann.class,
+      });
+      
+    } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center) {
+      // Convert center from original to raw canvas coordinates
+      const canvasCenter = originalToDisplay(ann.center);
+      
+      // Scale radius from original to raw canvas coordinates
+      const canvasRadius = (ann.radius || 5) * imageScale;
+      
+      convertedAnnotations.push({
+        type: ann.type,
+        center: canvasCenter,
+        radius: canvasRadius,
         className: ann.className || ann.class,
       });
     }
