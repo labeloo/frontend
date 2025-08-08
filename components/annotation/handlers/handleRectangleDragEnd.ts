@@ -24,7 +24,8 @@ export function handleRectangleDragEnd(params: DragEndParams): CanvasAnnotation 
   newPos.x = Math.max(imageOffset.x, Math.min(newPos.x, imageOffset.x + displayImageSize.width - displaySize.width))
   newPos.y = Math.max(imageOffset.y, Math.min(newPos.y, imageOffset.y + displayImageSize.height - displaySize.height))
   
-  node.position(newPos)
+  // Reset the node position to prevent visual duplication
+  node.position({ x: 0, y: 0 })
   
   return {
     ...annotation,

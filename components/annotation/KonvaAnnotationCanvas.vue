@@ -601,6 +601,7 @@ const finishDrawing = () => {
   
   // 3. Ask the parent to show the class selector or finalize immediately
   if (props.classes && props.classes.length > 0) {
+    console.log('🎯 finishDrawing: Showing class selector')
     if (stage.value) {
       const stageNode = stage.value.getNode()
       const pointer = stageNode.getPointerPosition()
@@ -609,6 +610,7 @@ const finishDrawing = () => {
       emit('show-class-selector', newAnnotation, { x: 0, y: 0 })
     }
   } else {
+    console.log('🎯 finishDrawing: No classes, finalizing immediately')
     // If no classes to choose from, finalize immediately with empty className
     finalizeAnnotation('')
   }
@@ -618,6 +620,7 @@ const finishDrawing = () => {
 
 // Imperative annotation functions (replaces useAnnotationLifecycle composable)
 const completeAnnotation = (annotation: CanvasAnnotation) => {
+  console.log('🚨 completeAnnotation called - THIS SHOULD NOT BE USED!')
   const newAnnotations = [...props.annotations, annotation]
   emit('update:annotations', newAnnotations)
   emit('annotation-completed', annotation)
@@ -626,6 +629,7 @@ const completeAnnotation = (annotation: CanvasAnnotation) => {
 
 // Part 1: Create the finalizeAnnotation Method
 const finalizeAnnotation = (className: string) => {
+  console.log('🎯 finalizeAnnotation called with className:', className)
   if (!pendingAnnotation.value) {
     console.warn('finalizeAnnotation called but no pending annotation exists')
     return
@@ -637,10 +641,12 @@ const finalizeAnnotation = (className: string) => {
   // b. Assign the className to it
   annotation.className = className || undefined
   
+  console.log('🎯 About to emit update:annotations with:', [...props.annotations, annotation].length, 'annotations')
+  
   // c. Push the completed annotation to the main props.annotations array via an emit
   const newAnnotations = [...props.annotations, annotation]
   emit('update:annotations', newAnnotations)
-  emit('annotation-completed', annotation)
+  // REMOVED: emit('annotation-completed', annotation) - This was causing the parent to add a duplicate
   emit('update:isAnnotating', false)
   
   // d. Set pendingAnnotation.value = null
@@ -672,6 +678,7 @@ const resetAnnotationState = () => {
   // Reset drag flags
   isDraggingAnnotationNonReactive = false
   isDraggingAnnotation.value = false
+  potentialDragStart = false
   
   // Emit that we're no longer annotating to hide the cancel button
   emit('update:isAnnotating', false)
@@ -717,6 +724,9 @@ const isDraggingAnnotation = ref(false)
 
 // Part 2: Fix Drag vs. Draw Confusion - Non-reactive flag
 let isDraggingAnnotationNonReactive = false
+
+// Track if we're in the middle of potentially starting a drag
+let potentialDragStart = false
 
 // Double-click timing state for improved polygon completion
 const lastClickTime = ref(0)
@@ -1144,6 +1154,18 @@ const handleStageMouseDown = (e: any) => {
   
   if (!pointer) return
   
+  // CRITICAL FIX: Check if mouse down is on an annotation element
+  // If the target is not the stage itself, it means we clicked on an annotation
+  const clickedOnAnnotation = e.target !== stageNode
+  
+  // Additional check: if target has certain node types that indicate annotation elements
+  const isAnnotationElement = clickedOnAnnotation && (
+    e.target.getClassName() === 'Rect' ||
+    e.target.getClassName() === 'Circle' ||
+    e.target.getClassName() === 'Line' ||
+    e.target.getClassName() === 'Text'
+  )
+  
   if (props.currentTool === 'select') {
     const clickedOnEmpty = e.target === stageNode
     if (clickedOnEmpty) {
@@ -1151,6 +1173,29 @@ const handleStageMouseDown = (e: any) => {
       showAnnotationTools.value = false
       updateTransformer()
     }
+    return
+  }
+  
+  // CRITICAL FIX: If we clicked on an annotation (not the stage), don't start drawing
+  if (isAnnotationElement) {
+    console.log('🎯 Clicked on annotation element:', e.target.getClassName(), 'preventing new shape creation')
+    
+    // Set a flag to indicate we might be starting a drag operation
+    potentialDragStart = true
+    
+    // Clear the flag after a short delay if no drag actually starts
+    setTimeout(() => {
+      if (!isDraggingAnnotationNonReactive) {
+        potentialDragStart = false
+      }
+    }, 50)
+    
+    return
+  }
+  
+  // Don't start drawing if we're potentially about to start dragging
+  if (potentialDragStart) {
+    console.log('🎯 Potential drag in progress, preventing new shape creation')
     return
   }
   
@@ -1547,8 +1592,16 @@ const handleTransformEnd = (index: number, event: any) => {
 
 const handleDragStart = (index: number, event: any) => {
   // Part 2: Fix Drag vs. Draw Confusion - Set flag when dragging starts
+  // Set this flag IMMEDIATELY to prevent new shape creation
   isDraggingAnnotationNonReactive = true
   isDraggingAnnotation.value = true
+  
+  // Clear the potential drag flag since we're now actually dragging
+  potentialDragStart = false
+  
+  // Prevent event bubbling to stage
+  event.evt?.stopPropagation()
+  
   console.log('🎯 Started dragging annotation', index)
 }
 
@@ -1556,6 +1609,98 @@ const handleDragEnd = (index: number, event: any) => {
   // Part 2: Fix Drag vs. Draw Confusion - Clear flag when dragging ends
   isDraggingAnnotationNonReactive = false
   isDraggingAnnotation.value = false
+  potentialDragStart = false // Reset potential drag flag
+  
+  // Fix duplicate annotation bug by updating the annotation coordinates
+  const annotation = props.annotations[index]
+  if (!annotation) {
+    console.warn('🎯 No annotation found at index', index)
+    return
+  }
+  
+  const node = event.target
+  let updatedAnnotation: CanvasAnnotation | null = null
+  
+  // Handle different annotation types
+  if (annotation.type === 'rectangle') {
+    updatedAnnotation = handleRectangleDragEnd({
+      annotation,
+      node,
+      imageOffset: imageOffset.value,
+      displayImageSize: displayImageSize.value,
+      originalSizeToDisplay: (size: { width: number; height: number }) => ({
+        width: size.width * imageScale.value,
+        height: size.height * imageScale.value
+      }),
+      displayToOriginal: canvasToOriginal
+    })
+  } else if (annotation.type === 'circle') {
+    updatedAnnotation = handleCircleDragEnd({
+      annotation,
+      node,
+      imageOffset: imageOffset.value,
+      displayImageSize: displayImageSize.value,
+      imageScale: imageScale.value,
+      displayToOriginal: canvasToOriginal
+    })
+  } else if (annotation.type === 'dot') {
+    updatedAnnotation = handleDotDragEnd({
+      annotation,
+      node,
+      imageOffset: imageOffset.value,
+      displayImageSize: displayImageSize.value,
+      imageScale: imageScale.value,
+      displayToOriginal: canvasToOriginal
+    })
+  } else if (annotation.type === 'line') {
+    updatedAnnotation = handleLineDragEnd({
+      annotation,
+      node,
+      imageOffset: imageOffset.value,
+      displayImageSize: displayImageSize.value,
+      displayToOriginal: canvasToOriginal
+    })
+  } else if (annotation.type === 'polygon') {
+    updatedAnnotation = handlePolygonDragEnd({
+      annotation,
+      node,
+      imageScale: imageScale.value,
+      originalImageSize: originalImageSize.value
+    })
+  } else if (annotation.type === 'freehand') {
+    updatedAnnotation = handleFreehandDragEnd({
+      annotation,
+      node,
+      imageScale: imageScale.value,
+      originalImageSize: originalImageSize.value
+    })
+  }
+  
+  // Update the annotations array with the new coordinates
+  if (updatedAnnotation) {
+    const newAnnotations = [...props.annotations]
+    newAnnotations[index] = updatedAnnotation
+    
+    console.log('🎯 Before update - Total annotations:', props.annotations.length)
+    console.log('🎯 Updating annotation at index:', index)
+    console.log('🎯 Original annotation:', props.annotations[index])
+    console.log('🎯 Updated annotation:', updatedAnnotation)
+    
+    emit('update:annotations', newAnnotations)
+    emit('annotation-updated', updatedAnnotation, index)
+    
+    console.log('🎯 After update - Total annotations should be:', newAnnotations.length)
+    
+    // Force a recomputation of annotation configs to prevent visual duplication
+    nextTick(() => {
+      if (staticLayer.value) {
+        staticLayer.value.getNode().batchDraw()
+      }
+    })
+    
+    console.log('🎯 Updated annotation coordinates after drag:', updatedAnnotation.type, index)
+  }
+  
   console.log('🎯 Finished dragging annotation', index)
 }
 
@@ -1626,6 +1771,17 @@ const exitPerformanceMode = () => {
 }
 
 // Watchers - REFACTORED: Removed deep watchers for maximum performance
+watch(() => props.annotations, (newAnnotations, oldAnnotations) => {
+  console.log('🎯 ANNOTATIONS CHANGED!')
+  console.log('🎯 Old count:', oldAnnotations?.length || 0)
+  console.log('🎯 New count:', newAnnotations?.length || 0)
+  console.log('🎯 New annotations:', newAnnotations)
+  
+  if (newAnnotations && oldAnnotations && newAnnotations.length !== oldAnnotations.length) {
+    console.log('🔥 ANNOTATION COUNT CHANGED! This might be the source of duplication')
+  }
+}, { immediate: false })
+
 watch(() => props.imageUrl, async (newUrl) => {
   if (newUrl) {
     try {

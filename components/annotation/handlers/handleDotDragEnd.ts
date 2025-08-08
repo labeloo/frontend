@@ -24,7 +24,8 @@ export function handleDotDragEnd(params: DragEndParams): CanvasAnnotation {
   newPos.x = Math.max(imageOffset.x + displayRadius, Math.min(newPos.x, imageOffset.x + displayImageSize.width - displayRadius))
   newPos.y = Math.max(imageOffset.y + displayRadius, Math.min(newPos.y, imageOffset.y + displayImageSize.height - displayRadius))
   
-  node.position(newPos)
+  // Don't reset the node position here - it will be reset in the main component
+  // node.position(newPos)
   
   return {
     ...annotation,

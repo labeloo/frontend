@@ -24,7 +24,8 @@ export function handleCircleDragEnd(params: DragEndParams): CanvasAnnotation {
   newPos.x = Math.max(imageOffset.x + displayRadius, Math.min(newPos.x, imageOffset.x + displayImageSize.width - displayRadius))
   newPos.y = Math.max(imageOffset.y + displayRadius, Math.min(newPos.y, imageOffset.y + displayImageSize.height - displayRadius))
   
-  node.position(newPos)
+  // Reset the node position to prevent visual duplication
+  node.position({ x: 0, y: 0 })
   
   return {
     ...annotation,
