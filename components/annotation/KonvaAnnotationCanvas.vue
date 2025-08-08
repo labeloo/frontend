@@ -9,8 +9,8 @@
         >
           PERFORMANCE MODE
         </div>
-Generated code
-<!-- Sliding Buffer Status -->
+        
+        <!-- Sliding Buffer Status -->
     <div 
       v-if="props.currentTool === 'freehand' && isDrawingNonReactive" 
       class="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-mono z-10 pointer-events-none"
@@ -34,18 +34,6 @@ Generated code
     >
     <!-- Background layer for image -->
     <v-layer ref="imageLayer">
-      <!-- Always visible test rectangle to verify Konva is working -->
-      <v-rect 
-        :config="{ 
-          x: 50, 
-          y: 50, 
-          width: 100, 
-          height: 100, 
-          fill: 'blue', 
-          opacity: 0.5 
-        }" 
-      />
-      
       <!-- Debug info -->
       <v-text 
         v-if="!imageObj" 
