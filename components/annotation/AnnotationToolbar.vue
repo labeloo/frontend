@@ -61,6 +61,7 @@
         <UButton
           @click="zoomIn"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-magnifying-glass-plus"
           title="Zoom In"
@@ -68,6 +69,7 @@
         <UButton
           @click="zoomOut"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-magnifying-glass-minus"
           title="Zoom Out"
@@ -75,6 +77,7 @@
         <UButton
           @click="resetZoom"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-arrow-path"
           title="Reset Zoom"
@@ -82,6 +85,7 @@
         <UButton
           @click="fitToScreen"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-squares-2x2"
           title="Fit to Screen"
@@ -97,6 +101,7 @@
         <UButton
           @click="undo"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-arrow-uturn-left"
           title="Undo (Ctrl+Z)"
@@ -105,6 +110,7 @@
         <UButton
           @click="redo"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-arrow-uturn-right"
           title="Redo (Ctrl+Y)"
@@ -122,6 +128,7 @@
         <UButton
           @click="duplicateSelected"
           variant="outline"
+          color="secondary"
           size="sm"
           icon="i-heroicons-document-duplicate"
           title="Duplicate Selected (Ctrl+D)"
@@ -145,16 +152,6 @@
           :disabled="annotationCount === 0"
         >
           Clear All
-        </UButton>
-        <UButton
-          @click="exportAnnotations"
-          variant="outline"
-          size="sm"
-          icon="i-heroicons-arrow-down-tray"
-          title="Export Annotations"
-          :disabled="annotationCount === 0"
-        >
-          Export
         </UButton>
       </div>
     </div>

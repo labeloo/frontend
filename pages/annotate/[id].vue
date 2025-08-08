@@ -242,12 +242,12 @@
             Annotation Workspace
           </h2>
           <div class="flex items-center space-x-4">
-            <UButton variant="outline" size="sm" @click="loadData">
+            <UButton color ="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
               Refresh
             </UButton>
-            <UButton color="primary" size="sm" @click="saveAnnotation" :loading="savingAnnotation"
-              :disabled="canvasAnnotations.length === 0">
+            <UButton color="secondary" size="lg" @click="saveAnnotation" :loading="savingAnnotation"
+              :disabled="canvasAnnotations.length === 0" class="cursor-pointer">
               <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
               Save Annotation
             </UButton>
