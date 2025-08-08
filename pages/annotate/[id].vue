@@ -3,6 +3,19 @@
     <!-- Side Menu -->
     <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <!-- Logo Banner -->
+        <div class="mb-4 flex justify-center">
+          <div class="logo-wrapper px-4 py-2 rounded-xl" style="
+      background-color: rgba(42, 58, 79, 0.6); /* soft geçişli zemin */
+      border: 1px solid rgba(255, 255, 255, 0.1); /* hafif outline */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* gölge */
+      backdrop-filter: blur(4px); /* saydamlık varsa */
+    ">
+            <img src="assets/images/labeloo-main-logo.png" alt="Labeloo Logo" class="h-16 object-contain"
+              style="filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));" />
+          </div>
+        </div>
+
         <div class="flex items-center justify-between">
           <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
             Task Annotation
@@ -242,7 +255,7 @@
             Annotation Workspace
           </h2>
           <div class="flex items-center space-x-4">
-            <UButton color ="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
+            <UButton color="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
               Refresh
             </UButton>
@@ -801,12 +814,12 @@ const clearAllAnnotations = () => {
     addToHistory()
     canvasAnnotations.value = []
   }
-  
+
   // Also clear any pending annotations and reset canvas state
   if (konvaCanvas.value) {
     konvaCanvas.value.cancelCurrentAnnotation()
   }
-  
+
   // Clear any pending annotation state
   pendingAnnotation.value = null
   showClassSelector.value = false
@@ -937,11 +950,11 @@ const saveAnnotation = async () => {
             x: ann.startPoint.x + ann.width,
             y: ann.startPoint.y + ann.height
           };
-          
+
           // Convert both corner points using convertToOriginal
           const convertedTopLeft = convertToOriginal(topLeft);
           const convertedBottomRight = convertToOriginal(bottomRight);
-          
+
           // Calculate the final, correct top-left startPoint, positive width and height
           converted.startPoint = {
             x: Math.min(convertedTopLeft.x, convertedBottomRight.x),
@@ -949,23 +962,23 @@ const saveAnnotation = async () => {
           };
           converted.width = Math.abs(convertedBottomRight.x - convertedTopLeft.x);
           converted.height = Math.abs(convertedBottomRight.y - convertedTopLeft.y);
-          
+
         } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
           // For polygons and freehand: Convert each point
           converted.points = ann.points.map(p => convertToOriginal(p));
-          
+
         } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
           // For lines: Convert both endpoints
           converted.startPoint = convertToOriginal(ann.startPoint);
           converted.endPoint = convertToOriginal(ann.endPoint);
-          
+
         } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center && ann.radius) {
           // For circles and dots: Convert center and scale radius
           converted.center = convertToOriginal(ann.center);
           // Convert radius by dividing by imageScale (raw radius is in canvas units)
           converted.radius = ann.radius / imageScale;
         }
-        
+
         return converted;
       })
     };
@@ -974,11 +987,11 @@ const saveAnnotation = async () => {
       taskId: parseInt(taskId),
       projectId: taskData.value.projectId,
       annotationData,
-      metadata: { 
+      metadata: {
         timestamp: Date.now(),
-        canvasSize: { 
-          width: konvaCanvas.value.getDisplayImageSize().width, 
-          height: konvaCanvas.value.getDisplayImageSize().height 
+        canvasSize: {
+          width: konvaCanvas.value.getDisplayImageSize().width,
+          height: konvaCanvas.value.getDisplayImageSize().height
         }
       }
     };
@@ -1065,11 +1078,11 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
     if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
       // Convert the start point from original to raw canvas coordinates
       const canvasStartPoint = originalToDisplay(ann.startPoint);
-      
+
       // Scale the dimensions from original to raw canvas coordinates
       const canvasWidth = ann.width * imageScale;
       const canvasHeight = ann.height * imageScale;
-      
+
       convertedAnnotations.push({
         type: 'rectangle',
         startPoint: canvasStartPoint,
@@ -1077,14 +1090,14 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
         height: canvasHeight,
         className: ann.className || ann.class
       });
-      
+
     } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
       convertedAnnotations.push({
         type: ann.type,
         points: ann.points.map((p: { x: number; y: number }) => originalToDisplay(p)),
         className: ann.className || ann.class,
       });
-      
+
     } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
       convertedAnnotations.push({
         type: 'line',
@@ -1092,14 +1105,14 @@ const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] =
         endPoint: originalToDisplay(ann.endPoint),
         className: ann.className || ann.class,
       });
-      
+
     } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center) {
       // Convert center from original to raw canvas coordinates
       const canvasCenter = originalToDisplay(ann.center);
-      
+
       // Scale radius from original to raw canvas coordinates
       const canvasRadius = (ann.radius || 5) * imageScale;
-      
+
       convertedAnnotations.push({
         type: ann.type,
         center: canvasCenter,
