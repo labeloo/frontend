@@ -888,6 +888,22 @@ const originalToCanvas = (point: { x: number; y: number }) => {
   }
 }
 
+// Helper function to determine if annotation coordinates are already in canvas space
+// Fresh annotations from finishDrawing are in canvas space, loaded annotations are converted to canvas space
+const isCanvasCoordinates = (annotation: CanvasAnnotation) => {
+  // All annotations from our current system are now in canvas space
+  // (either fresh from finishDrawing or converted via convertApiAnnotationToCanvas)
+  return true
+}
+
+// Identity function for coordinates that are already in canvas space
+const canvasToCanvas = (point: { x: number; y: number }) => point
+
+// Choose the appropriate conversion function based on coordinate space
+const getCoordinateConverter = (annotation: CanvasAnnotation) => {
+  return isCanvasCoordinates(annotation) ? canvasToCanvas : originalToCanvas
+}
+
 // Helper function to calculate inverse scale for UI elements
 const getUIScale = () => 1 / stageScale.value
 
@@ -935,115 +951,137 @@ const {
 const { handleRectangleTransformEnd } = useAnnotationTransformHandlers()
 
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
-  const baseConfig = createRectangleConfig(
-    annotation,
-    index,
-    selectedAnnotationIndex.value,
-    hoveredAnnotationIndex.value,
-    originalToCanvas,
-    (size: { width: number; height: number }) => ({
-      width: size.width * imageScale.value,
-      height: size.height * imageScale.value
-    })
-  )
-  
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.startPoint || annotation.width === undefined || annotation.height === undefined) {
+    return {}
+  }
+
+  const isSelected = selectedAnnotationIndex.value === index
+  const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
+
   return {
-    ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
-    dash: (baseConfig as any).dash ? (baseConfig as any).dash.map((d: number) => d * uiScale) : undefined
+    x: annotation.startPoint.x,
+    y: annotation.startPoint.y,
+    width: annotation.width,
+    height: annotation.height,
+    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    draggable: true,
+    listening: true,
+    perfectDrawEnabled: false
   }
 }
 
 const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
-  const baseConfig = createPolygonConfig(
-    annotation,
-    index,
-    selectedAnnotationIndex.value,
-    hoveredAnnotationIndex.value,
-    originalToCanvas,
-    stageScale.value,
-    !isPerformanceMode.value
-  )
-  
-  if (!baseConfig || !('points' in baseConfig)) {
-    return baseConfig
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.points || annotation.points.length === 0) {
+    return {}
   }
-  
+
+  const isSelected = selectedAnnotationIndex.value === index
+  const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
+
+  // Convert points array to flat array for Konva
+  const flatPoints: number[] = []
+  for (const point of annotation.points) {
+    flatPoints.push(point.x, point.y)
+  }
+
   const config = {
-    ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
+    points: flatPoints,
+    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    closed: true,
+    draggable: true,
+    listening: true,
+    lineCap: 'round',
+    lineJoin: 'round',
     visible: polygonLayerVisible.value
   } as any
-  
+
   const totalPolygons = polygonCount.value
   const isComplex = annotation.points && annotation.points.length > 10
-  
+
   if (totalPolygons >= 8 || isComplex) {
     config.perfectDrawEnabled = false
-    
+
     if (totalPolygons >= 12) {
       config.listening = selectedAnnotationIndex.value === index
     } else {
       config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
     }
-    
+
     if (totalPolygons >= 15) {
       config.shadowEnabled = false
       config.hitStrokeWidth = 0
     }
   }
-  
+
   return config
 }
 
 const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
-  const baseConfig = createLineConfig(
-    annotation,
-    index,
-    selectedAnnotationIndex.value,
-    hoveredAnnotationIndex.value,
-    originalToCanvas
-  )
-  
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.startPoint || !annotation.endPoint) {
+    return {}
+  }
+
+  const isSelected = selectedAnnotationIndex.value === index
+  const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
+
   return {
-    ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+    points: [annotation.startPoint.x, annotation.startPoint.y, annotation.endPoint.x, annotation.endPoint.y],
+    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    lineCap: 'round',
+    draggable: true,
+    listening: true,
+    perfectDrawEnabled: false
   }
 }
 
 const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
-  const baseConfig = createCircleConfig(
-    annotation,
-    index,
-    selectedAnnotationIndex.value,
-    hoveredAnnotationIndex.value,
-    originalToCanvas,
-    imageScale.value
-  )
-  
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.center || annotation.radius === undefined) {
+    return {}
+  }
+
+  const isSelected = selectedAnnotationIndex.value === index
+  const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
+
   return {
-    ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale
+    x: annotation.center.x,
+    y: annotation.center.y,
+    radius: annotation.radius,
+    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    draggable: true,
+    listening: true,
+    perfectDrawEnabled: false
   }
 }
 
 const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
-  if (!annotation.center || annotation.radius === undefined) return {}
-  
-  const canvasCenter = originalToCanvas(annotation.center)
-  const canvasRadius = annotation.radius * imageScale.value
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.center || annotation.radius === undefined) {
+    return {}
+  }
+
   const isSelected = selectedAnnotationIndex.value === index
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
-  
+
   return {
-    x: canvasCenter.x,
-    y: canvasCenter.y,
-    radius: canvasRadius,
+    x: annotation.center.x,
+    y: annotation.center.y,
+    radius: annotation.radius,
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
     fill: isSelected ? 'rgba(66, 133, 244, 0.2)' : (isHovered ? 'rgba(52, 168, 83, 0.1)' : 'rgba(0, 200, 81, 0.1)'),
@@ -1058,34 +1096,33 @@ const getLabelConfig = (annotation: CanvasAnnotation, index: number) => {
   const isSelected = selectedAnnotationIndex.value === index
   const uiScale = getUIScale()
   const padding = 4 * uiScale
-  
+
+  // Since all annotations are now in canvas coordinates, use them directly
   if (annotation.type === 'rectangle' && annotation.startPoint) {
-    position = originalToCanvas(annotation.startPoint)
+    position = { x: annotation.startPoint.x, y: annotation.startPoint.y }
     position.y -= 20 * uiScale // Increased spacing from annotation
   } else if (annotation.type === 'polygon' && annotation.points && annotation.points.length > 0) {
     const firstPoint = annotation.points[0]
     if (firstPoint) {
-      position = originalToCanvas(firstPoint)
+      position = { x: firstPoint.x, y: firstPoint.y }
       position.y -= 20 * uiScale // Increased spacing from annotation
     }
   } else if (annotation.type === 'dot' && annotation.center) {
-    position = originalToCanvas(annotation.center)
-    position.y -= (annotation.radius || 5) * imageScale.value + 20 * uiScale // Increased spacing from annotation
+    position = { x: annotation.center.x, y: annotation.center.y }
+    position.y -= (annotation.radius || 5) + 20 * uiScale // Increased spacing from annotation
   } else if (annotation.type === 'line' && annotation.startPoint) {
-    position = originalToCanvas(annotation.startPoint)
+    position = { x: annotation.startPoint.x, y: annotation.startPoint.y }
     position.y -= 20 * uiScale // Added line support
   } else if (annotation.type === 'circle' && annotation.center) {
-    const canvasCenter = originalToCanvas(annotation.center)
-    const canvasRadius = (annotation.radius || 5) * imageScale.value
-    position = { x: canvasCenter.x, y: canvasCenter.y - canvasRadius - 20 * uiScale } // Added circle support
+    position = { x: annotation.center.x, y: annotation.center.y - (annotation.radius || 5) - 20 * uiScale }
   } else if (annotation.type === 'freehand' && annotation.points && annotation.points.length > 0) {
     const firstPoint = annotation.points[0]
     if (firstPoint) {
-      position = originalToCanvas(firstPoint)
+      position = { x: firstPoint.x, y: firstPoint.y }
       position.y -= 20 * uiScale // Added freehand support
     }
   }
-  
+
   // Clean, readable text styling
   return {
     x: position.x + padding,
@@ -1145,55 +1182,64 @@ const getLabelBackgroundConfig = (annotation: CanvasAnnotation, index: number) =
 }
 
 const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
-  const baseConfig = createFreehandConfig(
-    annotation,
-    index,
-    selectedAnnotationIndex.value,
-    hoveredAnnotationIndex.value,
-    originalToCanvas,
-    stageScale.value,
-    !isPerformanceMode.value
-  )
-  
-  if (!baseConfig || !('points' in baseConfig)) {
-    return baseConfig
+  // Since all annotations are now in canvas coordinates, use them directly
+  if (!annotation.points || annotation.points.length === 0) {
+    return {}
   }
-  
+
+  const isSelected = selectedAnnotationIndex.value === index
+  const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
+
+  // Convert points array to flat array for Konva
+  const flatPoints: number[] = []
+  for (const point of annotation.points) {
+    flatPoints.push(point.x, point.y)
+  }
+
   const config = {
-    ...baseConfig,
-    strokeWidth: (baseConfig.strokeWidth || 2) * uiScale,
+    points: flatPoints,
+    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    fill: 'transparent',
+    closed: false,
+    draggable: true,
+    listening: true,
+    lineCap: 'round',
+    lineJoin: 'round',
+    tension: 0.3,
     visible: polygonLayerVisible.value
   } as any
-  
+
   const totalPolygons = polygonCount.value
   const isComplex = annotation.points && annotation.points.length > 15
-  
+
   if (totalPolygons >= 6 || isComplex) {
     config.perfectDrawEnabled = false
-    
+
     if (isComplex) {
       config.tension = 0.1
     }
-    
+
     if (totalPolygons >= 10) {
       config.listening = selectedAnnotationIndex.value === index
     } else {
       config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
     }
-    
+
     if (totalPolygons >= 12) {
       config.shadowEnabled = false
       config.hitStrokeWidth = 0
     }
   }
-  
+
   return config
 }
 
 // PART 2: Function to create pretty vertex dots for completed polygons (expensive styles only for selected)
 const getCompletedVertexConfig = (point: { x: number; y: number }, pointIndex: number, totalPoints: number) => {
-  const canvasPoint = originalToCanvas(point)
+  // Since annotation coordinates are now in canvas space, use identity conversion
+  const canvasPoint = canvasToCanvas(point)
   const isFirst = pointIndex === 0
   const isLast = pointIndex === totalPoints - 1
   const uiScale = getUIScale()
@@ -1707,7 +1753,7 @@ const handleDragEnd = (index: number, event: any) => {
   isDraggingAnnotation.value = false
   potentialDragStart = false // Reset potential drag flag
   
-  // Fix duplicate annotation bug by updating the annotation coordinates
+  // Since annotations are stored in canvas coordinates, we can work with node positions directly
   const annotation = props.annotations[index]
   if (!annotation) {
     console.warn('🎯 No annotation found at index', index)
@@ -1715,87 +1761,68 @@ const handleDragEnd = (index: number, event: any) => {
   }
   
   const node = event.target
-  let updatedAnnotation: CanvasAnnotation | null = null
+  let updatedAnnotation: CanvasAnnotation = { ...annotation }
   
-  // Handle different annotation types
+  // Since annotations are stored in canvas coordinates, we can use the node's position directly
   if (annotation.type === 'rectangle') {
-    updatedAnnotation = handleRectangleDragEnd({
-      annotation,
-      node,
-      imageOffset: imageOffset.value,
-      displayImageSize: displayImageSize.value,
-      originalSizeToDisplay: (size: { width: number; height: number }) => ({
-        width: size.width * imageScale.value,
-        height: size.height * imageScale.value
-      }),
-      displayToOriginal: canvasToOriginal
-    })
-  } else if (annotation.type === 'circle') {
-    updatedAnnotation = handleCircleDragEnd({
-      annotation,
-      node,
-      imageOffset: imageOffset.value,
-      displayImageSize: displayImageSize.value,
-      imageScale: imageScale.value,
-      displayToOriginal: canvasToOriginal
-    })
-  } else if (annotation.type === 'dot') {
-    updatedAnnotation = handleDotDragEnd({
-      annotation,
-      node,
-      imageOffset: imageOffset.value,
-      displayImageSize: displayImageSize.value,
-      imageScale: imageScale.value,
-      displayToOriginal: canvasToOriginal
-    })
+    updatedAnnotation.startPoint = {
+      x: node.x(),
+      y: node.y()
+    }
+    // Width and height don't change during drag, only position
+  } else if (annotation.type === 'circle' || annotation.type === 'dot') {
+    updatedAnnotation.center = {
+      x: node.x(),
+      y: node.y()
+    }
+    // Radius doesn't change during drag, only position
   } else if (annotation.type === 'line') {
-    updatedAnnotation = handleLineDragEnd({
-      annotation,
-      node,
-      imageOffset: imageOffset.value,
-      displayImageSize: displayImageSize.value,
-      displayToOriginal: canvasToOriginal
-    })
-  } else if (annotation.type === 'polygon') {
-    updatedAnnotation = handlePolygonDragEnd({
-      annotation,
-      node,
-      imageScale: imageScale.value,
-      originalImageSize: originalImageSize.value
-    })
-  } else if (annotation.type === 'freehand') {
-    updatedAnnotation = handleFreehandDragEnd({
-      annotation,
-      node,
-      imageScale: imageScale.value,
-      originalImageSize: originalImageSize.value
-    })
+    // For lines, we need to update both start and end points by the same offset
+    const points = node.points()
+    if (points && points.length >= 4) {
+      updatedAnnotation.startPoint = {
+        x: node.x() + points[0],
+        y: node.y() + points[1]
+      }
+      updatedAnnotation.endPoint = {
+        x: node.x() + points[2],
+        y: node.y() + points[3]
+      }
+    }
+  } else if (annotation.type === 'polygon' || annotation.type === 'freehand') {
+    // For polygons and freehand, we need to update all points by the same offset
+    const points = node.points()
+    if (points && points.length >= 2 && annotation.points) {
+      const newPoints: { x: number; y: number }[] = []
+      for (let i = 0; i < points.length - 1; i += 2) {
+        newPoints.push({
+          x: node.x() + points[i]!,
+          y: node.y() + points[i + 1]!
+        })
+      }
+      updatedAnnotation.points = newPoints
+    }
   }
   
-  // Update the annotations array with the new coordinates
-  if (updatedAnnotation) {
-    const newAnnotations = [...props.annotations]
-    newAnnotations[index] = updatedAnnotation
-    
-    console.log('🎯 Before update - Total annotations:', props.annotations.length)
-    console.log('🎯 Updating annotation at index:', index)
-    console.log('🎯 Original annotation:', props.annotations[index])
-    console.log('🎯 Updated annotation:', updatedAnnotation)
-    
-    emit('update:annotations', newAnnotations)
-    emit('annotation-updated', updatedAnnotation, index)
-    
-    console.log('🎯 After update - Total annotations should be:', newAnnotations.length)
-    
-    // Force a recomputation of annotation configs to prevent visual duplication
-    nextTick(() => {
-      if (staticLayer.value) {
-        staticLayer.value.getNode().batchDraw()
-      }
-    })
-    
-    console.log('🎯 Updated annotation coordinates after drag:', updatedAnnotation.type, index)
-  }
+  // Reset the node's position to 0,0 since we've incorporated the offset into the coordinates
+  node.x(0)
+  node.y(0)
+  
+  // Update the annotations array
+  const newAnnotations = [...props.annotations]
+  newAnnotations[index] = updatedAnnotation
+  
+  console.log('🎯 Drag end - Updated annotation:', updatedAnnotation.type, 'at index:', index)
+  
+  emit('update:annotations', newAnnotations)
+  emit('annotation-updated', updatedAnnotation, index)
+  
+  // Force a recomputation of annotation configs
+  nextTick(() => {
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
+    }
+  })
   
   console.log('🎯 Finished dragging annotation', index)
 }
