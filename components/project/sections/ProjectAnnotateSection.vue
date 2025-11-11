@@ -68,6 +68,15 @@
       </UButton>
     </div>    <!-- Main Content -->
     <div v-else-if="tasks" class="space-y-6">
+      <!-- Task Assignment Slider -->
+      <TaskAssignmentSlider 
+        :available-tasks="tasks.unassigned.length"
+        :unassigned-tasks="tasks.unassigned"
+        :project-id="projectId"
+        @tasks-assigned="handleTasksAssigned"
+        @assignment-error="handleAssignmentError"
+      />
+      
       <!-- Stats Overview -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
@@ -472,6 +481,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
+import TaskAssignmentSlider from '~/components/project/TaskAssignmentSlider.vue'
 
 interface Task {
   id: number
@@ -787,6 +797,32 @@ const handleContinueTask = (task: Task) => {
 const handleReviewTask = (task: Task) => {
   // TODO: Implement task review logic
   console.log('Review task:', task.id)
+}
+
+// Bulk task assignment handlers
+const handleTasksAssigned = async (taskIds: number[]) => {
+  console.log('Tasks assigned successfully:', taskIds)
+  
+  // Show success notification
+  toast.add({
+    title: 'Tasks Assigned Successfully',
+    description: `${taskIds.length} ${taskIds.length === 1 ? 'task' : 'tasks'} assigned to you`,
+    color: 'success'
+  })
+  
+  // Refresh the tasks to update the UI
+  await fetchTasks()
+}
+
+const handleAssignmentError = (errorMessage: string) => {
+  console.error('Task assignment error:', errorMessage)
+  
+  // Show error notification
+  toast.add({
+    title: 'Assignment Failed',
+    description: errorMessage,
+    color: 'error'
+  })
 }
 
 const navigateToAnnotate = (taskId: number) => {
