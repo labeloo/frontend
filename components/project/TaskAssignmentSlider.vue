@@ -21,7 +21,7 @@
           Bulk Task Assignment
         </h3>
         <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Assign multiple tasks to yourself at once
+          Assign multiple tasks to organization members
         </p>
       </div>
       <div class="flex items-center space-x-2">
@@ -58,7 +58,7 @@
             Tasks Assigned Successfully!
           </h4>
           <p class="text-xs text-green-700 dark:text-green-400 mt-1">
-            {{ lastAssignedCount }} {{ lastAssignedCount === 1 ? 'task' : 'tasks' }} assigned to your account. You can start annotating now.
+            {{ lastAssignedCount }} {{ lastAssignedCount === 1 ? 'task' : 'tasks' }} assigned to {{ selectedUser?.email || 'user' }}. Assignment completed successfully.
           </p>
         </div>
       </div>
@@ -130,7 +130,7 @@
                 Assignment Preview
               </h4>
               <p class="text-xs text-gray-600 dark:text-gray-400">
-                {{ selectedTaskCount }} {{ selectedTaskCount === 1 ? 'task' : 'tasks' }} will be assigned to you
+                {{ selectedTaskCount }} {{ selectedTaskCount === 1 ? 'task' : 'tasks' }} will be assigned to selected user
               </p>
             </div>
           </div>
@@ -159,8 +159,50 @@
           
           <!-- Task Preview Info -->
           <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-            <span>Next tasks to assign: #{{ taskPreviewIds.join(', #') }}</span>
+            <span>Tasks {{ selectedTaskCount > 1 ? `#${props.unassignedTasks.slice(0, selectedTaskCount).map(t => t.id).join(', #')}` : `#${props.unassignedTasks[0]?.id || 'N/A'}` }}</span>
             <span>{{ availableTasks - selectedTaskCount }} remaining</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Selection -->
+      <div v-if="showUserSelection || isAssigning" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+        <h4 class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3 flex items-center">
+          <UIcon name="i-heroicons-user-circle" class="w-4 h-4 mr-2" />
+          Select User to Assign Tasks
+        </h4>
+        
+        <div class="space-y-3">
+          <!-- User Selection Dropdown -->
+          <div v-if="loadingUsers" class="flex items-center justify-center py-4">
+            <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin text-blue-600 mr-2" />
+            <span class="text-sm text-blue-600">Loading organization users...</span>
+          </div>
+          
+          <div v-else-if="userOptions.length === 0" class="text-center py-4">
+            <UIcon name="i-heroicons-users" class="w-8 h-8 text-gray-400 mx-auto mb-2" />
+            <p class="text-sm text-gray-500">No organization users found</p>
+          </div>
+          
+          <div v-else class="space-y-2">
+            <label class="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Assign to:
+            </label>
+            <USelect
+              v-model="selectedUserId"
+              :items="userOptions"
+              placeholder="Select a user..."
+              size="md"
+              class="w-full"
+            />
+            
+            <!-- Selected User Preview -->
+            <div v-if="selectedUser" class="flex items-center space-x-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-md p-2">
+              <UIcon name="i-heroicons-check-circle" class="w-4 h-4" />
+              <span>
+                Tasks will be assigned to <strong>{{ selectedUser.email }}</strong> ({{ selectedUser.role }})
+              </span>
+            </div>
           </div>
         </div>
       </div>
@@ -169,7 +211,7 @@
       <div class="flex items-center justify-between pt-2">
         <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
           <UIcon name="i-heroicons-information-circle" class="w-4 h-4" />
-          <span>Tasks will be assigned to your account automatically</span>
+          <span>{{ showUserSelection ? 'Select user and assign tasks' : 'Click assign to choose user' }}</span>
         </div>
         
         <div class="flex items-center space-x-3">
@@ -187,17 +229,50 @@
             Reset
           </UButton>
           
+          <!-- Cancel Assignment Button (when user selection is shown) -->
+          <UButton
+            v-if="showUserSelection && !isAssigning"
+            @click="showUserSelection = false"
+            variant="outline"
+            size="md"
+            color="neutral"
+            class="cursor-pointer"
+          >
+            Cancel
+          </UButton>
+          
           <!-- Main Assignment Button -->
           <UButton
-            @click="handleAssignTasks"
-            :loading="isAssigning"
-            :disabled="selectedTaskCount === 0 || !currentUserId || availableTasks === 0"
+            v-if="!showUserSelection"
+            @click="() => { 
+              console.log('Showing user selection, current users:', organizationUsers.length); 
+              showUserSelection = true; 
+              if (organizationUsers.length === 0) {
+                console.log('No users loaded, fetching project data');
+                fetchProjectData(); 
+              }
+            }"
+            :disabled="selectedTaskCount === 0 || availableTasks === 0"
             size="lg"
             color="primary"
             class="cursor-pointer px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
           >
             <UIcon name="i-heroicons-user-plus" class="w-4 h-4 mr-2" />
-            {{ isAssigning ? 'Assigning...' : `Assign ${selectedTaskCount} ${selectedTaskCount === 1 ? 'Task' : 'Tasks'}` }}
+            Assign {{ selectedTaskCount }} {{ selectedTaskCount === 1 ? 'Task' : 'Tasks' }}
+          </UButton>
+          
+          <!-- Confirm Assignment Button (when user is selected) -->
+          <UButton
+            v-else
+            @click="handleAssignTasks"
+            :loading="isAssigning"
+            :disabled="!selectedUserId || selectedTaskCount === 0"
+            size="lg"
+            color="success"
+            class="cursor-pointer px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+          >
+            <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
+            {{ isAssigning ? 'Assigning...' : 'Confirm Assignment' }}
           </UButton>
         </div>
       </div>
@@ -232,6 +307,34 @@ interface Task {
   updatedAt: number
 }
 
+interface OrganizationUser {
+  id: number
+  email: string
+  isActive: boolean
+  role: string
+  createdAt: number
+}
+
+interface ProjectData {
+  id: number
+  name: string
+  description?: string
+  projectType: number
+  labelConfig?: {
+    classes: string[]
+  }
+  organizationId: number
+  createdAt: number
+  updatedAt: number
+}
+
+interface ProjectResponse {
+  data: {
+    projects: ProjectData
+    project_relations: any
+  }
+}
+
 // Props
 const props = defineProps<{
   availableTasks: number
@@ -255,6 +358,13 @@ const isAssigning = ref(false)
 const estimatedTimePerTask = ref(5) // 5 minutes per task estimate
 const showSuccessAnimation = ref(false)
 const lastAssignedCount = ref(0)
+
+// Organization and user assignment state
+const organizationUsers = ref<OrganizationUser[]>([])
+const selectedUserId = ref<number | undefined>(undefined)
+const showUserSelection = ref(false)
+const loadingUsers = ref(false)
+const organizationId = ref<number | null>(null)
 
 // Computed
 const minTasks = computed(() => Math.min(1, props.availableTasks))
@@ -292,13 +402,31 @@ const sliderStyle = computed(() => {
   }
 })
 
+const userOptions = computed(() => {
+  console.log('Computing user options from organization users:', organizationUsers.value)
+  const options = organizationUsers.value
+    .filter(user => user.isActive)
+    .map(user => ({
+      label: `${user.email} (${user.role})`,
+      value: user.id,
+      email: user.email,
+      role: user.role
+    }))
+  console.log('Generated user options:', options)
+  return options
+})
+
+const selectedUser = computed(() => {
+  return organizationUsers.value.find(user => user.id === selectedUserId.value)
+})
+
 const taskPreviewIds = computed(() => {
   return props.unassignedTasks
     .slice(0, selectedTaskCount.value)
     .map(task => task.id)
 })
 
-// Get current user ID from JWT token
+// Get current user ID from JWT token for auto-selection
 const currentUserId = computed(() => {
   return getUserIdFromToken(token.value)
 })
@@ -313,11 +441,82 @@ const resetToDefault = () => {
   selectedTaskCount.value = Math.max(minTasks.value, defaultCount)
 }
 
-const handleAssignTasks = async () => {
-  if (!currentUserId.value) {
+// Fetch project data to get organization ID
+const fetchProjectData = async () => {
+  if (!token.value || !props.projectId) return
+
+  try {
+    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+
+    if (response?.data?.projects?.organizationId) {
+      organizationId.value = response.data.projects.organizationId
+      await fetchOrganizationUsers()
+    }
+  } catch (error) {
+    console.error('Error fetching project data:', error)
+  }
+}
+
+// Fetch organization users
+const fetchOrganizationUsers = async () => {
+  if (!token.value || !organizationId.value) return
+
+  try {
+    loadingUsers.value = true
+    
+    const response = await $fetch<{ data: OrganizationUser[] }>('http://localhost:8787/api/organizationRelations/users', {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token.value}`,
+        'orgId': organizationId.value.toString()
+      }
+    })
+
+    console.log('Organization users API response:', response)
+    
+    if (response?.data && Array.isArray(response.data)) {
+      // Store all users first, then filter active ones for selection
+      organizationUsers.value = response.data
+      console.log('Stored organization users:', organizationUsers.value)
+      
+      const activeUsers = organizationUsers.value.filter(user => user.isActive)
+      console.log('Active users:', activeUsers)
+      
+      // Auto-select current user if available
+      const currentUser = activeUsers.find(user => user.id === currentUserId.value)
+      if (currentUser) {
+        selectedUserId.value = currentUser.id
+        console.log('Auto-selected current user:', currentUser.email)
+      } else if (activeUsers.length > 0) {
+        selectedUserId.value = activeUsers[0]?.id
+        console.log('Auto-selected first user:', activeUsers[0]?.email)
+      }
+    } else {
+      console.log('No valid data in response or data is not an array')
+      organizationUsers.value = []
+    }
+  } catch (error) {
+    console.error('Error fetching organization users:', error)
     toast.add({
-      title: 'Authentication Error',
-      description: 'Unable to identify current user. Please log in again.',
+      title: 'Error Loading Users',
+      description: 'Failed to load organization users for assignment',
+      color: 'error'
+    })
+  } finally {
+    loadingUsers.value = false
+  }
+}
+
+const handleAssignTasks = async () => {
+  if (!selectedUserId.value) {
+    toast.add({
+      title: 'No User Selected',
+      description: 'Please select a user to assign tasks to.',
       color: 'error'
     })
     return
@@ -355,7 +554,8 @@ const handleAssignTasks = async () => {
 
     console.log('Assigning tasks:', {
       taskIds: tasksToAssign,
-      userId: currentUserId.value,
+      userId: selectedUserId.value,
+      selectedUser: selectedUser.value?.email,
       count: selectedTaskCount.value
     })
 
@@ -368,7 +568,7 @@ const handleAssignTasks = async () => {
           'Content-Type': 'application/json'
         },
         body: {
-          userId: currentUserId.value
+          userId: selectedUserId.value
         }
       })
       return { taskId, response }
@@ -399,11 +599,12 @@ const handleAssignTasks = async () => {
     
     toast.add({
       title: 'Tasks Assigned Successfully',
-      description: `${selectedTaskCount.value} ${selectedTaskCount.value === 1 ? 'task' : 'tasks'} assigned to you. Estimated completion time: ${estimatedTime.value}`,
+      description: `${selectedTaskCount.value} ${selectedTaskCount.value === 1 ? 'task' : 'tasks'} assigned to ${selectedUser.value?.email || 'user'}. Estimated completion time: ${estimatedTime.value}`,
       color: 'success'
     })
 
-    // Reset selection
+    // Hide user selection and reset selection
+    showUserSelection.value = false
     selectedTaskCount.value = Math.min(1, props.availableTasks - selectedTaskCount.value)
 
   } catch (error) {
@@ -431,9 +632,15 @@ watch(() => props.availableTasks, (newCount) => {
 }, { immediate: true })
 
 // Initialize with reasonable default
-onMounted(() => {
+onMounted(async () => {
   const defaultCount = Math.min(5, props.availableTasks, 10) // Default to 5 tasks or available count
   selectedTaskCount.value = Math.max(minTasks.value, defaultCount)
+  
+  // Fetch project data to get organization users when component loads
+  if (props.projectId) {
+    console.log('Component mounted, fetching project data for projectId:', props.projectId)
+    await fetchProjectData()
+  }
 })
 </script>
 

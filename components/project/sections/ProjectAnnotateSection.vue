@@ -9,9 +9,52 @@
         <p class="text-gray-600 dark:text-gray-400 mt-1">
           Manage task assignments and track annotation progress
         </p>
+        <div class="mt-2 flex items-center space-x-2">
+          <!-- Organization Admin Badge -->
+          <UBadge 
+            v-if="isOrgAdmin"
+            color="warning"
+            variant="subtle"
+            size="sm"
+          >
+            <UIcon 
+              name="i-heroicons-shield-check" 
+              class="w-3 h-3 mr-1"
+            />
+            Organization Admin (All Projects)
+          </UBadge>
+          
+          <!-- Project Editor Badge -->
+          <UBadge 
+            v-else-if="userPermissions.canEditProject"
+            color="primary"
+            variant="subtle"
+            size="sm"
+          >
+            <UIcon 
+              name="i-heroicons-pencil-square" 
+              class="w-3 h-3 mr-1"
+            />
+            Project Editor (Can Manage Tasks)
+          </UBadge>
+          
+          <!-- Team Member Badge -->
+          <UBadge 
+            v-else
+            color="info"
+            variant="subtle"
+            size="sm"
+          >
+            <UIcon 
+              name="i-heroicons-user" 
+              class="w-3 h-3 mr-1"
+            />
+            Team Member (My Tasks Only)
+          </UBadge>
+        </div>
       </div>      <div class="flex items-center gap-4">
         <UButton 
-          v-if="selectedUnassignedTasks.length > 0" 
+          v-if="selectedUnassignedTasks.length > 0 && canAssignTasks" 
           @click="assignSelectedTasks" 
           :loading="assignLoading"
           color="secondary"
@@ -31,7 +74,7 @@
           Complete ({{ selectedAnnotatingTasks.length }})
         </UButton>
         <UButton 
-          v-if="selectedCompletedTasks.length > 0" 
+          v-if="selectedCompletedTasks.length > 0 && canAssignTasks" 
           @click="reassignSelectedTasks" 
           :loading="reassignLoading"
           color="warning"
@@ -48,7 +91,7 @@
     </div>
 
     <!-- Loading State -->
-    <div v-if="loading && !tasks" class="flex items-center justify-center py-12">
+    <div v-if="loading" class="flex items-center justify-center py-12">
       <div class="text-center">
         <UIcon name="i-heroicons-arrow-path" class="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
         <p class="text-gray-600 dark:text-gray-400">Loading tasks...</p>
@@ -68,14 +111,36 @@
       </UButton>
     </div>    <!-- Main Content -->
     <div v-else-if="tasks" class="space-y-6">
-      <!-- Task Assignment Slider -->
+      <!-- Task Assignment Slider - Only show to users who can assign tasks -->
       <TaskAssignmentSlider 
-        :available-tasks="tasks.unassigned.length"
-        :unassigned-tasks="tasks.unassigned"
+        v-if="canAssignTasks && tasks?.unassigned && tasks.unassigned.length > 0"
+        :available-tasks="tasks?.unassigned?.length || 0"
+        :unassigned-tasks="tasks?.unassigned || []"
         :project-id="projectId"
         @tasks-assigned="handleTasksAssigned"
         @assignment-error="handleAssignmentError"
       />
+      
+      <!-- Non-editor user message when there are unassigned tasks they can't assign -->
+      <div 
+        v-else-if="!canAssignTasks && tasks?.unassigned && tasks.unassigned.length > 0" 
+        class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4 mb-6"
+      >
+        <div class="flex items-center">
+          <div class="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+            <UIcon name="i-heroicons-information-circle" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+          </div>
+          <div class="ml-3">
+            <h4 class="text-sm font-medium text-blue-900 dark:text-blue-300">
+              Task Assignment Restricted
+            </h4>
+            <p class="text-xs text-blue-700 dark:text-blue-400 mt-1">
+              There are {{ tasks?.unassigned?.length || 0 }} unassigned {{ (tasks?.unassigned?.length || 0) === 1 ? 'task' : 'tasks' }} in this project. 
+              As a Team Member, you can only work on tasks assigned to you. Contact a Project Editor or Organization Administrator to assign these tasks.
+            </p>
+          </div>
+        </div>
+      </div>
       
       <!-- Stats Overview -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -85,8 +150,10 @@
               <UIcon name="i-heroicons-clock" class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300">Unassigned</p>
-              <p class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">{{ tasks.unassigned.length }}</p>
+              <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                {{ canViewAllTasks ? 'Unassigned' : 'Available' }}
+              </p>
+              <p class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">{{ tasks?.unassigned?.length || 0 }}</p>
             </div>
           </div>
         </div>
@@ -97,8 +164,10 @@
               <UIcon name="i-heroicons-pencil" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-blue-800 dark:text-blue-300">Annotating</p>
-              <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ tasks.annotating.length }}</p>
+              <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                {{ canViewAllTasks ? 'All Annotating' : 'My Tasks' }}
+              </p>
+              <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ tasks?.annotating?.length || 0 }}</p>
             </div>
           </div>
         </div>
@@ -109,8 +178,10 @@
               <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-600 dark:text-green-400" />
             </div>
             <div class="ml-4">
-              <p class="text-sm font-medium text-green-800 dark:text-green-300">Completed</p>
-              <p class="text-2xl font-bold text-green-900 dark:text-green-200">{{ tasks.completed.length }}</p>
+              <p class="text-sm font-medium text-green-800 dark:text-green-300">
+                {{ canViewAllTasks ? 'All Completed' : 'My Completed' }}
+              </p>
+              <p class="text-2xl font-bold text-green-900 dark:text-green-200">{{ tasks?.completed?.length || 0 }}</p>
             </div>
           </div>
         </div>
@@ -144,13 +215,20 @@
       <!-- Tab Content -->
       <div class="space-y-4">        <!-- Unassigned Tab -->
         <div v-if="activeTab === 'unassigned'">
-          <div v-if="tasks.unassigned.length === 0" class="text-center py-12">
+          <div v-if="!tasks?.unassigned || tasks.unassigned.length === 0" class="text-center py-12">
             <UIcon name="i-heroicons-inbox" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Unassigned Tasks</h3>
-            <p class="text-gray-500 dark:text-gray-400">All tasks have been assigned to team members.</p>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              {{ canViewAllTasks ? 'No Unassigned Tasks' : 'No Available Tasks' }}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400">
+              {{ canViewAllTasks 
+                ? 'All tasks have been assigned to team members.' 
+                : 'No tasks are currently available for you to work on.' 
+              }}
+            </p>
           </div>          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div 
-              v-for="task in tasks.unassigned" 
+              v-for="task in tasks?.unassigned || []" 
               :key="task.id" 
               :class="[
                 'border p-4 rounded cursor-pointer transition-all',
@@ -175,13 +253,20 @@
           </div>
         </div>        <!-- Annotating Tab -->
         <div v-if="activeTab === 'annotating'">
-          <div v-if="tasks.annotating.length === 0" class="text-center py-12">
+          <div v-if="!tasks?.annotating || tasks.annotating.length === 0" class="text-center py-12">
             <UIcon name="i-heroicons-pencil" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Tasks in Progress</h3>
-            <p class="text-gray-500 dark:text-gray-400">No tasks are currently being annotated.</p>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              {{ canViewAllTasks ? 'No Tasks in Progress' : 'No Tasks Assigned to You' }}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400">
+              {{ canViewAllTasks 
+                ? 'No tasks are currently being annotated by any team member.' 
+                : 'You have no tasks assigned to you for annotation.' 
+              }}
+            </p>
           </div>          <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div 
-              v-for="task in tasks.annotating" 
+              v-for="task in tasks?.annotating || []" 
               :key="task.id" 
               :class="[
                 'border p-4 rounded cursor-pointer transition-all relative',
@@ -225,7 +310,7 @@
                   <UIcon name="i-heroicons-check-circle" class="w-3 h-3 mr-1" />
                   Selected for completion
                 </div>
-              </div>
+              </div>      
             </div>
           </div>
         </div>
@@ -233,9 +318,9 @@
         <!-- Completed Tab -->
         <div v-if="activeTab === 'completed'">
           <!-- Header -->
-          <div v-if="tasks.completed.length > 0" class="mb-6">
+          <div v-if="tasks?.completed && tasks.completed.length > 0" class="mb-6">
             <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Completed Tasks ({{ tasks.completed.length }})
+              Completed Tasks ({{ tasks?.completed?.length || 0 }})
             </h3>
             
             <!-- Export Configuration Section -->
@@ -426,6 +511,7 @@
                 </UButton>
                 
                 <UButton 
+                  v-if="canExportDataset"
                   @click="handleExportDataset"
                   :loading="exportLoading"
                   :disabled="!selectedExportFormat || totalPercentage !== 100"
@@ -435,20 +521,35 @@
                   <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
                   Export Dataset
                 </UButton>
+                
+                <!-- Restricted Export Message -->
+                <div v-else class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-2">
+                  <div class="flex items-center text-sm text-gray-600 dark:text-gray-400">
+                    <UIcon name="i-heroicons-lock-closed" class="w-4 h-4 mr-2" />
+                    Dataset export requires Project Editor or Organization Administrator permissions
+                  </div>
+                </div>
               </div>
             </div>
           </div>
           
           <!-- Completed Tasks Grid -->
-          <div v-if="tasks.completed.length === 0" class="text-center py-12">
+          <div v-if="!tasks?.completed || tasks.completed.length === 0" class="text-center py-12">
             <UIcon name="i-heroicons-check-circle" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">No Completed Tasks</h3>
-            <p class="text-gray-500 dark:text-gray-400">Completed tasks will appear here.</p>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              {{ canViewAllTasks ? 'No Completed Tasks' : 'No Completed Tasks' }}
+            </h3>
+            <p class="text-gray-500 dark:text-gray-400">
+              {{ canViewAllTasks 
+                ? 'No tasks have been completed by any team member yet.' 
+                : 'You have not completed any tasks yet.' 
+              }}
+            </p>
           </div>
           
           <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div 
-              v-for="task in tasks.completed" 
+              v-for="task in tasks?.completed || []" 
               :key="task.id" 
               :class="[
                 'border p-4 rounded cursor-pointer transition-all',
@@ -496,11 +597,36 @@ interface Task {
   updatedAt: number
 }
 
+interface UserPermissions {
+  isOrgAdmin: boolean
+  canEditProject: boolean
+  canAssignTasks: boolean
+  canViewAllTasks: boolean
+  canExportDataset: boolean
+}
+
 interface TasksResponse {
+  data: Task[] // API returns a flat array of tasks
+  permissions?: UserPermissions
+}
+
+interface ProjectData {
+  id: number
+  name: string
+  description?: string
+  projectType: number
+  labelConfig?: {
+    classes: string[]
+  }
+  organizationId: number
+  createdAt: number
+  updatedAt: number
+}
+
+interface ProjectResponse {
   data: {
-    unassigned: Task[]
-    annotating: Task[]
-    completed: Task[]
+    projects: ProjectData
+    project_relations: any
   }
 }
 
@@ -512,8 +638,20 @@ const props = defineProps<{
 // Reactive state
 const loading = ref(false)
 const error = ref<string | null>(null)
-const tasks = ref<TasksResponse['data'] | null>(null)
+const tasks = ref<{
+  unassigned: Task[]
+  annotating: Task[]
+  completed: Task[]
+} | null>(null)
 const activeTab = ref<'unassigned' | 'annotating' | 'completed'>('unassigned')
+const userPermissions = ref<UserPermissions>({
+  isOrgAdmin: false,
+  canEditProject: false,
+  canAssignTasks: false,
+  canViewAllTasks: false,
+  canExportDataset: false
+})
+const organizationId = ref<number | null>(null)
 const selectedUnassignedTasks = ref<number[]>([])
 const selectedAnnotatingTasks = ref<number[]>([])
 const selectedCompletedTasks = ref<number[]>([])
@@ -536,29 +674,46 @@ const totalPercentage = computed(() =>
   trainPercentage.value + testPercentage.value + validationPercentage.value
 )
 
+// Computed properties for permission checks
+const canAssignTasks = computed(() => userPermissions.value.canAssignTasks)
+const canExportDataset = computed(() => userPermissions.value.canExportDataset)
+const canViewAllTasks = computed(() => userPermissions.value.canViewAllTasks)
+const isOrgAdmin = computed(() => userPermissions.value.isOrgAdmin)
+
+const permissionLevelLabel = computed(() => {
+  if (userPermissions.value.isOrgAdmin) {
+    return 'Organization Administrator'
+  } else if (userPermissions.value.canEditProject) {
+    return 'Project Editor'
+  } else {
+    return 'Team Member'
+  }
+})
+
 // Tab configuration
-const tabs = [
+const tabs = computed(() => [
   {
     key: 'unassigned' as const,
-    label: 'Unassigned',
+    label: canViewAllTasks.value ? 'Unassigned' : 'Available',
     icon: 'i-heroicons-clock'
   },
   {
     key: 'annotating' as const,
-    label: 'Annotating',
+    label: canViewAllTasks.value ? 'All Annotating' : 'My Tasks',
     icon: 'i-heroicons-pencil'
   },
   {
     key: 'completed' as const,
-    label: 'Completed',
+    label: canViewAllTasks.value ? 'All Completed' : 'My Completed',
     icon: 'i-heroicons-check-circle'
   }
-]
+])
 
 // Computed
 const getTaskCount = (tabKey: string) => {
   if (!tasks.value) return 0
-  return tasks.value[tabKey as keyof typeof tasks.value]?.length || 0
+  const taskArray = tasks.value[tabKey as keyof typeof tasks.value]
+  return Array.isArray(taskArray) ? taskArray.length : 0
 }
 
 // Auth
@@ -567,6 +722,26 @@ const token = useCookie('auth_token')
 const toast = useToast()
 
 // Methods
+// Fetch project data to get organization ID
+const fetchProjectData = async () => {
+  if (!token.value || !props.projectId) return
+
+  try {
+    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+
+    if (response?.data?.projects?.organizationId) {
+      organizationId.value = response.data.projects.organizationId
+      console.log('Project organizationId:', organizationId.value)
+    }
+  } catch (error) {
+    console.error('Error fetching project data:', error)
+  }
+}
+
 const fetchTasks = async () => {
   try {
     loading.value = true
@@ -576,22 +751,95 @@ const fetchTasks = async () => {
       throw new Error('Authentication required')
     }
     
-    console.log('Fetching tasks for project:', props.projectId)
+    // Ensure we have organizationId before fetching tasks
+    if (!organizationId.value) {
+      await fetchProjectData()
+    }
+    
+    console.log('Fetching user tasks for project:', props.projectId, 'organization:', organizationId.value)
     console.log('Using token:', token.value ? 'Token exists' : 'No token')
     
-    const response = await $fetch<TasksResponse>(`http://localhost:8787/api/tasks/project/${props.projectId}`, {
+    // Build query parameters
+    const queryParams = new URLSearchParams()
+    if (props.projectId) {
+      queryParams.append('projectId', props.projectId)
+    }
+    if (organizationId.value) {
+      queryParams.append('organizationId', organizationId.value.toString())
+    }
+    
+    const url = `http://localhost:8787/api/tasks/my-tasks${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    console.log('Fetching from URL:', url)
+    
+    const response = await $fetch<TasksResponse>(url, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
     })
     
-    console.log('API Response:', response)
-    tasks.value = response.data
+    console.log('My Tasks API Response:', response)
+    console.log('Raw response.permissions:', response.permissions)
+    
+    // The API returns a flat array of tasks, we need to organize them by status
+    const taskArray = Array.isArray(response.data) ? response.data : []
+    console.log('Task array received:', taskArray)
+    
+    // Organize tasks by status
+    const organizedTasks = {
+      unassigned: taskArray.filter(task => task.status === 'unassigned'),
+      annotating: taskArray.filter(task => task.status === 'annotating'),
+      completed: taskArray.filter(task => task.status === 'completed')
+    }
+    
+    console.log('Organized tasks:', organizedTasks)
+    tasks.value = organizedTasks
+    
+    // Update user permissions with comprehensive permission object
+    if (response.permissions) {
+      userPermissions.value = {
+        isOrgAdmin: response.permissions.isOrgAdmin || false,
+        canEditProject: response.permissions.canEditProject || false,
+        canAssignTasks: response.permissions.canAssignTasks || false,
+        canViewAllTasks: response.permissions.canViewAllTasks || false,
+        canExportDataset: response.permissions.canExportDataset || false
+      }
+      console.log('User permissions updated:', userPermissions.value)
+    } else {
+      // Fallback for backwards compatibility - reset to default permissions
+      userPermissions.value = {
+        isOrgAdmin: false,
+        canEditProject: false,
+        canAssignTasks: false,
+        canViewAllTasks: false,
+        canExportDataset: false
+      }
+      console.log('No permissions in response, using default permissions')
+    }
+    
     console.log('Tasks set to:', tasks.value)
+    console.log('Final user permissions:', userPermissions.value)
+    console.log('Permission level label:', permissionLevelLabel.value)
     
   } catch (err) {
     console.error('Error fetching tasks:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to fetch tasks'
+    
+    // Enhanced error handling for permission-specific messages
+    let errorMessage = 'Failed to fetch tasks'
+    
+    if (err instanceof Error) {
+      // Check for 403 Forbidden errors
+      if (err.message.includes('403') || err.message.toLowerCase().includes('forbidden')) {
+        errorMessage = 'Access denied: You do not have permission to view tasks in this project. Please contact your project administrator.'
+      } else if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized')) {
+        errorMessage = 'Authentication required: Please log in again to access project tasks.'
+      } else if (err.message.includes('404') || err.message.toLowerCase().includes('not found')) {
+        errorMessage = 'Project not found: This project may have been deleted or you may not have access to it.'
+      } else {
+        errorMessage = err.message
+      }
+    }
+    
+    error.value = errorMessage
   } finally {
     loading.value = false
   }
@@ -664,7 +912,18 @@ const assignSelectedTasks = async () => {
     await fetchTasks()
       } catch (err) {
     console.error('Error assigning tasks:', err)
-    const errorMessage = err instanceof Error ? err.message : 'Failed to assign tasks'
+    
+    let errorMessage = 'Failed to assign tasks'
+    if (err instanceof Error) {
+      if (err.message.includes('403') || err.message.toLowerCase().includes('forbidden')) {
+        errorMessage = 'Permission denied: You do not have permission to assign tasks. Only Project Editors and Organization Administrators can assign tasks.'
+      } else if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized')) {
+        errorMessage = 'Authentication required: Please log in again to assign tasks.'
+      } else {
+        errorMessage = err.message
+      }
+    }
+    
     error.value = errorMessage
     
     // Show error toast
@@ -764,7 +1023,18 @@ const reassignSelectedTasks = async () => {
     
   } catch (err) {
     console.error('Error reassigning tasks:', err)
-    const errorMessage = err instanceof Error ? err.message : 'Failed to reassign tasks'
+    
+    let errorMessage = 'Failed to reassign tasks'
+    if (err instanceof Error) {
+      if (err.message.includes('403') || err.message.toLowerCase().includes('forbidden')) {
+        errorMessage = 'Permission denied: You do not have permission to reassign tasks. Only Project Editors and Organization Administrators can reassign tasks.'
+      } else if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized')) {
+        errorMessage = 'Authentication required: Please log in again to reassign tasks.'
+      } else {
+        errorMessage = err.message
+      }
+    }
+    
     error.value = errorMessage
     
     // Show error toast
@@ -1053,7 +1323,7 @@ const handleExportDataset = async () => {
 
 // Check annotation status for completed tasks
 const checkAnnotationStatus = async () => {
-  if (!tasks.value?.completed.length) {
+  if (!tasks.value?.completed || !tasks.value.completed.length) {
     toast.add({
       title: 'No Completed Tasks',
       description: 'There are no completed tasks to check for annotations.',
@@ -1171,9 +1441,18 @@ const updateSplitPercentages = (changedType: 'train' | 'test' | 'validation') =>
   }
 }
 
+// Watchers
+watch(userPermissions, (newValue, oldValue) => {
+  console.log('User permissions changed from', oldValue, 'to', newValue)
+  console.log('Permission level changed to:', permissionLevelLabel.value)
+}, { immediate: true, deep: true })
+
 // Lifecycle
-onMounted(() => {
-  fetchTasks()
+onMounted(async () => {
+  console.log('Component mounted, initial permissions:', userPermissions.value)
+  // Fetch project data first to get organizationId, then fetch tasks
+  await fetchProjectData()
+  await fetchTasks()
 })
 
 // Watch for project ID changes
