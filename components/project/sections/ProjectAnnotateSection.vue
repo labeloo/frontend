@@ -842,6 +842,72 @@ const token = useCookie('auth_token')
 const toast = useToast()
 
 // Methods
+// Context-aware error message generator
+const getContextualErrorMessage = (error: Error, actionType: 'assign' | 'complete' | 'reassign' | 'export') => {
+  const errorMessage = error.message.toLowerCase()
+  
+  // Handle 403 Forbidden errors with context
+  if (errorMessage.includes('403') || errorMessage.includes('forbidden')) {
+    const currentRole = userPermissions.value.isOrgAdmin 
+      ? 'Organization Administrator'
+      : userPermissions.value.canEditProject 
+        ? 'Project Editor' 
+        : 'Team Member'
+    
+    switch (actionType) {
+      case 'assign':
+      case 'reassign':
+        if (userPermissions.value.isOrgAdmin) {
+          return 'Unexpected permission error: As an Organization Administrator, you should have access to task assignment. Please contact support.'
+        } else if (userPermissions.value.canEditProject) {
+          return 'Permission denied: Your Project Editor role should allow task assignment. Your permissions may have been changed - please refresh the page or contact your administrator.'
+        } else {
+          return 'Permission denied: Task assignment requires Project Editor or Organization Administrator permissions. Contact your project administrator to request elevated access.'
+        }
+      
+      case 'export':
+        if (userPermissions.value.isOrgAdmin) {
+          return 'Unexpected permission error: As an Organization Administrator, you should have access to dataset export. Please contact support.'
+        } else if (userPermissions.value.canExportDataset) {
+          return 'Permission denied: Your export permission may have been revoked. Please refresh the page or contact your administrator.'
+        } else {
+          return 'Permission denied: Dataset export requires Project Editor or Organization Administrator permissions. Contact your project administrator to request export access.'
+        }
+      
+      case 'complete':
+        return 'Permission denied: You can only complete tasks assigned to you. This task may have been reassigned to another user.'
+      
+      default:
+        return `Permission denied: Your current role (${currentRole}) does not have sufficient permissions for this action. Contact your project administrator.`
+    }
+  }
+  
+  // Handle 401 Unauthorized errors
+  if (errorMessage.includes('401') || errorMessage.includes('unauthorized')) {
+    return 'Authentication expired: Please log in again to continue working with tasks.'
+  }
+  
+  // Handle 404 Not Found errors
+  if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+    return 'Resource not found: The task or project may have been deleted. Please refresh the page.'
+  }
+  
+  // Handle 500 Server errors
+  if (errorMessage.includes('500') || errorMessage.includes('server error')) {
+    return 'Server error: There was a problem processing your request. Please try again later or contact support.'
+  }
+  
+  // Default fallback with action context
+  const actionDescriptions = {
+    assign: 'assign tasks',
+    complete: 'complete tasks',
+    reassign: 'reassign tasks',
+    export: 'export dataset'
+  }
+  
+  return `Failed to ${actionDescriptions[actionType]}: ${error.message || 'Unknown error occurred'}. Please try again.`
+}
+
 // Fetch project data to get organization ID
 const fetchProjectData = async () => {
   if (!token.value || !props.projectId) return
@@ -1035,16 +1101,9 @@ const assignSelectedTasks = async () => {
       } catch (err) {
     console.error('Error assigning tasks:', err)
     
-    let errorMessage = 'Failed to assign tasks'
-    if (err instanceof Error) {
-      if (err.message.includes('403') || err.message.toLowerCase().includes('forbidden')) {
-        errorMessage = 'Permission denied: You do not have permission to assign tasks. Only Project Editors and Organization Administrators can assign tasks.'
-      } else if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized')) {
-        errorMessage = 'Authentication required: Please log in again to assign tasks.'
-      } else {
-        errorMessage = err.message
-      }
-    }
+    const errorMessage = err instanceof Error 
+      ? getContextualErrorMessage(err, 'assign')
+      : 'Failed to assign tasks: Unknown error occurred'
     
     error.value = errorMessage
     
@@ -1094,7 +1153,11 @@ const completeSelectedTasks = async () => {
     await fetchTasks()
       } catch (err) {
     console.error('Error completing tasks:', err)
-    const errorMessage = err instanceof Error ? err.message : 'Failed to complete tasks'
+    
+    const errorMessage = err instanceof Error 
+      ? getContextualErrorMessage(err, 'complete')
+      : 'Failed to complete tasks: Unknown error occurred'
+    
     error.value = errorMessage
     
     // Show error toast
@@ -1146,16 +1209,9 @@ const reassignSelectedTasks = async () => {
   } catch (err) {
     console.error('Error reassigning tasks:', err)
     
-    let errorMessage = 'Failed to reassign tasks'
-    if (err instanceof Error) {
-      if (err.message.includes('403') || err.message.toLowerCase().includes('forbidden')) {
-        errorMessage = 'Permission denied: You do not have permission to reassign tasks. Only Project Editors and Organization Administrators can reassign tasks.'
-      } else if (err.message.includes('401') || err.message.toLowerCase().includes('unauthorized')) {
-        errorMessage = 'Authentication required: Please log in again to reassign tasks.'
-      } else {
-        errorMessage = err.message
-      }
-    }
+    const errorMessage = err instanceof Error 
+      ? getContextualErrorMessage(err, 'reassign')
+      : 'Failed to reassign tasks: Unknown error occurred'
     
     error.value = errorMessage
     
@@ -1413,22 +1469,16 @@ const handleExportDataset = async () => {
     
   } catch (err) {
     console.error('Error exporting dataset:', err)
+    
     let errorMessage = 'Failed to export dataset'
     
     if (err instanceof Error) {
-      errorMessage = err.message
-      
-      // Provide more specific error messages based on the error
+      // Handle special export-specific errors first
       if (err.message.includes('No completed tasks')) {
         errorMessage = 'No completed tasks available for export. Complete some tasks first.'
-      } else if (err.message.includes('Authentication')) {
-        errorMessage = 'Authentication failed. Please log in again.'
-      } else if (err.message.includes('HTTP 400')) {
-        errorMessage = 'Invalid export request. Please check your settings and try again.'
-      } else if (err.message.includes('HTTP 404')) {
-        errorMessage = 'Export endpoint not found. Please contact support.'
-      } else if (err.message.includes('HTTP 500')) {
-        errorMessage = 'Server error during export. Please try again later.'
+      } else {
+        // Use contextual error handling for permission and general errors
+        errorMessage = getContextualErrorMessage(err, 'export')
       }
     }
     
