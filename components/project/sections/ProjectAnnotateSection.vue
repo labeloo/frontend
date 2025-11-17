@@ -10,68 +10,91 @@
           Manage task assignments and track annotation progress
         </p>
         <div class="mt-2 flex items-center space-x-2">
-          <!-- Organization Admin Badge -->
-          <UBadge 
-            v-if="isOrgAdmin"
-            color="warning"
-            variant="subtle"
-            size="sm"
-          >
-            <UIcon 
-              name="i-heroicons-shield-check" 
-              class="w-3 h-3 mr-1"
-            />
-            Organization Admin (All Projects)
-          </UBadge>
+          <!-- Permission Loading Skeleton -->
+          <div v-if="permissionsLoading" class="flex items-center space-x-2">
+            <div class="animate-pulse flex items-center space-x-2">
+              <div class="h-6 w-48 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+              <div class="h-5 w-24 bg-gray-200 dark:bg-gray-700 rounded-full"></div>
+            </div>
+          </div>
           
-          <!-- Project Editor Badge -->
-          <UBadge 
-            v-else-if="userPermissions.canEditProject"
-            color="primary"
-            variant="subtle"
-            size="sm"
-          >
-            <UIcon 
-              name="i-heroicons-pencil-square" 
-              class="w-3 h-3 mr-1"
-            />
-            Project Editor (Can Manage Tasks)
-          </UBadge>
-          
-          <!-- Project Editor Capabilities Badge -->
-          <UBadge 
-            v-if="userPermissions.canEditProject && !isOrgAdmin && projectEditorCapabilities"
-            color="secondary"
-            variant="outline"
-            size="xs"
-          >
-            <UIcon 
-              name="i-heroicons-check-circle" 
-              class="w-2 h-2 mr-1"
-            />
-            {{ projectEditorCapabilities }}
-          </UBadge>
-          
-          <!-- Team Member Badge -->
-          <UBadge 
-            v-else
-            color="info"
-            variant="subtle"
-            size="sm"
-          >
-            <UIcon 
-              name="i-heroicons-user" 
-              class="w-3 h-3 mr-1"
-            />
-            Team Member (My Tasks Only)
-          </UBadge>
+          <!-- Actual Permission Badges -->
+          <template v-else>
+            <!-- Organization Admin Badge -->
+            <UBadge 
+              v-if="isOrgAdmin"
+              color="warning"
+              variant="subtle"
+              size="sm"
+            >
+              <UIcon 
+                name="i-heroicons-shield-check" 
+                class="w-3 h-3 mr-1"
+              />
+              Organization Admin (All Projects)
+            </UBadge>
+            
+            <!-- Project Editor Badge -->
+            <UBadge 
+              v-else-if="userPermissions.canEditProject"
+              color="primary"
+              variant="subtle"
+              size="sm"
+            >
+              <UIcon 
+                name="i-heroicons-pencil-square" 
+                class="w-3 h-3 mr-1"
+              />
+              Project Editor (Can Manage Tasks)
+            </UBadge>
+            
+            <!-- Project Editor Capabilities Badge -->
+            <UBadge 
+              v-if="userPermissions.canEditProject && !isOrgAdmin && projectEditorCapabilities"
+              color="secondary"
+              variant="outline"
+              size="xs"
+            >
+              <UIcon 
+                name="i-heroicons-check-circle" 
+                class="w-2 h-2 mr-1"
+              />
+              {{ projectEditorCapabilities }}
+            </UBadge>
+            
+            <!-- Team Member Badge -->
+            <UBadge 
+              v-else
+              color="info"
+              variant="subtle"
+              size="sm"
+            >
+              <UIcon 
+                name="i-heroicons-user" 
+                class="w-3 h-3 mr-1"
+              />
+              Team Member (My Tasks Only)
+            </UBadge>
+          </template>
         </div>
       </div>      <div class="flex items-center gap-4">
-        <!-- Assign Button with Progressive Disclosure -->
-        <UTooltip 
-          v-if="selectedUnassignedTasks.length > 0"
-          :text="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
-        >
+        <!-- Action Buttons Loading Skeleton -->
+        <div v-if="permissionsLoading" class="flex items-center gap-4">
+          <div class="animate-pulse">
+            <div class="h-9 w-24 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+          </div>
+          <div class="animate-pulse">
+            <div class="h-9 w-28 bg-gray-200 dark:bg-gray-700 rounded-md"></div>
+          </div>
+        </div>
+        
+        <!-- Actual Action Buttons -->
+        <template v-else>
+          <!-- Assign Button with Progressive Disclosure -->
+          <UTooltip 
+            v-if="selectedUnassignedTasks.length > 0"
+            :text="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
+          >
           <UButton 
             @click="canAssignTasks ? assignSelectedTasks() : null" 
             :loading="assignLoading"
@@ -113,11 +136,12 @@
           </UButton>
         </UTooltip>
         
-        <!-- Refresh Button (always available) -->
-        <UButton @click="refreshTasks" :loading="loading" variant="outline" color="secondary" class="cursor-pointer">
-          <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
-          Refresh
-        </UButton>
+          <!-- Refresh Button (always available) -->
+          <UButton @click="refreshTasks" :loading="loading" variant="outline" color="secondary" class="cursor-pointer">
+            <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
+            Refresh
+          </UButton>
+        </template>
       </div>
     </div>
 
@@ -175,7 +199,23 @@
       
       <!-- Stats Overview -->
       <div class="space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Stats Cards Loading Skeleton -->
+        <div v-if="permissionsLoading" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div v-for="n in 3" :key="n" class="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 animate-pulse">
+            <div class="flex items-center">
+              <div class="p-2 bg-gray-200 dark:bg-gray-700 rounded-lg">
+                <div class="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded"></div>
+              </div>
+              <div class="ml-4 space-y-2">
+                <div class="h-4 w-20 bg-gray-200 dark:bg-gray-700 rounded"></div>
+                <div class="h-8 w-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actual Stats Cards -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <!-- Unassigned Tasks Card -->
           <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
             <div class="flex items-center">
@@ -703,6 +743,7 @@ const props = defineProps<{
 
 // Reactive state
 const loading = ref(false)
+const permissionsLoading = ref(false)
 const error = ref<string | null>(null)
 const tasks = ref<{
   unassigned: Task[]
@@ -824,6 +865,7 @@ const fetchProjectData = async () => {
 const fetchTasks = async () => {
   try {
     loading.value = true
+    permissionsLoading.value = true
     error.value = null
     
     if (!token.value) {
@@ -921,6 +963,7 @@ const fetchTasks = async () => {
     error.value = errorMessage
   } finally {
     loading.value = false
+    permissionsLoading.value = false
   }
 }
 
@@ -1537,6 +1580,16 @@ onMounted(async () => {
 // Watch for project ID changes
 watch(() => props.projectId, () => {
   if (props.projectId) {
+    // Reset permission state for smooth transitions between projects
+    permissionsLoading.value = true
+    userPermissions.value = {
+      isOrgAdmin: false,
+      canEditProject: false,
+      canAssignTasks: false,
+      canViewAllTasks: false,
+      canExportDataset: false
+    }
+    
     // Clear selections when switching projects
     selectedUnassignedTasks.value = []
     selectedAnnotatingTasks.value = []
