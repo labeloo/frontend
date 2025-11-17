@@ -101,18 +101,36 @@
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
           @mouseout="handleAnnotationMouseOut(index)"
+          @mousemove="handlePolygonMouseMove(index, $event)"
+          @mousedown="handlePolygonMouseDown(index, $event)"
         />
         
-        <!-- Pretty vertex dots for selected polygon (with pagination for performance) -->
+        <!-- Pretty vertex dots for selected polygon (hybrid: full for small, paginated+smart-insert for large) -->
         <template v-if="annotation.type === 'polygon' && selectedAnnotationIndex === index && annotation.points">
-          <v-circle
-            v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
-            :key="`vertex-${index}-${originalIndex}`"
-            :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
-            @dragstart="handleVertexDragStart(index, originalIndex, $event)"
-            @dragmove="handleVertexDragMove(index, originalIndex, $event)"
-            @dragend="handleVertexDragEnd(index, originalIndex, $event)"
-          />
+          <!-- Simple polygon: show all vertices (interactive) -->
+          <template v-if="annotation.points.length < allVerticesThreshold">
+            <v-circle
+              v-for="(point, pointIndex) in annotation.points"
+              :key="`vertex-${index}-${pointIndex}`"
+              :config="getVertexDotConfig(point, pointIndex, annotation.points.length, true, index)"
+              @dragstart="handleVertexDragStart(index, pointIndex, $event)"
+              @dragmove="handleVertexDragMove(index, pointIndex, $event)"
+              @dragend="handleVertexDragEnd(index, pointIndex, $event)"
+            />
+          </template>
+
+          <!-- Complex polygon: paginated vertices + smart "preview on hover" insertion -->
+          <template v-else>
+            <v-circle
+              v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
+              :key="`vertex-${index}-${originalIndex}`"
+              :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
+              @dragstart="handleVertexDragStart(index, originalIndex, $event)"
+              @dragmove="handleVertexDragMove(index, originalIndex, $event)"
+              @dragend="handleVertexDragEnd(index, originalIndex, $event)"
+            />
+            <!-- preview vertex is handled on activeLayer via mousemove/mousedown on the polygon line -->
+          </template>
         </template>
         
         <!-- Dot annotations -->
@@ -799,6 +817,8 @@ const annotationToolsPosition = ref<{ x: number; y: number } | null>(null)
 const showAllVertices = ref(false)
 const vertexPaginationThreshold = 20 // Show every Nth vertex when points > threshold
 const vertexStepSize = ref(5) // Show every 5th vertex by default
+// Hybrid editing threshold: show all vertices for small polygons under this size
+const allVerticesThreshold = 30
 
 // Vertex editing state for three-phase editing system
 const isEditingVertex = ref(false)
@@ -808,6 +828,134 @@ let currentVertexEdit: {
   originalPolygon: any
   temporaryClone: any
 } | null = null
+
+// Preview insert vertex for complex polygons (activeLayer)
+let previewVertexNode: any = null
+let previewInsertIndex: number | null = null
+
+// Helper: find closest point on polyline (returns projected point and segment index)
+const getClosestPointOnPolyline = (points: { x: number; y: number }[], target: { x: number; y: number }) => {
+  let minDist = Infinity
+  let closestPoint = { x: 0, y: 0 }
+  let insertIndex = 0
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const a = points[i]!
+    const b = points[i + 1]!
+
+    // Project target onto segment ab
+    const dx = b.x - a.x
+    const dy = b.y - a.y
+    const l2 = dx * dx + dy * dy
+    let t = 0
+    if (l2 > 0) {
+      t = ((target.x - a.x) * dx + (target.y - a.y) * dy) / l2
+      t = Math.max(0, Math.min(1, t))
+    }
+
+    const projX = a.x + t * dx
+    const projY = a.y + t * dy
+    const dist = Math.hypot(target.x - projX, target.y - projY)
+
+    if (dist < minDist) {
+      minDist = dist
+      closestPoint = { x: projX, y: projY }
+      insertIndex = i // insert after i
+    }
+  }
+
+  return { point: closestPoint, insertIndex }
+}
+
+const destroyPreviewVertex = () => {
+  if (previewVertexNode) {
+    try {
+      previewVertexNode.destroy()
+    } catch (e) {
+      // ignore
+    }
+    previewVertexNode = null
+    previewInsertIndex = null
+    if (activeLayer.value) activeLayer.value.getNode().batchDraw()
+  }
+}
+
+// Mouse move handler on polygon for complex shapes - show preview vertex
+const handlePolygonMouseMove = (annotationIndex: number, event: any) => {
+  // Only active for selected complex polygons
+  if (selectedAnnotationIndex.value !== annotationIndex) return
+  const annotation = props.annotations[annotationIndex]
+  if (!annotation || !annotation.points) return
+  if (annotation.points.length < allVerticesThreshold) return
+
+  const stageNode = event.target.getStage()
+  const canvasPos = getCanvasPointerPosition(stageNode)
+  if (!canvasPos) return
+
+  const { point, insertIndex } = getClosestPointOnPolyline(annotation.points, canvasPos)
+  previewInsertIndex = insertIndex
+
+  // Create or move previewVertex on activeLayer
+  if (process.client && activeLayer.value) {
+    const Konva = (window as any).Konva
+    if (!Konva) return
+
+    if (!previewVertexNode) {
+      previewVertexNode = new Konva.Circle({
+        x: point.x,
+        y: point.y,
+        radius: 5 * getUIScale(),
+        fill: 'rgba(255,170,68,0.9)',
+        stroke: '#ff8800',
+        strokeWidth: 1,
+        listening: false,
+        perfectDrawEnabled: false
+      })
+      activeLayer.value.getNode().add(previewVertexNode)
+    } else {
+      previewVertexNode.x(point.x)
+      previewVertexNode.y(point.y)
+    }
+
+    activeLayer.value.getNode().batchDraw()
+  }
+
+  event.evt?.stopPropagation()
+}
+
+// Mouse down handler on polygon - insert new vertex and begin editing it
+const handlePolygonMouseDown = async (annotationIndex: number, event: any) => {
+  if (selectedAnnotationIndex.value !== annotationIndex) return
+  const annotation = props.annotations[annotationIndex]
+  if (!annotation || !annotation.points) return
+  if (annotation.points.length < allVerticesThreshold) return
+  if (previewInsertIndex === null) return
+
+  const stageNode = event.target.getStage()
+  const canvasPos = getCanvasPointerPosition(stageNode)
+  if (!canvasPos) return
+
+  // Insert new point after previewInsertIndex
+  const insertAt = previewInsertIndex + 1
+  const newPoints = [...annotation.points.slice(0, insertAt), { x: canvasPos.x, y: canvasPos.y }, ...annotation.points.slice(insertAt)]
+
+  const updatedAnnotation: CanvasAnnotation = { ...annotation, points: newPoints }
+  const newAnnotations = [...props.annotations]
+  newAnnotations[annotationIndex] = updatedAnnotation
+
+  // Emit update and wait for DOM to reflect new vertex
+  emit('update:annotations', newAnnotations)
+  await nextTick()
+
+  // Clean up preview
+  destroyPreviewVertex()
+
+  // Start vertex editing for the newly inserted vertex
+  const syntheticEvent = { evt: { stopPropagation: () => {} } }
+  handleVertexDragStart(annotationIndex, insertAt, syntheticEvent)
+
+  event.evt?.stopPropagation()
+}
 
 // Computed properties
 const stageConfig = computed(() => ({
