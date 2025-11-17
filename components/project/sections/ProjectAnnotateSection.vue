@@ -157,46 +157,64 @@
       </div>
       
       <!-- Stats Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg">
-              <UIcon name="i-heroicons-clock" class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+      <div class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Unassigned Tasks Card -->
+          <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="p-2 bg-yellow-100 dark:bg-yellow-900/40 rounded-lg">
+                <UIcon name="i-heroicons-clock" class="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300">
+                  {{ canViewAllTasks ? 'Unassigned' : 'Available' }}
+                </p>
+                <p class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">{{ tasks?.unassigned?.length || 0 }}</p>
+              </div>
             </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-yellow-800 dark:text-yellow-300">
-                {{ canViewAllTasks ? 'Unassigned' : 'Available' }}
-              </p>
-              <p class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">{{ tasks?.unassigned?.length || 0 }}</p>
+          </div>
+
+          <!-- Annotating Tasks Card -->
+          <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
+                <UIcon name="i-heroicons-pencil" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
+                  {{ canViewAllTasks ? 'All Annotating' : 'My Tasks' }}
+                </p>
+                <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ tasks?.annotating?.length || 0 }}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Completed Tasks Card -->
+          <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
+            <div class="flex items-center">
+              <div class="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
+                <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-600 dark:text-green-400" />
+              </div>
+              <div class="ml-4">
+                <p class="text-sm font-medium text-green-800 dark:text-green-300">
+                  {{ canViewAllTasks ? 'All Completed' : 'My Completed' }}
+                </p>
+                <p class="text-2xl font-bold text-green-900 dark:text-green-200">{{ tasks?.completed?.length || 0 }}</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-6">
+        <!-- Helper Text for Project Editors -->
+        <div 
+          v-if="canViewAllTasks && (userPermissions.canEditProject || isOrgAdmin)" 
+          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+        >
           <div class="flex items-center">
-            <div class="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-              <UIcon name="i-heroicons-pencil" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-blue-800 dark:text-blue-300">
-                {{ canViewAllTasks ? 'All Annotating' : 'My Tasks' }}
-              </p>
-              <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ tasks?.annotating?.length || 0 }}</p>
-            </div>
-          </div>
-        </div>
-
-        <div class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-6">
-          <div class="flex items-center">
-            <div class="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg">
-              <UIcon name="i-heroicons-check-circle" class="w-6 h-6 text-green-600 dark:text-green-400" />
-            </div>
-            <div class="ml-4">
-              <p class="text-sm font-medium text-green-800 dark:text-green-300">
-                {{ canViewAllTasks ? 'All Completed' : 'My Completed' }}
-              </p>
-              <p class="text-2xl font-bold text-green-900 dark:text-green-200">{{ tasks?.completed?.length || 0 }}</p>
-            </div>
+            <UIcon name="i-heroicons-eye" class="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" />
+            <p class="text-xs text-blue-700 dark:text-blue-300">
+              <span class="font-medium">Enhanced View:</span> You're viewing all tasks in this project due to your {{ isOrgAdmin ? 'Organization Administrator' : 'Project Editor' }} permissions.
+            </p>
           </div>
         </div>
       </div>
