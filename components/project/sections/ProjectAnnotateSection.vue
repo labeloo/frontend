@@ -38,6 +38,20 @@
             Project Editor (Can Manage Tasks)
           </UBadge>
           
+          <!-- Project Editor Capabilities Badge -->
+          <UBadge 
+            v-if="userPermissions.canEditProject && !isOrgAdmin && projectEditorCapabilities"
+            color="secondary"
+            variant="outline"
+            size="xs"
+          >
+            <UIcon 
+              name="i-heroicons-check-circle" 
+              class="w-2 h-2 mr-1"
+            />
+            {{ projectEditorCapabilities }}
+          </UBadge>
+          
           <!-- Team Member Badge -->
           <UBadge 
             v-else
@@ -688,6 +702,19 @@ const permissionLevelLabel = computed(() => {
   } else {
     return 'Team Member'
   }
+})
+
+const projectEditorCapabilities = computed(() => {
+  if (!userPermissions.value.canEditProject || userPermissions.value.isOrgAdmin) {
+    return ''
+  }
+  
+  const capabilities = []
+  if (userPermissions.value.canAssignTasks) capabilities.push('Can assign')
+  if (userPermissions.value.canViewAllTasks) capabilities.push('Can view all')
+  if (userPermissions.value.canExportDataset) capabilities.push('Can export')
+  
+  return capabilities.join(' • ')
 })
 
 // Tab configuration
