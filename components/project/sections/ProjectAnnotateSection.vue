@@ -91,23 +91,18 @@
         <!-- Actual Action Buttons -->
         <template v-else>
           <!-- Assign Button with Progressive Disclosure -->
-          <UTooltip 
-            v-if="selectedUnassignedTasks.length > 0"
-            :text="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
-          >
           <UButton 
+            v-if="selectedUnassignedTasks.length > 0"
             @click="canAssignTasks ? assignSelectedTasks() : null" 
             :loading="assignLoading"
             :disabled="!canAssignTasks"
+            :title="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
             color="secondary"
             :class="canAssignTasks ? 'cursor-pointer' : 'cursor-not-allowed'"
           >
             <UIcon name="i-heroicons-user-plus" class="w-4 h-4 mr-2" />
             Assign ({{ selectedUnassignedTasks.length }})
-          </UButton>
-        </UTooltip>
-        
-        <!-- Complete Button (always available for assigned tasks) -->
+          </UButton>        <!-- Complete Button (always available for assigned tasks) -->
         <UButton 
           v-if="selectedAnnotatingTasks.length > 0" 
           @click="completeSelectedTasks" 
@@ -119,24 +114,19 @@
           Complete ({{ selectedAnnotatingTasks.length }})
         </UButton>
         
-        <!-- Reassign Button with Progressive Disclosure -->
-        <UTooltip 
-          v-if="selectedCompletedTasks.length > 0"
-          :text="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
-        >
+          <!-- Reassign Button with Progressive Disclosure -->
           <UButton 
+            v-if="selectedCompletedTasks.length > 0"
             @click="canAssignTasks ? reassignSelectedTasks() : null"
             :loading="reassignLoading"
             :disabled="!canAssignTasks"
+            :title="!canAssignTasks ? 'Requires Project Editor permission - Contact your project administrator' : undefined"
             color="warning"
             :class="canAssignTasks ? 'cursor-pointer' : 'cursor-not-allowed'"
           >
             <UIcon name="i-heroicons-arrow-uturn-left" class="w-4 h-4 mr-2" />
             Reassign ({{ selectedCompletedTasks.length }})
-          </UButton>
-        </UTooltip>
-        
-          <!-- Refresh Button (always available) -->
+          </UButton>          <!-- Refresh Button (always available) -->
           <UButton @click="refreshTasks" :loading="loading" variant="outline" color="secondary" class="cursor-pointer">
             <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
             Refresh
@@ -620,21 +610,18 @@
                 </UButton>
                 
                 <!-- Export Button with Progressive Disclosure -->
-                <UTooltip 
-                  :text="!canExportDataset ? 'Requires Project Editor or Organization Administrator permissions - Contact your project administrator' : (!selectedExportFormat || totalPercentage !== 100) ? 'Complete configuration to export' : undefined"
+                <UButton 
+                  @click="canExportDataset ? handleExportDataset() : null"
+                  :loading="exportLoading"
+                  :disabled="!canExportDataset || !selectedExportFormat || totalPercentage !== 100"
+                  :title="!canExportDataset ? 'Requires Project Editor or Organization Administrator permissions - Contact your project administrator' : (!selectedExportFormat || totalPercentage !== 100) ? 'Complete configuration to export' : undefined"
+                  color="primary"
+                  size="lg"
+                  :class="canExportDataset ? 'cursor-pointer' : 'cursor-not-allowed'"
                 >
-                  <UButton 
-                    @click="canExportDataset ? handleExportDataset() : null"
-                    :loading="exportLoading"
-                    :disabled="!canExportDataset || !selectedExportFormat || totalPercentage !== 100"
-                    color="primary"
-                    size="lg"
-                    :class="canExportDataset ? 'cursor-pointer' : 'cursor-not-allowed'"
-                  >
-                    <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
-                    Export Dataset
-                  </UButton>
-                </UTooltip>
+                  <UIcon name="i-heroicons-arrow-down-tray" class="w-4 h-4 mr-2" />
+                  Export Dataset
+                </UButton>
               </div>
             </div>
           </div>
