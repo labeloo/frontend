@@ -82,6 +82,7 @@
           :config="annotationConfigs[index]?.config || getRectConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
@@ -95,18 +96,22 @@
           :config="annotationConfigs[index]?.config || getPolygonConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
           @mouseout="handleAnnotationMouseOut(index)"
         />
         
-        <!-- Pretty vertex dots for selected polygon (expensive styles only for selected) -->
+        <!-- Pretty vertex dots for selected polygon (with pagination for performance) -->
         <template v-if="annotation.type === 'polygon' && selectedAnnotationIndex === index && annotation.points">
           <v-circle
-            v-for="(point, pointIndex) in annotation.points"
-            :key="`vertex-${index}-${pointIndex}`"
-            :config="getCompletedVertexConfig(point, pointIndex, annotation.points.length)"
+            v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
+            :key="`vertex-${index}-${originalIndex}`"
+            :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
+            @dragstart="handleVertexDragStart(index, originalIndex, $event)"
+            @dragmove="handleVertexDragMove(index, originalIndex, $event)"
+            @dragend="handleVertexDragEnd(index, originalIndex, $event)"
           />
         </template>
         
@@ -117,6 +122,7 @@
           :config="annotationConfigs[index]?.config || getDotConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
@@ -130,6 +136,7 @@
           :config="annotationConfigs[index]?.config || getLineConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
@@ -143,6 +150,7 @@
           :config="annotationConfigs[index]?.config || getCircleConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
@@ -156,18 +164,22 @@
           :config="annotationConfigs[index]?.config || getFreehandConfig(annotation, index)"
           @transformend="handleTransformEnd(index, $event)"
           @dragstart="handleDragStart(index, $event)"
+          @dragmove="handleDragMove(index, $event)"
           @dragend="handleDragEnd(index, $event)"
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
           @mouseout="handleAnnotationMouseOut(index)"
         />
         
-        <!-- Pretty vertex dots for selected freehand (expensive styles only for selected) -->
+        <!-- Pretty vertex dots for selected freehand (with pagination for performance) -->
         <template v-if="annotation.type === 'freehand' && selectedAnnotationIndex === index && annotation.points">
           <v-circle
-            v-for="(point, pointIndex) in annotation.points"
-            :key="`freehand-vertex-${index}-${pointIndex}`"
-            :config="getCompletedVertexConfig(point, pointIndex, annotation.points.length)"
+            v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
+            :key="`freehand-vertex-${index}-${originalIndex}`"
+            :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
+            @dragstart="handleVertexDragStart(index, originalIndex, $event)"
+            @dragmove="handleVertexDragMove(index, originalIndex, $event)"
+            @dragend="handleVertexDragEnd(index, originalIndex, $event)"
           />
         </template>
         
@@ -221,6 +233,17 @@
     >
       <UIcon name="i-heroicons-document-duplicate" class="w-5 h-5" />
     </button>
+    <!-- Show All Vertices toggle for complex polygons/freehand -->
+    <button
+      v-if="shouldShowVertexToggle"
+      @click="toggleShowAllVertices"
+      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+      :class="showAllVertices ? 'text-orange-500' : 'text-gray-500'"
+      :title="showAllVertices ? 'Hide Some Vertices' : 'Show All Vertices'"
+    >
+      <UIcon name="i-heroicons-eye" v-if="showAllVertices" class="w-5 h-5" />
+      <UIcon name="i-heroicons-eye-slash" v-else class="w-5 h-5" />
+    </button>
   </div>
   
   <!-- Performance Mode Indicator -->
@@ -230,6 +253,21 @@
   >
     <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
     <span>Performance Mode</span>
+  </div>
+  
+  <!-- Performance Budget Indicator -->
+  <div 
+    v-if="currentPerformanceLevel !== 'optimal' && !isPerformanceMode"
+    class="absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium z-20 flex items-center space-x-2 transition-all duration-300"
+    :class="{
+      'bg-green-500 text-white': currentPerformanceLevel === 'good',
+      'bg-yellow-500 text-white': currentPerformanceLevel === 'reduced', 
+      'bg-red-500 text-white': currentPerformanceLevel === 'minimal'
+    }"
+  >
+    <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
+    <span>{{ currentPerformanceLevel.toUpperCase() }}</span>
+    <span class="text-xs opacity-75">({{ sceneComplexity.totalAnnotations }} items)</span>
   </div>
   
  
@@ -277,6 +315,9 @@ import { useAnnotationTransformHandlers } from '~/composables/useAnnotationTrans
 import { slidingBufferOptimizer, PerformancePresets } from '~/utils/slidingBufferOptimization';
 import { polygonPerformanceMonitor } from '~/utils/polygonPerformanceMonitor';
 import { workerManager } from '~/utils/polygonWorkerManager';
+import { createHitboxPolygon, calculateOptimalTolerance } from '~/utils/polygonHitboxOptimization';
+import { batchedDragHandlers, type DragBatchSystem } from '~/utils/dragPerformanceOptimization';
+import { performanceBudgetManager, type SceneComplexity, type PerformanceLevel } from '~/utils/performanceBudgetSystem';
 import type { CanvasAnnotation } from './types'
 
 interface Props {
@@ -754,6 +795,20 @@ let cacheUpdateTimer: number | null = null
 const showAnnotationTools = ref(false)
 const annotationToolsPosition = ref<{ x: number; y: number } | null>(null)
 
+// Vertex pagination state for performance optimization
+const showAllVertices = ref(false)
+const vertexPaginationThreshold = 20 // Show every Nth vertex when points > threshold
+const vertexStepSize = ref(5) // Show every 5th vertex by default
+
+// Vertex editing state for three-phase editing system
+const isEditingVertex = ref(false)
+let currentVertexEdit: {
+  annotationIndex: number
+  vertexIndex: number
+  originalPolygon: any
+  temporaryClone: any
+} | null = null
+
 // Computed properties
 const stageConfig = computed(() => ({
   width: stageSize.value.width,
@@ -793,6 +848,45 @@ const complexPolygonCount = computed(() => {
     a.points && 
     a.points.length > 10
   ).length
+})
+
+// Computed property to determine if vertex toggle should be shown
+const shouldShowVertexToggle = computed(() => {
+  if (selectedAnnotationIndex.value === null) return false
+  
+  const annotation = props.annotations[selectedAnnotationIndex.value]
+  return annotation && 
+         (annotation.type === 'polygon' || annotation.type === 'freehand') &&
+         annotation.points &&
+         annotation.points.length > vertexPaginationThreshold
+})
+
+// Scene complexity calculation for performance budget system
+const sceneComplexity = computed((): SceneComplexity => {
+  const totalAnnotations = props.annotations.length
+  const complexPolygons = props.annotations.filter(a => 
+    (a.type === 'polygon' || a.type === 'freehand') && 
+    a.points && 
+    a.points.length > 20
+  ).length
+  
+  const totalPoints = props.annotations.reduce((sum, ann) => {
+    return sum + (ann.points?.length || 0)
+  }, 0)
+  const averagePointCount = totalAnnotations > 0 ? totalPoints / totalAnnotations : 0
+  
+  return {
+    totalAnnotations,
+    complexPolygons,
+    averagePointCount,
+    isZooming: isZooming.value,
+    isDragging: isDraggingStage.value || isDraggingAnnotation.value
+  }
+})
+
+// Current performance level for display
+const currentPerformanceLevel = computed((): PerformanceLevel => {
+  return performanceBudgetManager.getPerformanceLevel(sceneComplexity.value)
 })
 
 // PART 4: Memoized annotation configs for INP performance optimization
@@ -904,6 +998,92 @@ const getCoordinateConverter = (annotation: CanvasAnnotation) => {
 // Helper function to calculate inverse scale for UI elements
 const getUIScale = () => 1 / stageScale.value
 
+// Polygon hitbox optimization helpers
+const createSimplifiedHitbox = (points: number[], zoomLevel: number): number[] => {
+  const tolerance = calculateOptimalTolerance(points, zoomLevel)
+  return createHitboxPolygon(points, tolerance)
+}
+
+const createHitboxFunction = (hitboxPoints: number[]) => {
+  return function(context: any, shape: any) {
+    // Create a simplified path for hit detection
+    context.beginPath()
+    for (let i = 0; i < hitboxPoints.length - 1; i += 2) {
+      const x = hitboxPoints[i]!
+      const y = hitboxPoints[i + 1]!
+      if (i === 0) {
+        context.moveTo(x, y)
+      } else {
+        context.lineTo(x, y)
+      }
+    }
+    context.closePath()
+    context.fillStrokeShape(shape)
+  }
+}
+
+// Vertex dot pagination helpers
+const getVisibleVertices = (points: { x: number; y: number }[]) => {
+  if (!points || points.length === 0) return []
+  
+  // Always show first and last vertices for polygons
+  if (points.length <= vertexPaginationThreshold || showAllVertices.value) {
+    return points.map((point, index) => ({ point, originalIndex: index }))
+  }
+  
+  const visibleVertices: { point: { x: number; y: number }; originalIndex: number }[] = []
+  
+  // Always include first vertex
+  visibleVertices.push({ point: points[0]!, originalIndex: 0 })
+  
+  // Include every Nth vertex in the middle
+  for (let i = vertexStepSize.value; i < points.length - 1; i += vertexStepSize.value) {
+    visibleVertices.push({ point: points[i]!, originalIndex: i })
+  }
+  
+  // Always include last vertex (if it's different from first)
+  const lastIndex = points.length - 1
+  if (lastIndex > 0 && lastIndex !== 0) {
+    visibleVertices.push({ point: points[lastIndex]!, originalIndex: lastIndex })
+  }
+  
+  return visibleVertices
+}
+
+const getVertexDotConfig = (point: { x: number; y: number }, originalIndex: number, totalPoints: number, isVisible: boolean, annotationIndex: number) => {
+  if (!isVisible) return null
+  
+  // Since annotation coordinates are now in canvas space, use identity conversion
+  const canvasPoint = canvasToCanvas(point)
+  const isFirst = originalIndex === 0
+  const isLast = originalIndex === totalPoints - 1
+  const uiScale = getUIScale()
+  
+  // Enhanced visual feedback for paginated vertices
+  const isPaginated = totalPoints > vertexPaginationThreshold && !showAllVertices.value
+  
+  return {
+    x: canvasPoint.x,
+    y: canvasPoint.y,
+    radius: isPaginated ? (isFirst || isLast ? 6 : 4) * uiScale : 5 * uiScale,
+    fill: isFirst ? '#ff4444' : (isLast ? '#44ff44' : (isPaginated ? '#ffaa44' : '#ffffff')),
+    stroke: '#4285f4',
+    strokeWidth: isPaginated ? (isFirst || isLast ? 3 : 2) * uiScale : 2 * uiScale,
+    listening: true, // Enable interaction
+    draggable: true, // Enable dragging
+    shadowColor: 'rgba(0,0,0,0.4)',
+    shadowBlur: isPaginated ? 2 * uiScale : 3 * uiScale,
+    shadowOffsetY: 1 * uiScale,
+    shadowOffsetX: 1 * uiScale,
+    strokeScaleEnabled: false,
+    perfectDrawEnabled: true,
+    // Add metadata for event handlers
+    name: `vertex-${annotationIndex}-${originalIndex}`,
+    vertexIndex: originalIndex,
+    annotationIndex: annotationIndex
+  }
+}
+
 // Helper function to convert pointer position to canvas coordinates
 const getCanvasPointerPosition = (stageNode: any) => {
   const pointer = stageNode.getPointerPosition()
@@ -958,18 +1138,32 @@ const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
-  return {
+  const config = {
     x: annotation.startPoint.x,
     y: annotation.startPoint.y,
     width: annotation.width,
     height: annotation.height,
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
     fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
   }
+  
+  // Apply performance budget system
+  const baseStrokeWidth = isSelected ? 3 : (isHovered ? 2.5 : 2)
+  performanceBudgetManager.applyBudgetToBasicShape(
+    config,
+    sceneComplexity.value,
+    isSelected,
+    baseStrokeWidth
+  )
+  
+  // Apply UI scale to the budget-adjusted stroke width
+  config.strokeWidth = config.strokeWidth * uiScale
+  
+  return config
 }
 
 const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -988,35 +1182,55 @@ const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
     flatPoints.push(point.x, point.y)
   }
 
+  const totalPolygons = polygonCount.value
+  const isComplex = annotation.points && annotation.points.length > 10
+  const pointCount = annotation.points.length
+
+  // Create two-tier polygon system for better performance with interaction
+  const shouldUseHitbox = pointCount > 20 || totalPolygons >= 8
+  let displayPoints = flatPoints
+  let hitboxPoints = flatPoints
+
+  if (shouldUseHitbox) {
+    // Create simplified hitbox for interaction while keeping visual fidelity
+    hitboxPoints = createSimplifiedHitbox(flatPoints, stageScale.value)
+  }
+
   const config = {
-    points: flatPoints,
+    points: displayPoints,
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
     fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
     closed: true,
     draggable: true,
-    listening: true,
+    listening: true, // Always keep listening enabled for interaction
     lineCap: 'round',
     lineJoin: 'round',
-    visible: polygonLayerVisible.value
+    visible: polygonLayerVisible.value,
+    perfectDrawEnabled: false
   } as any
 
-  const totalPolygons = polygonCount.value
-  const isComplex = annotation.points && annotation.points.length > 10
-
-  if (totalPolygons >= 8 || isComplex) {
-    config.perfectDrawEnabled = false
-
-    if (totalPolygons >= 12) {
-      config.listening = selectedAnnotationIndex.value === index
-    } else {
-      config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
-    }
-
-    if (totalPolygons >= 15) {
-      config.shadowEnabled = false
-      config.hitStrokeWidth = 0
-    }
+  // Apply performance budget system for automatic quality adjustment
+  const baseStrokeWidth = isSelected ? 3 : (isHovered ? 2.5 : 2)
+  performanceBudgetManager.applyBudgetToPolygon(
+    config,
+    sceneComplexity.value,
+    isSelected,
+    isHovered,
+    baseStrokeWidth
+  )
+  
+  // Apply UI scale to the budget-adjusted stroke width
+  config.strokeWidth = config.strokeWidth * uiScale
+  
+  // For complex polygons or high complexity scenes, use simplified hitbox
+  if (shouldUseHitbox && !isSelected) {
+    config.hitFunc = createHitboxFunction(hitboxPoints)
+  }
+  
+  // Apply hitStrokeWidth from budget for easier selection
+  if (config.hitStrokeWidth > 0) {
+    config.hitStrokeWidth = Math.max(config.hitStrokeWidth * uiScale, 2)
   }
 
   return config
@@ -1032,15 +1246,29 @@ const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
-  return {
+  const config = {
     points: [annotation.startPoint.x, annotation.startPoint.y, annotation.endPoint.x, annotation.endPoint.y],
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
     lineCap: 'round',
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
   }
+  
+  // Apply performance budget system
+  const baseStrokeWidth = isSelected ? 3 : (isHovered ? 2.5 : 2)
+  performanceBudgetManager.applyBudgetToBasicShape(
+    config,
+    sceneComplexity.value,
+    isSelected,
+    baseStrokeWidth
+  )
+  
+  // Apply UI scale to the budget-adjusted stroke width
+  config.strokeWidth = config.strokeWidth * uiScale
+  
+  return config
 }
 
 const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -1053,17 +1281,31 @@ const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
-  return {
+  const config = {
     x: annotation.center.x,
     y: annotation.center.y,
     radius: annotation.radius,
     stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
-    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
+    strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
     fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
   }
+  
+  // Apply performance budget system
+  const baseStrokeWidth = isSelected ? 3 : (isHovered ? 2.5 : 2)
+  performanceBudgetManager.applyBudgetToBasicShape(
+    config,
+    sceneComplexity.value,
+    isSelected,
+    baseStrokeWidth
+  )
+  
+  // Apply UI scale to the budget-adjusted stroke width
+  config.strokeWidth = config.strokeWidth * uiScale
+  
+  return config
 }
 
 const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
@@ -1197,55 +1439,26 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
     visible: polygonLayerVisible.value
   } as any
 
-  const totalPolygons = polygonCount.value
-  const isComplex = annotation.points && annotation.points.length > 15
-
-  if (totalPolygons >= 6 || isComplex) {
-    config.perfectDrawEnabled = false
-
-    if (isComplex) {
-      config.tension = 0.1
-    }
-
-    if (totalPolygons >= 10) {
-      config.listening = selectedAnnotationIndex.value === index
-    } else {
-      config.listening = !isPerformanceMode.value && (selectedAnnotationIndex.value === index || hoveredAnnotationIndex.value === index)
-    }
-
-    if (totalPolygons >= 12) {
-      config.shadowEnabled = false
-      config.hitStrokeWidth = 0
-    }
-  }
+  // Apply performance budget system for automatic quality adjustment
+  const baseStrokeWidth = isSelected ? 3 : (isHovered ? 2.5 : 2)
+  performanceBudgetManager.applyBudgetToPolygon(
+    config,
+    sceneComplexity.value,
+    isSelected,
+    isHovered,
+    baseStrokeWidth
+  )
+  
+  // Apply UI scale to the budget-adjusted stroke width
+  config.strokeWidth = config.strokeWidth * uiScale
+  
+  // Keep listening enabled for all annotations (performance budget handles other optimizations)
+  config.listening = true
 
   return config
 }
 
-// PART 2: Function to create pretty vertex dots for completed polygons (expensive styles only for selected)
-const getCompletedVertexConfig = (point: { x: number; y: number }, pointIndex: number, totalPoints: number) => {
-  // Since annotation coordinates are now in canvas space, use identity conversion
-  const canvasPoint = canvasToCanvas(point)
-  const isFirst = pointIndex === 0
-  const isLast = pointIndex === totalPoints - 1
-  const uiScale = getUIScale()
-  
-  return {
-    x: canvasPoint.x,
-    y: canvasPoint.y,
-    radius: 5 * uiScale,
-    fill: isFirst ? '#ff4444' : (isLast ? '#44ff44' : '#ffffff'),
-    stroke: '#4285f4',
-    strokeWidth: 2 * uiScale,
-    listening: false,
-    shadowColor: 'rgba(0,0,0,0.4)',
-    shadowBlur: 3 * uiScale,
-    shadowOffsetY: 1 * uiScale,
-    shadowOffsetX: 1 * uiScale,
-    strokeScaleEnabled: false,
-    perfectDrawEnabled: true
-  }
-}
+
 
 // PART 1: UNIFIED EVENT HANDLERS - All tools use imperative model
 const handleStageMouseDown = (e: any) => {
@@ -1752,6 +1965,12 @@ const handleTransformEnd = (index: number, event: any) => {
 }
 
 const handleDragStart = (index: number, event: any) => {
+  // Prevent annotation dragging if vertex editing is active
+  if (isEditingVertex.value) {
+    event.evt?.preventDefault()
+    return
+  }
+  
   // Part 2: Fix Drag vs. Draw Confusion - Set flag when dragging starts
   // Set this flag IMMEDIATELY to prevent new shape creation
   isDraggingAnnotationNonReactive = true
@@ -1763,7 +1982,226 @@ const handleDragStart = (index: number, event: any) => {
   // Prevent event bubbling to stage
   event.evt?.stopPropagation()
   
+  // Initialize batched drag handling for this annotation
+  const nodeId = `annotation-${index}`
+  batchedDragHandlers.handleDragStart(nodeId)
+  
+  // Set up layer redraw callback for the batch system
+  batchedDragHandlers.setLayerRedrawCallback(() => {
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
+    }
+  })
+  
+  // Adjust performance based on current scene complexity
+  const avgPointCount = props.annotations.reduce((sum, ann) => {
+    return sum + (ann.points?.length || 0)
+  }, 0) / Math.max(props.annotations.length, 1)
+  
+  batchedDragHandlers.adjustPerformanceForComplexity(
+    props.annotations.length, 
+    avgPointCount
+  )
+  
   console.log('🎯 Started dragging annotation', index)
+}
+
+const handleDragMove = (index: number, event: any) => {
+  // Use batched drag system for performance optimization
+  const node = event.target
+  const nodeId = `annotation-${index}`
+  const newPosition = { x: node.x(), y: node.y() }
+  
+  // For complex polygons or when many annotations exist, use batched updates
+  const annotation = props.annotations[index]
+  const shouldBatch = (
+    annotation && 
+    ((annotation.points && annotation.points.length > 20) || props.annotations.length >= 8)
+  )
+  
+  if (shouldBatch) {
+    // Use batched update system for better performance
+    batchedDragHandlers.handleDragMove(nodeId, node, newPosition)
+  } else {
+    // For simple annotations, allow immediate updates
+    // This maintains responsiveness for simple cases
+  }
+  
+  // Prevent event bubbling
+  event.evt?.stopPropagation()
+}
+
+// Three-phase vertex editing system
+const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, event: any) => {
+  console.log('🎯 Starting vertex drag:', annotationIndex, vertexIndex)
+  
+  // Prevent annotation-level dragging while editing vertices
+  isDraggingAnnotationNonReactive = true
+  isDraggingAnnotation.value = true
+  
+  // Phase 1: Hide original polygon and create temporary clone
+  const annotation = props.annotations[annotationIndex]
+  if (!annotation || !annotation.points) {
+    console.warn('Invalid annotation for vertex editing')
+    return
+  }
+  
+  // Find the original polygon node on static layer
+  const originalNodeKey = annotation.type === 'polygon' ? `polygon-${annotationIndex}` : `freehand-${annotationIndex}`
+  const originalNode = annotationRefs.value[originalNodeKey]
+  
+  if (!originalNode || !activeLayer.value) {
+    console.warn('Could not find original polygon node or active layer')
+    return
+  }
+  
+  // Hide the original polygon
+  originalNode.visible(false)
+  
+  // Create temporary clone on active layer for smooth editing
+  if (process.client) {
+    const Konva = (window as any).Konva
+    if (!Konva) return
+    
+    // Convert points to flat array
+    const flatPoints: number[] = []
+    for (const point of annotation.points) {
+      flatPoints.push(point.x, point.y)
+    }
+    
+    const temporaryClone = new Konva.Line({
+      points: flatPoints,
+      stroke: '#4285f4',
+      strokeWidth: 3,
+      fill: annotation.type === 'polygon' ? 'rgba(66, 133, 244, 0.1)' : 'transparent',
+      closed: annotation.type === 'polygon',
+      listening: false,
+      lineCap: 'round',
+      lineJoin: 'round',
+      tension: annotation.type === 'freehand' ? 0.3 : 0
+    })
+    
+    activeLayer.value.getNode().add(temporaryClone)
+    activeLayer.value.getNode().batchDraw()
+    
+    // Store editing state
+    currentVertexEdit = {
+      annotationIndex,
+      vertexIndex,
+      originalPolygon: originalNode,
+      temporaryClone
+    }
+    
+    isEditingVertex.value = true
+  }
+  
+  // Prevent other drag handlers from interfering
+  event.evt?.stopPropagation()
+  
+  console.log('🎯 Vertex drag started, temporary clone created')
+}
+
+const handleVertexDragMove = (annotationIndex: number, vertexIndex: number, event: any) => {
+  // Phase 2: Update only the dragged vertex on temporary clone for smooth performance
+  if (!currentVertexEdit || !isEditingVertex.value) return
+  
+  // Get the absolute mouse position on the canvas (not the node's drag offset)
+  const stageNode = event.target.getStage()
+  const newPos = getCanvasPointerPosition(stageNode)
+  
+  if (!newPos) return // Safety check
+  
+  // Update the specific vertex in the temporary clone
+  if (currentVertexEdit.temporaryClone) {
+    const currentPoints = currentVertexEdit.temporaryClone.points()
+    const newPoints = [...currentPoints]
+    
+    // Update the vertex coordinates
+    const pointIndex = vertexIndex * 2
+    if (pointIndex < newPoints.length - 1) {
+      newPoints[pointIndex] = newPos.x
+      newPoints[pointIndex + 1] = newPos.y
+      
+      currentVertexEdit.temporaryClone.points(newPoints)
+      activeLayer.value?.getNode().batchDraw()
+    }
+  }
+  
+  // Prevent event bubbling
+  event.evt?.stopPropagation()
+}
+
+const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event: any) => {
+  console.log('🎯 Ending vertex drag:', annotationIndex, vertexIndex)
+  
+  // Phase 3: Update permanent annotation data and restore original polygon
+  if (!currentVertexEdit || !isEditingVertex.value) return
+  
+  const node = event.target
+  const finalPos = { x: node.x(), y: node.y() }
+  
+  // Get the final points from the temporary clone
+  if (currentVertexEdit.temporaryClone) {
+    const finalPoints = currentVertexEdit.temporaryClone.points()
+    
+    // Convert back to point objects
+    const newPoints: { x: number; y: number }[] = []
+    for (let i = 0; i < finalPoints.length - 1; i += 2) {
+      newPoints.push({ x: finalPoints[i]!, y: finalPoints[i + 1]! })
+    }
+    
+    // Update the annotation data
+    const annotation = props.annotations[annotationIndex]
+    if (annotation) {
+      const updatedAnnotation: CanvasAnnotation = {
+        ...annotation,
+        points: newPoints
+      }
+      
+      const newAnnotations = [...props.annotations]
+      newAnnotations[annotationIndex] = updatedAnnotation
+      
+      emit('update:annotations', newAnnotations)
+      emit('annotation-updated', updatedAnnotation, annotationIndex)
+      
+      console.log('🎯 Updated annotation with new vertex position')
+    }
+    
+    // Clean up temporary clone
+    currentVertexEdit.temporaryClone.destroy()
+  }
+  
+  // Show the original polygon again
+  if (currentVertexEdit.originalPolygon) {
+    currentVertexEdit.originalPolygon.visible(true)
+  }
+  
+  // Reset vertex editing state
+  currentVertexEdit = null
+  isEditingVertex.value = false
+  
+  // Re-enable annotation-level dragging
+  isDraggingAnnotationNonReactive = false
+  isDraggingAnnotation.value = false
+  
+  // Reset vertex dot position
+  node.x(0)
+  node.y(0)
+  
+  // Force redraw of both layers
+  nextTick(() => {
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
+    }
+    if (activeLayer.value) {
+      activeLayer.value.getNode().batchDraw()
+    }
+  })
+  
+  // Prevent event bubbling
+  event.evt?.stopPropagation()
+  
+  console.log('🎯 Vertex editing completed successfully')
 }
 
 const handleDragEnd = (index: number, event: any) => {
@@ -1772,6 +2210,12 @@ const handleDragEnd = (index: number, event: any) => {
   isDraggingAnnotation.value = false
   potentialDragStart = false // Reset potential drag flag
   
+  // Finalize batched drag operations
+  const nodeId = `annotation-${index}`
+  const node = event.target
+  const finalPosition = { x: node.x(), y: node.y() }
+  batchedDragHandlers.handleDragEnd(nodeId, finalPosition)
+  
   // Since annotations are stored in canvas coordinates, we can work with node positions directly
   const annotation = props.annotations[index]
   if (!annotation) {
@@ -1779,7 +2223,6 @@ const handleDragEnd = (index: number, event: any) => {
     return
   }
   
-  const node = event.target
   let updatedAnnotation: CanvasAnnotation = { ...annotation }
   
   // Since annotations are stored in canvas coordinates, we can use the node's position directly
@@ -1865,12 +2308,22 @@ const updateTransformer = () => {
   if (selectedAnnotationIndex.value !== null) {
     const annotation = props.annotations[selectedAnnotationIndex.value]
     if (annotation) {
-      const cacheKey = `${annotation.type}-${selectedAnnotationIndex.value}`
-      const node = annotationRefs.value[cacheKey]
-      if (node) {
-        transformerInstance.nodes([node])
-      } else {
+      // Context-aware transformer behavior based on annotation type
+      if (annotation.type === 'polygon' || annotation.type === 'freehand') {
+        // For polygon and freehand: hide transformer to avoid conflicting with vertex editing
+        // Users should rely solely on vertex manipulation for precision editing
         transformerInstance.nodes([])
+        console.log(`🎯 Transformer hidden for ${annotation.type} - use vertex dots for editing`)
+      } else {
+        // For other annotation types: show transformer for scaling/rotating
+        const cacheKey = `${annotation.type}-${selectedAnnotationIndex.value}`
+        const node = annotationRefs.value[cacheKey]
+        if (node) {
+          transformerInstance.nodes([node])
+          console.log(`🎯 Transformer attached to ${annotation.type}`)
+        } else {
+          transformerInstance.nodes([])
+        }
       }
     } else {
       transformerInstance.nodes([])
@@ -1879,6 +2332,7 @@ const updateTransformer = () => {
     transformerInstance.nodes([])
   }
   
+  // Always update the layer whether transformer is shown or hidden
   activeLayer.value?.getNode().batchDraw()
 }
 
@@ -1893,6 +2347,19 @@ const deleteAnnotation = () => {
 
 const duplicateAnnotation = () => {
   // Duplicate functionality
+}
+
+const toggleShowAllVertices = () => {
+  showAllVertices.value = !showAllVertices.value
+  
+  // Force redraw of vertex dots
+  nextTick(() => {
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
+    }
+  })
+  
+  console.log(`🎯 Vertex display mode: ${showAllVertices.value ? 'All vertices' : 'Paginated vertices'}`)
 }
 
 const getBufferStatus = () => {
