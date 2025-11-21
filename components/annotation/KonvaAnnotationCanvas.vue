@@ -827,6 +827,8 @@ let currentVertexEdit: {
   vertexIndex: number
   originalPolygon: any
   temporaryClone: any
+  isNewVertex?: boolean
+  visualAnchor?: any // Visual dot for the vertex being edited
 } | null = null
 
 // Preview insert vertex for complex polygons (activeLayer)
@@ -931,6 +933,44 @@ const handlePolygonMouseDown = async (annotationIndex: number, event: any) => {
   if (annotation.points.length < allVerticesThreshold) return
   if (previewInsertIndex === null) return
 
+  // Forcefully cancel the native drag to prevent "sticking" behavior
+  // This stops Konva from thinking we are dragging the entire polygon
+  if (event) {
+    event.cancelBubble = true
+    const target = event.target
+    
+    if (target) {
+      // 1. Stop any active drag immediately
+      if (typeof target.isDragging === 'function' && target.isDragging()) {
+        target.stopDrag()
+      }
+      
+      // 2. Circuit Breaker: Temporarily disable draggable to prevent race conditions
+      // This ensures the drag engine cannot re-engage during the critical transition
+      const wasDraggable = target.draggable()
+      if (wasDraggable) {
+        target.draggable(false)
+        // Re-enable after a short delay to allow the event storm to settle
+        setTimeout(() => {
+          if (target && !target.isDestroyed()) {
+            target.draggable(true)
+          }
+        }, 100)
+      }
+
+      // 3. Synthetic Release: Force the internal state machine to complete
+      if (target.fire) {
+        target.fire('mouseup')
+        // Also fire dragend to be safe, as some internal states rely on it
+        target.fire('dragend')
+      }
+    }
+    
+    if (event.evt) {
+      event.evt.preventDefault()
+    }
+  }
+
   const stageNode = event.target.getStage()
   const canvasPos = getCanvasPointerPosition(stageNode)
   if (!canvasPos) return
@@ -939,20 +979,16 @@ const handlePolygonMouseDown = async (annotationIndex: number, event: any) => {
   const insertAt = previewInsertIndex + 1
   const newPoints = [...annotation.points.slice(0, insertAt), { x: canvasPos.x, y: canvasPos.y }, ...annotation.points.slice(insertAt)]
 
-  const updatedAnnotation: CanvasAnnotation = { ...annotation, points: newPoints }
-  const newAnnotations = [...props.annotations]
-  newAnnotations[annotationIndex] = updatedAnnotation
-
-  // Emit update and wait for DOM to reflect new vertex
-  emit('update:annotations', newAnnotations)
-  await nextTick()
-
   // Clean up preview
   destroyPreviewVertex()
 
-  // Start vertex editing for the newly inserted vertex
-  const syntheticEvent = { evt: { stopPropagation: () => {} } }
-  handleVertexDragStart(annotationIndex, insertAt, syntheticEvent)
+  // Start vertex editing for the newly inserted vertex immediately (Visuals First)
+  // We pass the new points imperatively so we don't need to wait for Vue reactivity
+  const syntheticEvent = { 
+    evt: { stopPropagation: () => {} }, 
+    target: { getStage: () => stageNode } 
+  }
+  handleVertexDragStart(annotationIndex, insertAt, syntheticEvent, newPoints, true)
 
   event.evt?.stopPropagation()
 }
@@ -1610,6 +1646,20 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
 
 // PART 1: UNIFIED EVENT HANDLERS - All tools use imperative model
 const handleStageMouseDown = (e: any) => {
+  // 1. Global Gatekeeper: Prevent accidental drawing when interacting with existing annotations
+  // If we are hovering over an annotation, or editing a vertex, or clicking on a shape (not stage), abort drawing
+  const isHoveringAnnotation = hoveredAnnotationIndex.value !== null
+  const isEditing = isEditingVertex.value
+  const isClickingShape = e.target !== e.target.getStage()
+  
+  // Exception: If tool is 'select', we allow clicking on shapes to select them
+  const isSelectTool = props.currentTool === 'select'
+  
+  if ((isHoveringAnnotation || isEditing || isClickingShape) && !isSelectTool) {
+    console.log('🛡️ Gatekeeper: Interaction blocked to prevent accidental drawing')
+    return
+  }
+
   // Part 2: Fix Drag vs. Draw Confusion - Prevent new shapes when dragging
   if (isDraggingAnnotationNonReactive) {
     return
@@ -1887,6 +1937,12 @@ const handleStageMouseMove = (e: any) => {
   const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
   const mouseCanvasPos = mouseTransform.point(pointer)
   mousePositionImperative = mouseCanvasPos
+
+  // Handle "Soft Clay" drag for new vertices (Visuals First)
+  if (isEditingVertex.value && currentVertexEdit?.isNewVertex) {
+    handleVertexDragMove(currentVertexEdit.annotationIndex, currentVertexEdit.vertexIndex, e)
+    return
+  }
   
   // ULTRA-HIGH-PERFORMANCE PATH: Direct Konva node updates for all tools
   if (isDrawingNonReactive.value) {
@@ -1959,6 +2015,12 @@ const handleStageMouseMove = (e: any) => {
 }
 
 const handleStageMouseUp = (e: any) => {
+  // Handle "Soft Clay" commit for new vertices (Visuals First)
+  if (isEditingVertex.value && currentVertexEdit?.isNewVertex) {
+    handleVertexDragEnd(currentVertexEdit.annotationIndex, currentVertexEdit.vertexIndex, e)
+    return
+  }
+
   if (!isDrawingNonReactive.value) return
   
   // For polygon, don't complete on mouseup - wait for double-click or explicit completion
@@ -2116,6 +2178,7 @@ const handleDragStart = (index: number, event: any) => {
   // Prevent annotation dragging if vertex editing is active
   if (isEditingVertex.value) {
     event.evt?.preventDefault()
+    event.target.stopDrag()
     return
   }
   
@@ -2180,7 +2243,7 @@ const handleDragMove = (index: number, event: any) => {
 }
 
 // Three-phase vertex editing system
-const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, event: any) => {
+const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, event: any, overridePoints?: {x: number, y: number}[], isNewVertex = false) => {
   console.log('🎯 Starting vertex drag:', annotationIndex, vertexIndex)
   
   // Prevent annotation-level dragging while editing vertices
@@ -2213,7 +2276,8 @@ const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, eve
     
     // Convert points to flat array
     const flatPoints: number[] = []
-    for (const point of annotation.points) {
+    const pointsToUse = overridePoints || annotation.points
+    for (const point of pointsToUse) {
       flatPoints.push(point.x, point.y)
     }
     
@@ -2230,6 +2294,24 @@ const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, eve
     })
     
     activeLayer.value.getNode().add(temporaryClone)
+    
+    // Create visual anchor (dot) for the vertex being edited
+    // This provides immediate visual feedback for "Click-Insert" operations
+    let visualAnchor = null
+    const pointIndex = vertexIndex * 2
+    if (pointIndex < flatPoints.length - 1) {
+      visualAnchor = new Konva.Circle({
+        x: flatPoints[pointIndex],
+        y: flatPoints[pointIndex + 1],
+        radius: 6 * getUIScale(),
+        fill: '#ff4444',
+        stroke: '#4285f4',
+        strokeWidth: 2 * getUIScale(),
+        listening: false // Purely visual
+      })
+      activeLayer.value.getNode().add(visualAnchor)
+    }
+
     activeLayer.value.getNode().batchDraw()
     
     // Store editing state
@@ -2237,7 +2319,9 @@ const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, eve
       annotationIndex,
       vertexIndex,
       originalPolygon: originalNode,
-      temporaryClone
+      temporaryClone,
+      isNewVertex,
+      visualAnchor
     }
     
     isEditingVertex.value = true
@@ -2271,6 +2355,13 @@ const handleVertexDragMove = (annotationIndex: number, vertexIndex: number, even
       newPoints[pointIndex + 1] = newPos.y
       
       currentVertexEdit.temporaryClone.points(newPoints)
+      
+      // Sync visual anchor position
+      if (currentVertexEdit.visualAnchor) {
+        currentVertexEdit.visualAnchor.x(newPos.x)
+        currentVertexEdit.visualAnchor.y(newPos.y)
+      }
+      
       activeLayer.value?.getNode().batchDraw()
     }
   }
@@ -2286,7 +2377,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
   if (!currentVertexEdit || !isEditingVertex.value) return
   
   const node = event.target
-  const finalPos = { x: node.x(), y: node.y() }
   
   // Get the final points from the temporary clone
   if (currentVertexEdit.temporaryClone) {
@@ -2317,11 +2407,40 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
     
     // Clean up temporary clone
     currentVertexEdit.temporaryClone.destroy()
+    
+    // Clean up visual anchor
+    if (currentVertexEdit.visualAnchor) {
+      currentVertexEdit.visualAnchor.destroy()
+    }
   }
   
   // Show the original polygon again
   if (currentVertexEdit.originalPolygon) {
+    // Safety Check: Ensure original polygon isn't stuck in a drag state
+    if (currentVertexEdit.originalPolygon.isDragging && currentVertexEdit.originalPolygon.isDragging()) {
+      console.log('🛡️ Safety: Force stopping ghost drag on original polygon')
+      currentVertexEdit.originalPolygon.stopDrag()
+    }
+
     currentVertexEdit.originalPolygon.visible(true)
+    // Ensure the polygon hasn't drifted due to ghost drags
+    currentVertexEdit.originalPolygon.x(0)
+    currentVertexEdit.originalPolygon.y(0)
+  }
+  
+  // Additional Safety: Check stage drag state
+  if (stage.value) {
+    const stageNode = stage.value.getNode()
+    if (stageNode.isDragging()) {
+      console.log('🛡️ Safety: Force stopping ghost drag on stage')
+      stageNode.stopDrag()
+    }
+  }
+  
+  // Reset vertex dot position ONLY if not a new vertex
+  if (!currentVertexEdit.isNewVertex && node && typeof node.x === 'function') {
+    node.x(0)
+    node.y(0)
   }
   
   // Reset vertex editing state
@@ -2331,10 +2450,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
   // Re-enable annotation-level dragging
   isDraggingAnnotationNonReactive = false
   isDraggingAnnotation.value = false
-  
-  // Reset vertex dot position
-  node.x(0)
-  node.y(0)
   
   // Force redraw of both layers
   nextTick(() => {
