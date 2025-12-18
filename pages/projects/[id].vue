@@ -12,22 +12,17 @@
           </p>
         </div>
         <div class="flex gap-3">
-          <UButton color="primary" variant="outline">
+          <UButton color="secondary" variant="outline" class="cursor-pointer">
             <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
             Edit Project
           </UButton>
-          <UButton color="primary">
+          <UButton color="secondary" variant="outline" class="cursor-pointer">
             <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
             Add New Task
           </UButton>
         </div>
       </div>
-    </div>    <!-- Debug info -->
-    <div class="mb-4 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-      <p class="text-sm text-blue-600 dark:text-blue-400">
-        Current Section: <strong>{{ currentSection }}</strong>
-      </p>
-    </div>
+    </div>    
 
     <!-- Dynamic Content Based on Active Section -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
@@ -80,7 +75,7 @@ const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 
 // Get the current section from the global state
-const currentSection = useState('currentProjectSection', () => 'users')
+const currentSection = useState('currentProjectSection', () => 'annotate')
 
 // Set page title
 useHead({

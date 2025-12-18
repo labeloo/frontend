@@ -2,6 +2,7 @@
 import type { TabsItem } from '@nuxt/ui'
 import { onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
+import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
 
 // Tab configuration
 const items = [
@@ -48,6 +49,9 @@ const organizationState = reactive({
 })
 const orgId = ref('')
 
+// Track if user has uploaded a custom logo vs using default
+const hasCustomLogo = ref(false)
+
 // Logo upload state
 const logoFile = ref<File | null>(null)
 const logoUploading = ref(false)
@@ -87,7 +91,7 @@ function updateUserSummary(users: User[]) {
 }
 
 // Default logo to show in the preview if none provided
-const defaultLogo = 'http://localhost:8787/api/bucket/public/8c25f65c-f978-484b-9173-e0551b29e912'
+const defaultLogo = DEFAULT_ORGANIZATION_LOGO
 const logoPreview = computed(() => organizationState.logo || defaultLogo)
 
 // Router instance
@@ -116,8 +120,9 @@ async function handleLogoUpload(event: Event) {
   logoFile.value = file
   logoUploadError.value = ''
   
-  // Upload the file immediately
+  // Upload the file immediately and mark as custom logo
   await uploadLogo(file)
+  hasCustomLogo.value = true
 }
 
 // Upload logo to the server
@@ -162,6 +167,15 @@ async function uploadLogo(file: File) {
 }
 
 // ===== API OPERATIONS =====
+// Image error handler
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement
+  if (target) {
+    // Set a simple data URI for a gray circle as fallback
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIiBmaWxsPSIjRTVFN0VCIi8+Cjxzdmcgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiB2aWV3Qm94PSIwIDAgNTAgNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeD0iMjUiIHk9IjI1Ij4KPHBhdGggZD0iTTI1IDRDMTMuNSA0IDQuMTcgMTMuNSA0LjE3IDI1UzEzLjUgNDYgMjUgNDZTNDUuODMgMzYuNSA0NS44MyAyNVMzNi41IDQgMjUgNFpNMjUgMTAuNEMyOC40NiAxMC40IDMxLjI1IDEzLjIxIDMxLjI1IDE2LjdTMjguNDYgMjMgMjUgMjNTMTguNzUgMjAuMTkgMTguNzUgMTYuN1MyMS41NCAxMC40IDI1IDEwLjRaTTI1IDQwLjJDMTkuODEgNDAuMiAxNS4yMSAzNy4zNCAxMi41IDMyLjg4QzEyLjU2IDI5LjE2IDIwLjg1IDI2Ljg4IDI1IDI2Ljg4UzM3LjQ0IDI5LjE2IDM3LjUgMzIuODhDMzQuNzkgMzcuMzQgMzAuMTkgNDAuMiAyNSA0MC4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
+  }
+}
+
 // Create a new organization and proceed to the next tab if successful
 const createOrganization = async () => {
   // Validate organization name
@@ -179,13 +193,21 @@ const createOrganization = async () => {
   }
 
   try {
+    // Prepare organization data - only include logo if it's a custom uploaded one
+    const orgData = {
+      name: organizationState.name,
+      description: organizationState.description,
+      // Only send logo to backend if user uploaded a custom one
+      ...(hasCustomLogo.value && organizationState.logo && { logo: organizationState.logo })
+    }
+
     const result = await useFetch('http://localhost:8787/api/organizations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token.value}`
       },
-      body: organizationState
+      body: orgData
     })
 
     //@ts-ignore
@@ -407,6 +429,7 @@ function resetCreateOrgState() {
   logoFile.value = null
   logoUploading.value = false
   logoUploadError.value = ''
+  hasCustomLogo.value = false
 }
 
 // Reset state when component is mounted
@@ -519,19 +542,28 @@ function goToOrganizationPage() {
                   </div>
                   
                   <!-- Upload success -->
-                  <div v-if="organizationState.logo && !logoUploading" class="flex items-center gap-2 text-sm text-green-600">
+                  <div v-if="hasCustomLogo && organizationState.logo && !logoUploading" class="flex items-center gap-2 text-sm text-green-600">
                     <UIcon name="lucide:check-circle" />
-                    <span>Logo uploaded successfully</span>
+                    <span>Custom logo uploaded successfully</span>
                   </div>
                   
-                  <!-- Logo preview -->
-                  <div v-if="organizationState.logo" class="mt-3">
+                  <!-- Default logo info -->
+                  <div v-if="!hasCustomLogo && !logoUploading" class="flex items-center gap-2 text-sm text-blue-600">
+                    <UIcon name="lucide:info" />
+                    <span>Using default organization logo</span>
+                  </div>
+                  
+                  <!-- Logo preview - always show (either custom or default) -->
+                  <div class="mt-3">
                     <img 
-                      :src="organizationState.logo" 
+                      :src="logoPreview" 
                       alt="Logo preview" 
                       class="w-20 h-20 object-cover rounded-lg border border-gray-200 dark:border-gray-600"
-                      onerror="this.style.display='none'"
+                      @error="handleImageError"
                     />
+                    <p class="text-xs text-gray-500 mt-1">
+                      {{ hasCustomLogo ? 'Custom logo' : 'Default logo' }}
+                    </p>
                   </div>
                 </div>
               </UFormField>
@@ -646,7 +678,7 @@ function goToOrganizationPage() {
                 :src="logoPreview" 
                 :alt="organizationState.name || 'Organization Logo'" 
                 class="w-20 h-20 rounded-full object-cover"
-                onerror="this.src='https://via.placeholder.com/100?text=Logo'"
+                @error="handleImageError"
               >
             </div>
           </div>

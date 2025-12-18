@@ -23,17 +23,13 @@
         <div class="p-8">
           <div class="flex items-start justify-between">
             <div class="flex items-center space-x-6">
-              <div v-if="organization.organizations.logo" class="flex-shrink-0">
+              <div class="flex-shrink-0">
                 <img 
-                  :src="organization.organizations.logo" 
+                  :src="organization.organizations.logo || DEFAULT_ORGANIZATION_LOGO" 
                   :alt="`${organization.organizations.name} logo`"
                   class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
+                  @error="handleImageError"
                 />
-              </div>
-              <div v-else class="flex-shrink-0">
-                <div class="w-20 h-20 rounded-full bg-secondary/20 flex items-center justify-center border-4 border-gray-200 dark:border-gray-600">
-                  <UIcon name="i-heroicons-building-office" class="w-8 h-8 text-secondary" />
-                </div>
               </div>
               
               <div class="flex-1">
@@ -65,10 +61,6 @@
       </div>      <!-- Dynamic Section Content -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
         <div class="p-8">
-          <!-- Debug Info -->
-          <div class="mb-4 p-2 bg-blue-100 dark:bg-blue-900 rounded text-sm">
-            Active Section: {{ activeSection }}
-          </div>
 
           <!-- Overview Section (Default) -->
           <OrganizationSectionsOverviewSection 
@@ -111,6 +103,8 @@
 </template>
 
 <script setup lang="ts">
+import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+
 interface Organization {
   organizations: {
     id: number
@@ -201,6 +195,14 @@ const formatDate = (timestamp: number) => {
     month: 'short',
     day: 'numeric'
   })
+}
+
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement
+  if (target) {
+    // Set a simple data URI for a gray circle as fallback
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIyMCIgeT0iMjAiPgo8cGF0aCBkPSJNMjAgM0MxMC44IDMgMy4zIDEwLjggMy4zIDIwUzEwLjggMzcgMjAgMzdTMzYuNyAyOS4yIDM2LjcgMjBTMjkuMiAzIDIwIDNaTTIwIDguM0MyMi43NyA4LjMgMjUgMTAuNTcgMjUgMTMuM1MyMi43NyAxOC4zIDIwIDE4LjNTMTUgMTYuMDcgMTUgMTMuM1MxNy4yMyA4LjMgMjAgOC4zWk0yMCAzMi4yQzE1Ljg1IDMyLjIgMTIuMTcgMjkuODcgMTAgMjYuM0MxMC4wNSAyMy4zMiAxNi42OCAyMS41IDIwIDIxLjVTMjkuOTUgMjMuMzIgMzAgMjYuM0MyNy44MyAyOS44NyAyNC4xNSAzMi4yIDIwIDMyLjJaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo8L3N2Zz4='
+  }
 }
 
 // Middleware to check authentication

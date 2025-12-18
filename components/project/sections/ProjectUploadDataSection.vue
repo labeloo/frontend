@@ -126,7 +126,7 @@
               </div>
               <UButton
                 type="button"
-                color="primary"
+                color="secondary"
                 variant="outline"
                 icon="i-heroicons-folder-open"
                 size="lg"
@@ -167,6 +167,7 @@
                 size="xs"
                 icon="i-heroicons-trash"
                 :disabled="uploading"
+                class="cursor-pointer"
               >
                 Clear All
               </UButton>
@@ -201,6 +202,7 @@
                   size="xs"
                   icon="i-heroicons-x-mark"
                   :disabled="uploading"
+                  class="cursor-pointer"
                 />
               </div>
             </div>
@@ -210,10 +212,11 @@
           <div v-if="selectedFiles.length > 0 && !uploading" class="flex justify-end">
             <UButton
               @click="uploadFiles"
-              color="primary"
+              color="success"
               size="lg"
               icon="i-heroicons-cloud-arrow-up"
               :loading="uploading"
+              class="cursor-pointer"
             >
               Upload {{ selectedFiles.length }} File{{ selectedFiles.length !== 1 ? 's' : '' }}
             </UButton>

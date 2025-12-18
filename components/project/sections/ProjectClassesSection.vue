@@ -75,7 +75,8 @@
               :disabled="!newClassName.trim() || updating"
               icon="i-heroicons-plus"
               size="lg"
-              color="primary"
+              color="secondary"
+              class="cursor-pointer"
             >
               Add
             </UButton>
@@ -88,11 +89,13 @@
                 Current Classes ({{ classes.length }})
               </h4>
               <UButton
+                v-if="hasChanges"
                 @click="updateClasses"
                 :loading="updating"
-                color="primary"
+                color="info"
                 size="sm"
                 icon="i-heroicons-check"
+                class="cursor-pointer"
               >
                 Update Classes
               </UButton>
@@ -102,7 +105,7 @@
               <div
                 v-for="(className, index) in classes"
                 :key="index"
-                class="flex items-center space-x-2 bg-primary/10 text-primary px-3 py-2 rounded-lg border border-primary/20"
+                class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-100 text-primary dark:text-black px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-200"
               >
                 <span class="text-sm font-medium">{{ className }}</span>
                 <UButton
@@ -112,6 +115,7 @@
                   color="primary"
                   variant="ghost"
                   :disabled="updating"
+                  class="cursor-pointer"
                 />
               </div>
             </div>
@@ -176,6 +180,7 @@ const error = ref<string | null>(null)
 const updating = ref(false)
 const projectData = ref<Project | null>(null)
 const classes = ref<string[]>([])
+const originalClasses = ref<string[]>([])
 const newClassName = ref('')
 
 // Computed properties
@@ -188,6 +193,11 @@ const getProjectTypeName = (type: number | undefined) => {
     default: return 'Unknown'
   }
 }
+
+const hasChanges = computed(() => {
+  if (classes.value.length !== originalClasses.value.length) return true
+  return !classes.value.every((className, index) => className === originalClasses.value[index])
+})
 
 // Methods
 const fetchProjectData = async () => {
@@ -210,8 +220,10 @@ const fetchProjectData = async () => {
     // Extract classes from labelConfig
     if (response.data.projects.labelConfig?.classes) {
       classes.value = [...response.data.projects.labelConfig.classes]
+      originalClasses.value = [...response.data.projects.labelConfig.classes]
     } else {
       classes.value = []
+      originalClasses.value = []
     }
     
   } catch (err) {
@@ -338,8 +350,12 @@ const updateClasses = async () => {
     // Update local project data from response
     if (response.data?.projects) {
       projectData.value = response.data.projects
+      // Update originalClasses to reflect the new saved state
+      originalClasses.value = [...classes.value]
     } else {
       projectData.value = updatedProject
+      // Update originalClasses to reflect the new saved state
+      originalClasses.value = [...classes.value]
     }
     
     toast.add({

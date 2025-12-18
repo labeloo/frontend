@@ -42,17 +42,22 @@
             <UBadge v-if="org.isActiveOrg" color="success" variant="subtle" class="ml-2">Active</UBadge>
           </div>
           
-          <div class="flex items-center mb-4" v-if="org.logo">
-            <img :src="org.logo" alt="Organization logo" class="w-12 h-12 rounded-full object-cover mr-3" />
+          <div class="flex items-center mb-4">
+            <img 
+              :src="org.logo || DEFAULT_ORGANIZATION_LOGO" 
+              alt="Organization logo" 
+              class="w-12 h-12 rounded-full object-cover mr-3"
+              @error="handleImageError"
+            />
           </div>
           
           <p class="text-gray-500 dark:text-gray-300 mb-6 line-clamp-2" style="min-height: 3rem">
             {{ org.description || 'No description provided' }}
           </p>
-            <div class="flex items-center justify-between mt-4">            <UButton color="primary" variant="soft" :to="'/organizations/' + org.id">
+            <div class="flex items-center justify-between mt-4">            <UButton color="info" variant="solid" :to="'/organizations/' + org.id" class="text-white">
               View Details
             </UButton>
-            <p class="text-xs text-gray-400">
+            <p class="text-xs text-black dark:text-white">
               Created: {{ formatDate(org.createdAt) }}
             </p>
           </div>
@@ -64,6 +69,7 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
+import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
 
 interface Organization {
   id: number;
@@ -86,6 +92,14 @@ const toast = useToast();
 const formatDate = (timestamp: number): string => {
   if (!timestamp) return 'N/A';
   return new Date(timestamp * 1000).toLocaleDateString();
+}
+
+const handleImageError = (event: Event) => {
+  const target = event.target as HTMLImageElement
+  if (target) {
+    // Set a simple data URI for a gray circle as fallback
+    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMiIgeT0iMTIiPgo8cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJTNi40OCAyMiAxMiAyMlMyMiAxNy41MiAyMiAxMlMxNy41MiAyIDEyIDJaTTEyIDVDMTMuNjYgNSAxNSA2LjM0IDE1IDhTMTMuNjYgMTEgMTIgMTFTOSA5LjY2IDkgOFMxMC4zNCA1IDEyIDVaTTEyIDE5LjJDOS41NCAxOS4yIDcuMyAxNy45MiA2IDE1Ljk4QzYuMDMgMTMuOTkgMTAuMDEgMTIuOSAxMiAxMi45UzE3Ljk3IDEzLjk5IDE4IDE1Ljk4QzE2LjcgMTcuOTIgMTQuNDYgMTkuMiAxMiAxOS4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
+  }
 }
 
 onMounted(async () => {

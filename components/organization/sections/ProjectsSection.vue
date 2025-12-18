@@ -6,7 +6,7 @@
         <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Projects</h2>
         <p class="text-gray-600 dark:text-gray-400 mt-1">Manage and view all projects in this organization</p>
       </div>
-      <UButton color="primary" icon="i-heroicons-plus" @click="createProject">
+      <UButton color="secondary" icon="i-heroicons-plus" class="cursor-pointer" @click="createProject">
         Create Project
       </UButton>
     </div>    <!-- Projects Loading -->
@@ -89,7 +89,13 @@
 
         <template #footer>
           <div class="flex justify-between items-center">
-            <UButton variant="ghost" size="sm" icon="i-heroicons-eye" @click.stop="viewProject(project.id)">
+            <UButton  
+              size="sm" 
+              color="info"
+              icon="i-heroicons-eye" 
+              class="text-white"
+              @click.stop="viewProject(project.id)"
+            >
               View Details
             </UButton>
             <UDropdown :items="getProjectActions(project)">
@@ -109,11 +115,11 @@
     <div v-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
       <UCard>
         <div class="text-center">
-          <div class="text-2xl font-bold text-primary">{{ projects.length }}</div>
+          <div class="text-2xl font-bold text-blue-500">{{ projects.length }}</div>
           <div class="text-sm text-gray-600 dark:text-gray-400">Total Projects</div>
         </div>
       </UCard>
-      
+
       <UCard>
         <div class="text-center">
           <div class="text-2xl font-bold text-success">{{ activeProjects }}</div>

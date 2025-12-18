@@ -37,9 +37,40 @@ const emit = defineEmits(['role-created'])
 const roleState = reactive({ 
   name: '',
   description: '',
+  icon: 'i-heroicons-user-group',
   permissionFlags: permissionFlags.value, // Reference the reactive object
   organizationId: props.orgId
 });
+
+// Available icons for role selection
+const availableIcons = ref([
+  { label: 'User Group', value: 'i-heroicons-user-group' },
+  { label: 'Shield Check', value: 'i-heroicons-shield-check' },
+  { label: 'Briefcase', value: 'i-heroicons-briefcase' },
+  { label: 'Academic Cap', value: 'i-heroicons-academic-cap' },
+  { label: 'Cog 6 Tooth', value: 'i-heroicons-cog-6-tooth' },
+  { label: 'Key', value: 'i-heroicons-key' },
+  { label: 'Eye', value: 'i-heroicons-eye' },
+  { label: 'Pencil', value: 'i-heroicons-pencil' },
+  { label: 'Document Text', value: 'i-heroicons-document-text' },
+  { label: 'Folder', value: 'i-heroicons-folder' },
+  { label: 'Chart Bar', value: 'i-heroicons-chart-bar' },
+  { label: 'Lightning Bolt', value: 'i-heroicons-bolt' },
+  { label: 'Star', value: 'i-heroicons-star' },
+  { label: 'Fire', value: 'i-heroicons-fire' },
+  { label: 'Heart', value: 'i-heroicons-heart' },
+  { label: 'Cube', value: 'i-heroicons-cube' },
+  { label: 'Puzzle Piece', value: 'i-heroicons-puzzle-piece' },
+  { label: 'Trophy', value: 'i-heroicons-trophy' },
+  { label: 'Rocket', value: 'i-heroicons-rocket-launch' },
+  { label: 'Globe', value: 'i-heroicons-globe-alt' }
+])
+
+// Helper function to get icon display name
+const getIconDisplayName = (iconValue: string) => {
+  const icon = availableIcons.value.find(icon => icon.value === iconValue)
+  return icon ? icon.label : iconValue
+}
 
 const handleRoleState = (state: PermissionFlags) => {
   // Make a copy of the state to avoid reference issues
@@ -94,8 +125,40 @@ const enabledFlagsCount = computed(() => {
         <UInput v-model="roleState.name" required class="w-full" />
     </UFormField>
     <UFormField label="Role Description" name="description" hint="Optional">
-        <UInput v-model="roleState.description" required class="w-full" />
+        <UInput v-model="roleState.description" class="w-full" />
     </UFormField>
+    
+    <UFormField label="Role Icon" name="icon" hint="Choose an icon that represents this role">
+        <div class="space-y-4">
+            <!-- Selected icon preview -->
+            <div v-if="roleState.icon" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <div class="p-2 bg-primary/10 rounded-lg">
+                    <UIcon :name="roleState.icon" class="w-5 h-5 text-primary" />
+                </div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white">Selected: {{ getIconDisplayName(roleState.icon) }}</span>
+            </div>
+            
+            <!-- Icon selection grid -->
+            <div class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border max-h-48 overflow-y-auto">
+                <button
+                    v-for="icon in availableIcons"
+                    :key="icon.value"
+                    type="button"
+                    @click="roleState.icon = icon.value"
+                    class="p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    :class="[
+                        roleState.icon === icon.value 
+                            ? 'border-primary bg-primary/10 text-primary' 
+                            : 'border-gray-200 dark:border-gray-600 hover:border-primary/50 text-gray-600 dark:text-gray-400'
+                    ]"
+                    :title="icon.label"
+                >
+                    <UIcon :name="icon.value" class="w-5 h-5" />
+                </button>
+            </div>
+        </div>
+    </UFormField>
+    
     <UFormField label="Manage Roles" name="roles" required>
         <div class="flex flex-col gap-4 justify-between">
             <UModal>
@@ -105,7 +168,11 @@ const enabledFlagsCount = computed(() => {
                     </span>
                 </UButton>
                 <template #content>
-                    <div class="p-4">
+                    <div class="p-6 max-w-md">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Configure Role Permissions</h3>
+                            <p class="text-sm text-gray-500 dark:text-gray-400">Set the permissions for this role</p>
+                        </div>
                         <OrganizationManageRoles 
                             :initialState="permissionFlags"
                             @update:state="handleRoleState"/>

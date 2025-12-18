@@ -3,16 +3,24 @@
     <!-- Side Menu -->
     <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+        <!-- Logo Banner -->
+        <div class="mb-4 flex justify-center">
+          <div class="logo-wrapper px-4 py-2 rounded-xl" style="
+      background-color: rgba(42, 58, 79, 0.6); /* soft geçişli zemin */
+      border: 1px solid rgba(255, 255, 255, 0.1); /* hafif outline */
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* gölge */
+      backdrop-filter: blur(4px); /* saydamlık varsa */
+    ">
+            <img src="assets/images/labeloo-main-logo.png" alt="Labeloo Logo" class="h-16 object-contain"
+              style="filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));" />
+          </div>
+        </div>
+
         <div class="flex items-center justify-between">
           <h1 class="text-xl font-semibold text-gray-900 dark:text-white">
             Task Annotation
           </h1>
-          <UButton
-            @click="navigateBack"
-            variant="ghost"
-            size="sm"
-            icon="i-heroicons-arrow-left"
-          >
+          <UButton @click="navigateBack" color="secondary" variant="ghost" size="sm" icon="i-heroicons-arrow-left">
             Back
           </UButton>
         </div>
@@ -38,7 +46,7 @@
             <p class="text-red-800 dark:text-red-300 text-sm">{{ error }}</p>
           </div>
         </div>
-      </div>      <!-- Content -->
+      </div> <!-- Content -->
       <div v-else class="space-y-6 p-6">
         <!-- Project Details Section -->
         <div v-if="projectData">
@@ -46,47 +54,50 @@
             <UIcon name="i-heroicons-folder" class="w-5 h-5 mr-2" />
             Project Details
           </h2>
-          
+
           <div class="space-y-3">
             <div class="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 border border-blue-200 dark:border-blue-800">
               <div class="space-y-3">
                 <div>
-                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Project Name</label>
+                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Project
+                    Name</label>
                   <p class="mt-1 text-sm font-semibold text-blue-900 dark:text-blue-200">{{ projectData.name }}</p>
                 </div>
-                
+
                 <div v-if="projectData.description">
-                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Description</label>
+                  <label
+                    class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Description</label>
                   <p class="mt-1 text-sm text-blue-800 dark:text-blue-300">{{ projectData.description }}</p>
                 </div>
-                
+
                 <div>
-                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Project Type</label>
+                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Project
+                    Type</label>
                   <p class="mt-1">
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
+                    <span
+                      class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
                       {{ getProjectTypeName(projectData.projectType) }}
                     </span>
                   </p>
                 </div>
-                
+
                 <div v-if="projectData.labelConfig?.classes?.length">
-                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Classes ({{ projectData.labelConfig.classes.length }})</label>
+                  <label class="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wide">Classes
+                    ({{ projectData.labelConfig.classes.length }})</label>
                   <div class="mt-2 flex flex-wrap gap-1">
-                    <span 
-                      v-for="(className, index) in projectData.labelConfig.classes" 
-                      :key="index"
-                      :class="[
-                        'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border',
-                        lastSelectedClass === className 
-                          ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-400 dark:border-blue-500' 
-                          : 'bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
-                      ]"
-                    >
-                      <span v-if="index < 9" class="w-4 h-4 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-1 font-medium">
+                    <span v-for="(className, index) in projectData.labelConfig.classes" :key="index" :class="[
+                      'inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border',
+                      lastSelectedClass === className
+                        ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300 border-blue-400 dark:border-blue-500'
+                        : 'bg-white dark:bg-gray-800 text-blue-700 dark:text-blue-300 border-blue-300 dark:border-blue-600'
+                    ]">
+                      <span v-if="index < 9"
+                        class="w-4 h-4 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-1 font-medium">
                         {{ index + 1 }}
                       </span>
                       <span class="flex-1">{{ className }}</span>
-                      <UIcon v-if="lastSelectedClass === className" name="i-heroicons-star-solid" class="w-3 h-3 text-yellow-500 ml-1" />
+                      <UIcon v-if="lastSelectedClass === className" name="i-heroicons-star-solid"
+                        class="w-3 h-3 text-yellow-500 ml-1" />
                     </span>
                   </div>
                 </div>
@@ -101,40 +112,45 @@
             <UIcon name="i-heroicons-document-text" class="w-5 h-5 mr-2" />
             Attributes
           </h2>
-          
+
           <div class="space-y-3">
             <div class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
               <div class="space-y-3">
 
                 <div>
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</label>
+                  <label
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Status</label>
                   <p class="mt-1">
                     <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium"
-                          :class="getStatusColor(taskData.status)">
+                      :class="getStatusColor(taskData.status)">
                       {{ taskData.status }}
                     </span>
                   </p>
                 </div>
-                
+
                 <div>
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Data Type</label>
+                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Data
+                    Type</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ parseDataType(taskData.dataType) }}</p>
                 </div>
-                
+
                 <div>
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Priority</label>
+                  <label
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Priority</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ taskData.priority }}</p>
                 </div>
-                
+
                 <div>
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Created At</label>
+                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Created
+                    At</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(taskData.createdAt) }}</p>
                 </div>
-                  <div>
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Updated At</label>
+                <div>
+                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Updated
+                    At</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ formatDate(taskData.updatedAt) }}</p>
                 </div>
-                
+
               </div>
             </div>
 
@@ -143,15 +159,18 @@
               <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Metadata</h3>
               <div class="space-y-2">
                 <div v-if="parsedMetadata.originalFileName">
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Original File</label>
+                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">Original
+                    File</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ parsedMetadata.originalFileName }}</p>
                 </div>
                 <div v-if="parsedMetadata.mimeType">
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">MIME Type</label>
+                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">MIME
+                    Type</label>
                   <p class="mt-1 text-sm text-gray-900 dark:text-white">{{ parsedMetadata.mimeType }}</p>
                 </div>
                 <div v-if="parsedMetadata.uuid">
-                  <label class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">UUID</label>
+                  <label
+                    class="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">UUID</label>
                   <p class="mt-1 text-xs text-gray-600 dark:text-gray-300 font-mono">{{ parsedMetadata.uuid }}</p>
                 </div>
               </div>
@@ -164,69 +183,62 @@
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
             <UIcon name="i-heroicons-annotation" class="w-5 h-5 mr-2" />
             Annotations
-            <span class="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
+            <span
+              class="ml-2 px-2 py-1 text-xs rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300">
               {{ annotations.length }}
             </span>
           </h2>
-          
+
           <!-- No annotations state -->
           <div v-if="annotations.length === 0" class="text-center py-8">
             <UIcon name="i-heroicons-document-plus" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
             <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2">No Annotations</h3>
             <p class="text-xs text-gray-500 dark:text-gray-400">Start annotating to see your work here.</p>
-          </div>          <!-- Annotations list -->
+          </div> <!-- Annotations list -->
           <div v-else class="space-y-4">
-            <div v-for="annotation in annotations" :key="annotation.id" 
-                 class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">              <div class="flex items-start justify-between mb-2">
+            <div v-for="annotation in annotations" :key="annotation.id"
+              class="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 border border-gray-200 dark:border-gray-600">
+              <div class="flex items-start justify-between mb-2">
                 <div class="flex items-center space-x-2">
                   <span class="text-sm font-medium text-gray-900 dark:text-white">
                     Annotation #{{ annotation.id }}
                   </span>
                   <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"
-                        :class="getReviewStatusColor(annotation.reviewStatus)">
+                    :class="getReviewStatusColor(annotation.reviewStatus)">
                     {{ annotation.reviewStatus }}
                   </span>
                 </div>
                 <div class="flex items-center space-x-2">
-                  <UButton 
-                    size="xs" 
-                    color="primary" 
-                    @click="applyAnnotation(annotation)"
-                    :disabled="!isImageTask"
-                  >
+                  <UButton size="xs" color="primary" @click="applyAnnotation(annotation)" :disabled="!isImageTask">
                     Apply
-                  </UButton>                  <UButton 
-                    size="xs" 
-                    color="error" 
-                    variant="ghost"
-                    @click="deleteAnnotationFromDb(annotation.id)"
-                    :loading="deletingAnnotation === annotation.id"
-                    title="Delete annotation"
-                  >
+                  </UButton>
+                  <UButton size="xs" color="error" variant="ghost" @click="deleteAnnotationFromDb(annotation.id)"
+                    :loading="deletingAnnotation === annotation.id" title="Delete annotation">
                     <UIcon name="i-heroicons-x-mark" class="w-4 h-4" />
                   </UButton>
                 </div>
               </div>
-              
+
               <div class="space-y-2 text-xs">
                 <div>
                   <span class="font-medium text-gray-500 dark:text-gray-400">User:</span>
                   <span class="ml-1 text-gray-900 dark:text-white">{{ annotation.userEmail }}</span>
                 </div>
-                
+
                 <div>
                   <span class="font-medium text-gray-500 dark:text-gray-400">Created:</span>
                   <span class="ml-1 text-gray-900 dark:text-white">{{ formatDate(annotation.createdAt) }}</span>
                 </div>
-                
+
                 <div v-if="annotation.isGroundTruth" class="flex items-center">
                   <UIcon name="i-heroicons-star" class="w-4 h-4 text-yellow-500 mr-1" />
                   <span class="text-yellow-700 dark:text-yellow-300 font-medium">Ground Truth</span>
                 </div>
-                
+
                 <div class="mt-3">
                   <span class="font-medium text-gray-500 dark:text-gray-400">Data:</span>
-                  <pre class="mt-1 text-xs bg-gray-800 text-green-400 p-2 rounded overflow-x-auto">{{ JSON.stringify(annotation.annotationData, null, 2) }}</pre>
+                  <pre
+                    class="mt-1 text-xs bg-gray-800 text-green-400 p-2 rounded overflow-x-auto">{{ JSON.stringify(annotation.annotationData, null, 2) }}</pre>
                 </div>
               </div>
             </div>
@@ -236,33 +248,24 @@
     </div>
 
     <!-- Main Content Area -->
-    <div class="flex-1 flex flex-col">      <!-- Header -->
+    <div class="flex-1 flex flex-col"> <!-- Header -->
       <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div class="flex items-center justify-between">
           <h2 class="text-lg font-medium text-gray-900 dark:text-white">
             Annotation Workspace
           </h2>
           <div class="flex items-center space-x-4">
-            <UButton variant="outline" size="sm" @click="loadData">
+            <UButton color="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
               Refresh
             </UButton>
-            <UButton 
-              color="primary" 
-              size="sm" 
-              @click="saveAnnotation"
-              :loading="savingAnnotation"
-              :disabled="canvasAnnotations.length === 0"
-            >
+            <UButton color="secondary" size="lg" @click="saveAnnotation" :loading="savingAnnotation"
+              :disabled="canvasAnnotations.length === 0" class="cursor-pointer">
               <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
               Save Annotation
-            </UButton>            <UButton 
-              v-if="taskData?.nextTaskId"
-              color="success" 
-              size="sm" 
-              @click="saveAndNext"
-              :loading="savingAndNext"
-            >
+            </UButton>
+            <UButton v-if="taskData?.nextTaskId" color="success" size="sm" @click="saveAndNext"
+              :loading="savingAndNext">
               <UIcon name="i-heroicons-arrow-right" class="w-4 h-4 mr-2" />
               Next
             </UButton>
@@ -271,140 +274,78 @@
       </div><!-- Content Area -->
       <div class="flex-1 p-6 overflow-auto">
         <div v-if="taskData" class="h-full flex flex-col">
-          <!-- Annotation Tools -->
-          <div v-if="isImageTask" class="mb-4 flex items-center space-x-4">
-            <button 
-              v-for="tool in tools" 
-              :key="tool"
-              @click="selectTool(tool)"
-              :class="['px-4 py-2 rounded transition-colors', 
-                       currentTool === tool ? 'bg-blue-500 text-white' : 'bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white']"
-            >
-              {{ tool }}
-            </button>
-
-            <!-- Complete Button -->
-            <UButton 
-              v-if="isAnnotating"
-              @click="completeAnnotation"
-              color="success"
-              size="sm"
-            >
-              Complete
-            </UButton>
-
-            <!-- Cancel Button -->
-            <UButton 
-              v-if="isAnnotating"
-              @click="cancelAnnotation"
-              color="error"
-              size="sm"
-            >
-              Cancel
-            </UButton>
+          <!-- Enhanced Annotation Toolbar -->
+          <div v-if="isImageTask" class="mb-6">
+            <AnnotationToolbar :current-tool="currentTool" :is-annotating="isAnnotating"
+              :annotation-count="canvasAnnotations.length" :has-selection="selectedAnnotationIndex !== null"
+              :can-undo="annotationHistory.length > 0 && historyIndex > 0"
+              :can-redo="annotationHistory.length > 0 && historyIndex < annotationHistory.length - 1"
+              :zoom-level="Math.round((konvaCanvas?.getImageScale() || 0) * 100)"
+              :image-size="konvaCanvas?.getOriginalImageSize()?.width > 0 ? `${konvaCanvas.getOriginalImageSize().width}×${konvaCanvas.getOriginalImageSize().height}` : ''"
+              @tool-selected="selectTool" @complete-annotation="completeAnnotation"
+              @cancel-annotation="cancelAnnotation" @zoom-in="zoomIn" @zoom-out="zoomOut" @reset-zoom="resetZoom"
+              @fit-to-screen="fitToScreen" @undo="undo" @redo="redo" @delete-selected="deleteSelectedAnnotation"
+              @duplicate-selected="duplicateSelectedAnnotation" @clear-all="clearAllAnnotations"
+              @export-annotations="exportAnnotations" />
           </div>
 
-          <!-- Canvas Container -->
-          <div v-if="isImageTask" class="flex-1 flex items-center justify-center">
-            <div class="relative" ref="canvasContainer">
-              <canvas 
-                ref="canvas"
-                @click="handleClick"
-                @mousemove="handleMouseMove"
-                @mousedown="handleMouseDown"
-                @mouseup="handleMouseUp"
-                @dblclick="handleDoubleClick"
-                class="border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg"
-                :class="{ 
-                  'cursor-crosshair': !isAnnotating && !isDragging && currentTool !== 'select',
-                  'cursor-pointer': isAnnotating || (currentTool === 'select' && hoveredAnnotation !== null),
-                  'cursor-move': isDragging,
-                }"
-              ></canvas>
+          <!-- Konva Canvas Container -->
+          <div v-if="isImageTask" class="flex-1 flex items-center justify-center p-4">
+            <!-- Debug info -->
+            <div v-if="!taskData?.dataUrl" class="text-center">
+              <p class="text-red-600">No dataUrl available</p>
+              <p class="text-sm text-gray-500">Task data: {{ taskData }}</p>
+            </div>
 
-              <!-- Annotation Tools Overlay -->
-              <div 
-                v-if="clickedAnnotation !== null && !isAnnotating && !isDragging"
-                class="absolute bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 flex space-x-2 z-10 transition-opacity duration-200 border border-gray-200 dark:border-gray-600"
-                :style="{
-                  left: `${annotationToolsPosition.x}px`,
-                  top: `${annotationToolsPosition.y}px`,
-                }"
-              >
-                <button
-                  @click="startEditing(clickedAnnotation)"
-                  class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition-colors"
-                  title="Edit"
-                >
-                  <UIcon name="i-heroicons-pencil" class="w-5 h-5" />
-                </button>
-                <button
-                  @click="deleteAnnotation(clickedAnnotation)"
-                  class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition-colors"
-                  title="Delete"
-                >
-                  <UIcon name="i-heroicons-trash" class="w-5 h-5" />
-                </button>
-                <button
-                  @click="toggleDragMode(clickedAnnotation)"
-                  class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400 transition-colors"
-                  title="Drag"
-                >
-                  <UIcon name="i-heroicons-arrows-pointing-out" class="w-5 h-5" />
-                </button>
-              </div>
 
-              <!-- Class Selection Popup -->
-              <div 
-                v-if="showClassSelector && projectData?.labelConfig?.classes?.length"
-                data-class-selector
-                class="absolute bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-20 border border-gray-200 dark:border-gray-600 min-w-48"
-                :style="{
-                  left: `${classSelectorPosition.x}px`,
-                  top: `${classSelectorPosition.y}px`,
-                }"
-              >
-                <div class="flex items-center mb-3">
-                  <UIcon name="i-heroicons-tag" class="w-4 h-4 text-blue-500 mr-2" />
-                  <h3 class="text-sm font-medium text-gray-900 dark:text-white">Select Class</h3>
-                </div>
-                <div class="space-y-2 max-h-48 overflow-y-auto">
-                  <button
-                    v-for="(className, index) in projectData.labelConfig.classes"
-                    :key="index"
-                    @click="selectAnnotationClass(className)"
-                    :class="[
-                      'w-full text-left px-3 py-2 rounded-md text-sm transition-colors border flex items-center',
-                      lastSelectedClass === className 
-                        ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300' 
-                        : 'hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 border-gray-200 dark:border-gray-600'
-                    ]"
-                  >
-                    <span class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 font-medium">
-                      {{ index + 1 }}
-                    </span>
-                    <span class="flex-1">{{ className }}</span>
-                    <span v-if="lastSelectedClass === className" class="text-xs text-blue-600 dark:text-blue-400 ml-2">
-                      Enter
-                    </span>
-                  </button>
-                </div>
-                <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
-                  <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                    Press 1-{{ projectData.labelConfig.classes.length }} or Enter for last selected
-                  </div>
-                  <button
-                    @click="cancelClassSelection"
-                    class="w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-50 dark:hover:bg-gray-700"
-                  >
-                    <UIcon name="i-heroicons-x-mark" class="w-4 h-4 inline mr-1" />
-                    Cancel (Esc)
-                  </button>
-                </div>
+            <KonvaAnnotationCanvas v-if="taskData?.dataUrl" ref="konvaCanvas" :image-url="taskData.dataUrl"
+              :annotations="canvasAnnotations" :current-tool="currentTool" :is-annotating="isAnnotating"
+              :classes="projectData?.labelConfig?.classes || []" :canvas-width="800" :canvas-height="600"
+              @update:annotations="canvasAnnotations = $event" @update:is-annotating="isAnnotating = $event"
+              @annotation-completed="onAnnotationCompleted" @annotation-updated="onAnnotationUpdated"
+              @annotation-deleted="onAnnotationDeleted" @show-class-selector="onShowClassSelector" />
+          </div>
+          <!-- Class Selection Popup -->
+          <div v-if="showClassSelector && projectData?.labelConfig?.classes?.length" data-class-selector
+            class="fixed bg-white dark:bg-gray-800 rounded-lg shadow-xl p-4 z-50 border border-gray-200 dark:border-gray-600 min-w-48 max-w-64"
+            :style="{
+              left: `${classSelectorPosition.x}px`,
+              top: `${classSelectorPosition.y}px`,
+            }">
+            <div class="flex items-center mb-3">
+              <UIcon name="i-heroicons-tag" class="w-4 h-4 text-blue-500 mr-2" />
+              <h3 class="text-sm font-medium text-gray-900 dark:text-white">Select Class</h3>
+            </div>
+            <div class="space-y-2 max-h-48 overflow-y-auto">
+              <button v-for="(className, index) in projectData.labelConfig.classes" :key="index"
+                @click="selectAnnotationClass(className)" :class="[
+                  'w-full text-left px-3 py-2 rounded-md text-sm transition-colors border flex items-center',
+                  lastSelectedClass === className
+                    ? 'bg-blue-100 dark:bg-blue-900/40 border-blue-400 dark:border-blue-500 text-blue-700 dark:text-blue-300'
+                    : 'hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-700 dark:hover:text-blue-300 border-gray-200 dark:border-gray-600'
+                ]">
+                <span
+                  class="w-6 h-6 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 font-medium">
+                  {{ index + 1 }}
+                </span>
+                <span class="flex-1">{{ className }}</span>
+                <span v-if="lastSelectedClass === className" class="text-xs text-blue-600 dark:text-blue-400 ml-2">
+                  Enter
+                </span>
+              </button>
+            </div>
+            <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-600">
+              <div class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                Press 1-{{ projectData.labelConfig.classes.length }} or Enter for last selected
               </div>
+              <button @click="cancelClassSelection"
+                class="w-full px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
+                <UIcon name="i-heroicons-x-mark" class="w-4 h-4 inline mr-1" />
+                Cancel (Esc)
+              </button>
             </div>
           </div>
-          
+
           <!-- Placeholder for other data types -->
           <div v-else class="flex-1 flex items-center justify-center">
             <div class="text-center">
@@ -418,7 +359,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- Loading state for main content -->
         <div v-else class="h-full flex items-center justify-center">
           <div class="text-center">
@@ -432,6 +373,9 @@
 </template>
 
 <script setup lang="ts">
+import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
+import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
+
 interface TaskData {
   id: number
   projectId: number
@@ -505,10 +449,14 @@ const deletingAnnotation = ref<number | null>(null)
 // Auth
 const token = useCookie('auth_token')
 
+// Refs
+const konvaCanvas = ref<any>(null)
+
 // Canvas annotation interfaces
 interface CanvasAnnotation {
-  type: 'rectangle' | 'polygon' | 'dot'
+  type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
+  endPoint?: { x: number; y: number }
   width?: number
   height?: number
   points?: { x: number; y: number }[]
@@ -517,30 +465,21 @@ interface CanvasAnnotation {
   className?: string
 }
 
-// Canvas refs and state
-const canvas = ref<HTMLCanvasElement | null>(null)
-const canvasContainer = ref<HTMLElement | null>(null)
-const ctx = ref<CanvasRenderingContext2D | null>(null)
-const backgroundImage = ref<HTMLImageElement | null>(null)
 
 // Annotation tools state
-const tools = ['select', 'rectangle', 'polygon', 'dots']
+const tools = ['select', 'rectangle', 'polygon', 'dot', 'line', 'circle', 'freehand']
 const currentTool = ref('rectangle')
 const isAnnotating = ref(false)
-const startPoint = ref<{ x: number; y: number } | null>(null)
-const currentPath = ref<{ x: number; y: number }[]>([])
-const canvasAnnotations = ref<CanvasAnnotation[]>([])
-const mousePosition = ref({ x: 0, y: 0 })
 
-// Interaction state
-const hoveredAnnotation = ref<number | null>(null)
-const isDragging = ref(false)
-const dragStartPosition = ref<{ x: number; y: number } | null>(null)
-const selectedAnnotation = ref<number | null>(null)
-const clickedAnnotation = ref<number | null>(null)
-const annotationToolsPosition = ref({ x: 0, y: 0 })
-const hoveredPoint = ref<number | null>(null)
-const isOverAnnotation = ref(false)
+
+const canvasAnnotations = ref<CanvasAnnotation[]>([])
+
+
+// Enhanced toolbar state
+const selectedAnnotationIndex = ref<number | null>(null)
+const annotationHistory = ref<CanvasAnnotation[][]>([])
+const historyIndex = ref(-1)
+
 
 // Class selection popup state
 const showClassSelector = ref(false)
@@ -552,7 +491,30 @@ const lastSelectedClass = ref<string | null>(null)
 // Computed properties
 const isImageTask = computed(() => {
   if (!taskData.value) return false
-  return parseDataType(taskData.value.dataType).toLowerCase().includes('image')
+  const parsedDataType = parseDataType(taskData.value.dataType)
+
+  // Check multiple ways to determine if it's an image
+  const hasImageInDataType = parsedDataType.toLowerCase().includes('image')
+  const hasImageMimeType = parsedDataType.startsWith('image/')
+  const hasImageUrl = taskData.value.dataUrl && (
+    taskData.value.dataUrl.startsWith('data:image/') ||
+    /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(taskData.value.dataUrl)
+  )
+
+  const isImage = hasImageInDataType || hasImageMimeType || hasImageUrl
+
+  // Debug logging
+  console.log('Data type check:', {
+    originalDataType: taskData.value.dataType,
+    parsedDataType: parsedDataType,
+    dataUrl: taskData.value.dataUrl?.substring(0, 100) + '...',
+    hasImageInDataType,
+    hasImageMimeType,
+    hasImageUrl,
+    isImage: isImage
+  })
+
+  return isImage
 })
 
 const parsedMetadata = computed(() => {
@@ -631,37 +593,35 @@ const fetchProjectData = async () => {
 
 const loadData = async () => {
   try {
-    loading.value = true
-    error.value = null
-    
-    // First fetch task data
-    await fetchTaskData()
-    
-    // Then fetch project data and annotations in parallel
+    loading.value = true;
+    error.value = null;
+
+    // Reset canvas annotations when loading new data
+    canvasAnnotations.value = [];
+
+    await fetchTaskData();
     await Promise.all([
       fetchProjectData(),
       fetchAnnotations()
-    ])
-    
-    // Auto-load first annotation if available and it's an image task
-    nextTick(() => {
-      if (annotations.value.length > 0 && isImageTask.value) {
-        // Wait for canvas to be initialized before applying annotation
-        setTimeout(() => {
-          if (canvas.value && ctx.value) {
-            applyAnnotation(annotations.value[0])
-          }
-        }, 500) // Small delay to ensure canvas is ready
+    ]);
+
+    // New logic: If there are annotations from the DB, apply the first one.
+    // We will fix the applyAnnotation method in the next step.
+    if (annotations.value.length > 0 && isImageTask.value) {
+      const firstAnnotation = annotations.value[0];
+      // This 'if' statement fixes the TypeScript error.
+      if (firstAnnotation) {
+        applyAnnotation(firstAnnotation);
       }
-    })
-    
+    }
+
   } catch (err) {
-    console.error('Error loading data:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load data'
+    console.error('Error loading data:', err);
+    error.value = err instanceof Error ? err.message : 'Failed to load data';
   } finally {
-    loading.value = false
+    loading.value = false;
   }
-}
+};
 
 const navigateBack = () => {
   const router = useRouter()
@@ -691,31 +651,13 @@ const getProjectTypeName = (type: number) => {
   }
 }
 
-// Canvas annotation methods
-const initializeCanvas = () => {
-  if (!canvas.value || !taskData.value?.dataUrl) return
-  
-  ctx.value = canvas.value.getContext('2d')
-  
-  // Load image and set canvas size
-  const img = new Image()
-  img.crossOrigin = 'anonymous' // Handle cross-origin images
-  
-  img.onload = () => {
-    canvas.value!.width = img.width
-    canvas.value!.height = img.height
-    backgroundImage.value = img // Cache the image
-    ctx.value!.drawImage(img, 0, 0)
-    drawExistingAnnotations()
-  }
-  
-  img.onerror = (error) => {
-    console.error('Failed to load image:', error)
-    console.log('Image URL:', taskData.value?.dataUrl)
-  }
-  
-  img.src = taskData.value.dataUrl
+// Get maximum canvas size based on viewport
+const getMaxCanvasSize = () => {
+  const maxWidth = Math.min(window.innerWidth * 0.7, 1200)
+  const maxHeight = Math.min(window.innerHeight * 0.7, 800)
+  return { width: maxWidth, height: maxHeight }
 }
+
 
 const selectTool = (tool: string) => {
   if (isAnnotating.value) {
@@ -724,448 +666,177 @@ const selectTool = (tool: string) => {
   currentTool.value = tool
 }
 
-const getCanvasPoint = (event: MouseEvent): { x: number; y: number } => {
-  if (!canvas.value) return { x: 0, y: 0 }
-  const rect = canvas.value.getBoundingClientRect()
-  return {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
-  }
+// Konva event handlers
+const onAnnotationCompleted = (annotation: CanvasAnnotation) => {
+  canvasAnnotations.value.push(annotation)
 }
 
-const handleClick = (event: MouseEvent) => {
-  const point = getCanvasPoint(event)
-  
-  if (currentTool.value === 'rectangle') {
-    if (!isAnnotating.value) {
-      startPoint.value = point
-      isAnnotating.value = true
-    } else {
-      completeRectangle(point)
-    }
-  } else if (currentTool.value === 'polygon') {
-    if (!isAnnotating.value) {
-      currentPath.value = [point]
-      isAnnotating.value = true
-    } else {
-      // Check if clicking near first point to close polygon
-      const firstPoint = currentPath.value[0]
-      const distance = Math.hypot(point.x - firstPoint.x, point.y - firstPoint.y)
-      
-      if (distance < 20 && currentPath.value.length > 2) {
-        completePolygon()
-      } else {
-        currentPath.value.push(point)
-      }
-    }
-  } else if (currentTool.value === 'dots') {
-    // Create dot annotation and show class selector
-    const newAnnotation: CanvasAnnotation = {
-      type: 'dot',
-      center: point,
-      radius: 5 // Default radius
-    }
-    
-    // Show class selector if classes are available
-    if (projectData.value?.labelConfig?.classes?.length) {
-      showClassSelectorPopup(newAnnotation, point)
-    } else {
-      // Add annotation without class if no classes available
-      canvasAnnotations.value.push(newAnnotation)
-      redrawCanvas()
-    }
-  } else {
-    // Handle clicking annotations
-    const found = findAnnotationUnderPoint(point)
-    if (found !== null) {
-      clickedAnnotation.value = found
-      updateAnnotationToolsPosition(point)
-    } else {
-      clickedAnnotation.value = null
-    }
-  }
+const onAnnotationUpdated = (annotation: CanvasAnnotation, index: number) => {
+  canvasAnnotations.value[index] = annotation
 }
 
-const handleDoubleClick = () => {
-  if (currentTool.value === 'polygon' && isAnnotating.value && currentPath.value.length > 2) {
-    completePolygon()
-  }
+const onAnnotationDeleted = (index: number) => {
+  canvasAnnotations.value.splice(index, 1)
 }
 
-const handleMouseMove = (event: MouseEvent) => {
-  const point = getCanvasPoint(event)
-  mousePosition.value = point
-  
-  let shouldRedraw = false
-  if (isDragging.value && selectedAnnotation.value !== null) {
-    const dx = point.x - dragStartPosition.value!.x
-    const dy = point.y - dragStartPosition.value!.y
-    
-    const annotation = canvasAnnotations.value[selectedAnnotation.value]
-    if (annotation.type === 'rectangle' && annotation.startPoint) {
-      annotation.startPoint.x = annotation.startPoint.x + dx
-      annotation.startPoint.y = annotation.startPoint.y + dy
-    } else if (annotation.type === 'polygon' && annotation.points) {
-      annotation.points = annotation.points.map(p => ({
-        x: p.x + dx,
-        y: p.y + dy
-      }))
-    } else if (annotation.type === 'dot' && annotation.center) {
-      annotation.center.x = annotation.center.x + dx
-      annotation.center.y = annotation.center.y + dy
-    }
-    
-    dragStartPosition.value = point
-    shouldRedraw = true
-  } else if (isAnnotating.value) {
-    shouldRedraw = true
-  }
-  
-  if (shouldRedraw) {
-    redrawCanvas()
-  }
-}
-
-const handleMouseDown = (event: MouseEvent) => {
-  if (currentTool.value === 'select') {
-    const point = getCanvasPoint(event)
-    const found = findAnnotationUnderPoint(point)
-    if (found !== null) {
-      isDragging.value = true
-      selectedAnnotation.value = found
-      dragStartPosition.value = point
-      clickedAnnotation.value = null
-    }
-  }
-}
-
-const handleMouseUp = () => {
-  if (isDragging.value) {
-    isDragging.value = false
-    selectedAnnotation.value = null
-    dragStartPosition.value = null
-  }
-}
-
-const findAnnotationUnderPoint = (point: { x: number; y: number }): number | null => {
-  for (let i = canvasAnnotations.value.length - 1; i >= 0; i--) {
-    const annotation = canvasAnnotations.value[i]
-    if (isPointInAnnotation(point, annotation)) {
-      return i
-    }
-  }
-  return null
-}
-
-const isPointInAnnotation = (point: { x: number; y: number }, annotation: CanvasAnnotation): boolean => {
-  if (annotation.type === 'rectangle' && annotation.startPoint && annotation.width && annotation.height) {
-    const minX = Math.min(annotation.startPoint.x, annotation.startPoint.x + annotation.width)
-    const maxX = Math.max(annotation.startPoint.x, annotation.startPoint.x + annotation.width)
-    const minY = Math.min(annotation.startPoint.y, annotation.startPoint.y + annotation.height)
-    const maxY = Math.max(annotation.startPoint.y, annotation.startPoint.y + annotation.height)
-    
-    return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
-  } else if (annotation.type === 'polygon' && annotation.points) {
-    return isPointInPolygon(point, annotation.points)
-  } else if (annotation.type === 'dot' && annotation.center && annotation.radius) {
-    const distance = Math.hypot(point.x - annotation.center.x, point.y - annotation.center.y)
-    return distance <= annotation.radius
-  }
-  return false
-}
-
-const isPointInPolygon = (point: { x: number; y: number }, points: { x: number; y: number }[]): boolean => {
-  let inside = false
-  for (let i = 0, j = points.length - 1; i < points.length; j = i++) {
-    const xi = points[i].x, yi = points[i].y
-    const xj = points[j].x, yj = points[j].y
-    
-    const intersect = ((yi > point.y) !== (yj > point.y))
-        && (point.x < (xj - xi) * (point.y - yi) / (yj - yi) + xi)
-    if (intersect) inside = !inside
-  }
-  return inside
-}
-
-const updateAnnotationToolsPosition = (point: { x: number; y: number }) => {
-  if (!canvas.value) return
-  const rect = canvas.value.getBoundingClientRect()
-  annotationToolsPosition.value = {
-    x: point.x + rect.left - 60,
-    y: point.y + rect.top - 40
-  }
-}
-
-const showClassSelectorPopup = (annotation: CanvasAnnotation, position: { x: number; y: number }) => {
-  if (!canvas.value) return
-  
+const onShowClassSelector = (annotation: CanvasAnnotation, position: { x: number; y: number }) => {
   pendingAnnotation.value = annotation
-  const rect = canvas.value.getBoundingClientRect()
-  
-  // Position the popup near the mouse but ensure it stays within viewport
-  const popupWidth = 200 // Estimated popup width
-  const popupHeight = 150 // Estimated popup height
-  
-  let x = position.x + rect.left + 10
-  let y = position.y + rect.top - 10
-  
-  // Adjust if popup would go off screen
-  if (x + popupWidth > window.innerWidth) {
-    x = position.x + rect.left - popupWidth - 10
-  }
-  if (y + popupHeight > window.innerHeight) {
-    y = position.y + rect.top - popupHeight + 10
-  }
-  
-  classSelectorPosition.value = { x, y }
+  classSelectorPosition.value = position
   showClassSelector.value = true
 }
 
 const selectAnnotationClass = (className: string) => {
   if (!pendingAnnotation.value) return
-  
+
   // Remember the last selected class
   lastSelectedClass.value = className
-  
+
   // Add the class to the annotation
   pendingAnnotation.value.className = className
-  
-  // Add the annotation to the canvas
-  canvasAnnotations.value.push(pendingAnnotation.value)
-  
+
+  // Complete the annotation
+  if (konvaCanvas.value) {
+    konvaCanvas.value.finalizeAnnotation(className)
+  }
+
   // Clean up
   pendingAnnotation.value = null
   showClassSelector.value = false
-  
-  // Redraw canvas
-  redrawCanvas()
 }
 
 const cancelClassSelection = () => {
   // Don't add the annotation if cancelled
   pendingAnnotation.value = null
   showClassSelector.value = false
-  
-  // Redraw canvas to remove any preview
-  redrawCanvas()
-}
 
-const completeRectangle = (endPoint: { x: number; y: number }) => {
-  if (!startPoint.value) return
-  
-  const newAnnotation: CanvasAnnotation = {
-    type: 'rectangle',
-    startPoint: { ...startPoint.value },
-    width: endPoint.x - startPoint.value.x,
-    height: endPoint.y - startPoint.value.y
+  // Cancel the current annotation in Konva
+  if (konvaCanvas.value) {
+    konvaCanvas.value.cancelCurrentAnnotation()
   }
-  
-  // Show class selector if classes are available
-  if (projectData.value?.labelConfig?.classes?.length) {
-    showClassSelectorPopup(newAnnotation, endPoint)
-  } else {
-    // Add annotation without class if no classes available
-    canvasAnnotations.value.push(newAnnotation)
-    redrawCanvas()
-  }
-  
-  isAnnotating.value = false
-  startPoint.value = null
-}
-
-const completePolygon = () => {
-  if (currentPath.value.length < 3) return
-  
-  const newAnnotation: CanvasAnnotation = {
-    type: 'polygon',
-    points: [...currentPath.value]
-  }
-  
-  // Show class selector if classes are available
-  if (projectData.value?.labelConfig?.classes?.length) {
-    // Use the center of the polygon for popup position
-    const centerX = currentPath.value.reduce((sum, p) => sum + p.x, 0) / currentPath.value.length
-    const centerY = currentPath.value.reduce((sum, p) => sum + p.y, 0) / currentPath.value.length
-    showClassSelectorPopup(newAnnotation, { x: centerX, y: centerY })
-  } else {
-    // Add annotation without class if no classes available
-    canvasAnnotations.value.push(newAnnotation)
-    redrawCanvas()
-  }
-  
-  isAnnotating.value = false
-  currentPath.value = []
 }
 
 const completeAnnotation = () => {
-  if (!isAnnotating.value) return
-  
-  if (currentTool.value === 'rectangle' && startPoint.value) {
-    completeRectangle(mousePosition.value)
-  } else if (currentTool.value === 'polygon' && currentPath.value.length > 2) {
-    completePolygon()
+  if (konvaCanvas.value) {
+    konvaCanvas.value.completeCurrentAnnotation(lastSelectedClass.value)
   }
 }
 
 const cancelAnnotation = () => {
-  isAnnotating.value = false
-  startPoint.value = null
-  currentPath.value = []
-  clickedAnnotation.value = null
-  redrawCanvas()
-}
-
-const deleteAnnotation = (index: number) => {
-  canvasAnnotations.value.splice(index, 1)
-  clickedAnnotation.value = null
-  redrawCanvas()
-}
-
-const startEditing = (index: number) => {
-  selectedAnnotation.value = index
-  const annotation = canvasAnnotations.value[index]
-  
-  if (annotation.type === 'rectangle' && annotation.startPoint) {
-    isAnnotating.value = true
-    currentTool.value = 'rectangle'
-    startPoint.value = { ...annotation.startPoint }
-  } else if (annotation.type === 'polygon' && annotation.points) {
-    isAnnotating.value = true
-    currentTool.value = 'polygon'
-    currentPath.value = [...annotation.points]
-  } else if (annotation.type === 'dot' && annotation.center) {
-    // For dots, we can just enable drag mode instead of editing mode
-    isDragging.value = true
-    selectedAnnotation.value = index
-    dragStartPosition.value = mousePosition.value
-    clickedAnnotation.value = null
-    return
+  if (konvaCanvas.value) {
+    konvaCanvas.value.cancelCurrentAnnotation()
   }
-  
-  canvasAnnotations.value.splice(index, 1)
-  clickedAnnotation.value = null
 }
 
-const toggleDragMode = (index: number) => {
-  isDragging.value = true
-  selectedAnnotation.value = index
-  dragStartPosition.value = mousePosition.value
-  clickedAnnotation.value = null
+// Enhanced toolbar methods
+const zoomIn = () => {
+  if (konvaCanvas.value && konvaCanvas.value.getImageScale) {
+    const currentScale = konvaCanvas.value.getImageScale()
+    const newScale = Math.min(currentScale * 1.2, 3)
+    // Implement zoom functionality in KonvaAnnotationCanvas
+    console.log('Zoom in to:', newScale)
+  }
 }
 
-const redrawCanvas = () => {
-  if (!canvas.value || !ctx.value || !backgroundImage.value) return
-  
-  // Clear canvas
-  ctx.value.clearRect(0, 0, canvas.value.width, canvas.value.height)
-  
-  // Draw cached background image immediately
-  ctx.value.drawImage(backgroundImage.value, 0, 0)
-  
-  // Draw annotations
-  drawExistingAnnotations()
-  drawCurrentAnnotation()
+const zoomOut = () => {
+  if (konvaCanvas.value && konvaCanvas.value.getImageScale) {
+    const currentScale = konvaCanvas.value.getImageScale()
+    const newScale = Math.max(currentScale / 1.2, 0.1)
+    // Implement zoom functionality in KonvaAnnotationCanvas
+    console.log('Zoom out to:', newScale)
+  }
 }
 
-const drawExistingAnnotations = () => {
-  if (!ctx.value) return
-  
-  ctx.value.strokeStyle = '#00ff00'
-  ctx.value.lineWidth = 2
-  canvasAnnotations.value.forEach((annotation, index) => {
-    const isSelected = index === selectedAnnotation.value
-    
-    ctx.value!.beginPath()
-    if (annotation.type === 'rectangle' && annotation.startPoint && annotation.width && annotation.height) {
-      ctx.value!.strokeRect(
-        annotation.startPoint.x,
-        annotation.startPoint.y,
-        annotation.width,
-        annotation.height
-      )
-      
-      // Draw class name if available
-      if (annotation.className) {
-        ctx.value!.fillStyle = isSelected ? '#ff0000' : '#00ff00'
-        ctx.value!.font = '12px Arial'
-        ctx.value!.fillText(
-          annotation.className,
-          annotation.startPoint.x,
-          annotation.startPoint.y - 5
-        )
+const resetZoom = () => {
+  // Reset zoom to original scale
+  console.log('Reset zoom')
+}
+
+const fitToScreen = () => {
+  // Fit image to screen
+  console.log('Fit to screen')
+}
+
+const addToHistory = () => {
+  const currentState = JSON.parse(JSON.stringify(canvasAnnotations.value))
+  annotationHistory.value = annotationHistory.value.slice(0, historyIndex.value + 1)
+  annotationHistory.value.push(currentState)
+  historyIndex.value = annotationHistory.value.length - 1
+}
+
+const undo = () => {
+  if (historyIndex.value > 0) {
+    historyIndex.value--
+    canvasAnnotations.value = JSON.parse(JSON.stringify(annotationHistory.value[historyIndex.value]))
+  }
+}
+
+const redo = () => {
+  if (historyIndex.value < annotationHistory.value.length - 1) {
+    historyIndex.value++
+    canvasAnnotations.value = JSON.parse(JSON.stringify(annotationHistory.value[historyIndex.value]))
+  }
+}
+
+const deleteSelectedAnnotation = () => {
+  if (selectedAnnotationIndex.value !== null) {
+    addToHistory()
+    canvasAnnotations.value.splice(selectedAnnotationIndex.value, 1)
+    selectedAnnotationIndex.value = null
+  }
+}
+
+const duplicateSelectedAnnotation = () => {
+  if (selectedAnnotationIndex.value !== null) {
+    const annotation = canvasAnnotations.value[selectedAnnotationIndex.value]
+    if (annotation) {
+      addToHistory()
+      const duplicated = JSON.parse(JSON.stringify(annotation))
+      // Offset the duplicated annotation
+      if (duplicated.startPoint) {
+        duplicated.startPoint.x += 20
+        duplicated.startPoint.y += 20
+      } else if (duplicated.center) {
+        duplicated.center.x += 20
+        duplicated.center.y += 20
+      } else if (duplicated.points) {
+        duplicated.points = duplicated.points.map((p: { x: number; y: number }) => ({
+          x: p.x + 20,
+          y: p.y + 20
+        }))
       }
-    } else if (annotation.type === 'polygon' && annotation.points) {
-      ctx.value!.moveTo(annotation.points[0].x, annotation.points[0].y)
-      annotation.points.forEach(point => {
-        ctx.value!.lineTo(point.x, point.y)
-      })
-      ctx.value!.closePath()
-      
-      // Draw class name if available
-      if (annotation.className && annotation.points.length > 0) {
-        const centerX = annotation.points.reduce((sum, p) => sum + p.x, 0) / annotation.points.length
-        const centerY = annotation.points.reduce((sum, p) => sum + p.y, 0) / annotation.points.length
-        ctx.value!.fillStyle = isSelected ? '#ff0000' : '#00ff00'
-        ctx.value!.font = '12px Arial'
-        ctx.value!.fillText(annotation.className, centerX, centerY - 5)
-      }
-    } else if (annotation.type === 'dot' && annotation.center && annotation.radius) {
-      ctx.value!.arc(annotation.center.x, annotation.center.y, annotation.radius, 0, 2 * Math.PI)
-      ctx.value!.fillStyle = isSelected ? 'rgba(255, 0, 0, 0.3)' : 'rgba(0, 255, 0, 0.3)'
-      ctx.value!.fill()
-      
-      // Draw class name if available
-      if (annotation.className) {
-        ctx.value!.fillStyle = isSelected ? '#ff0000' : '#00ff00'
-        ctx.value!.font = '12px Arial'
-        ctx.value!.fillText(
-          annotation.className,
-          annotation.center.x + annotation.radius + 5,
-          annotation.center.y - 5
-        )
-      }
+      canvasAnnotations.value.push(duplicated)
     }
-    
-    ctx.value!.strokeStyle = isSelected ? '#ff0000' : '#00ff00'
-    ctx.value!.lineWidth = isSelected ? 3 : 2
-    ctx.value!.stroke()
-  })
-}
-
-const drawCurrentAnnotation = () => {
-  if (!ctx.value || !isAnnotating.value) return
-  
-  ctx.value.beginPath()
-  ctx.value.strokeStyle = '#ff0000'
-  ctx.value.lineWidth = 2
-
-  if (currentTool.value === 'rectangle' && startPoint.value) {
-    const width = mousePosition.value.x - startPoint.value.x
-    const height = mousePosition.value.y - startPoint.value.y
-    ctx.value.strokeRect(
-      startPoint.value.x,
-      startPoint.value.y,
-      width,
-      height
-    )
-  } else if (currentTool.value === 'polygon' && currentPath.value.length > 0) {
-    ctx.value.moveTo(currentPath.value[0].x, currentPath.value[0].y)
-    currentPath.value.forEach(point => {
-      ctx.value!.lineTo(point.x, point.y)
-    })
-    ctx.value.lineTo(mousePosition.value.x, mousePosition.value.y)
-    ctx.value.stroke()
-
-    // Draw points
-    currentPath.value.forEach((point, index) => {
-      ctx.value!.beginPath()
-      ctx.value!.fillStyle = index === 0 ? '#00ff00' : '#ffffff'
-      ctx.value!.arc(point.x, point.y, 4, 0, Math.PI * 2)
-      ctx.value!.fill()
-      ctx.value!.stroke()
-    })
   }
 }
+
+const clearAllAnnotations = () => {
+  if (canvasAnnotations.value.length > 0) {
+    addToHistory()
+    canvasAnnotations.value = []
+  }
+
+  // Also clear any pending annotations and reset canvas state
+  if (konvaCanvas.value) {
+    konvaCanvas.value.cancelCurrentAnnotation()
+  }
+
+  // Clear any pending annotation state
+  pendingAnnotation.value = null
+  showClassSelector.value = false
+  selectedAnnotationIndex.value = null
+}
+
+const exportAnnotations = () => {
+  const dataStr = JSON.stringify(canvasAnnotations.value, null, 2)
+  const dataBlob = new Blob([dataStr], { type: 'application/json' })
+  const url = URL.createObjectURL(dataBlob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `annotations-task-${taskId}.json`
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -1198,15 +869,6 @@ definePageMeta({
   layout: false
 })
 
-// Watchers
-watch(taskData, (newTaskData) => {
-  if (newTaskData && isImageTask.value) {
-    nextTick(() => {
-      initializeCanvas()
-    })
-  }
-}, { immediate: true })
-
 // Keyboard event handler
 const handleKeyDown = (event: KeyboardEvent) => {
   if (event.key === 'Escape') {
@@ -1220,8 +882,10 @@ const handleKeyDown = (event: KeyboardEvent) => {
     const numKey = parseInt(event.key)
     if (numKey >= 1 && numKey <= projectData.value.labelConfig.classes.length && numKey <= 9) {
       const className = projectData.value.labelConfig.classes[numKey - 1]
-      selectAnnotationClass(className)
-      event.preventDefault()
+      if (className) {
+        selectAnnotationClass(className)
+        event.preventDefault()
+      }
     }
     // Handle Enter key for last selected class
     else if (event.key === 'Enter' && lastSelectedClass.value) {
@@ -1244,52 +908,109 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleKeyDown)
 })
 
+// ❌ DELETE your current saveAnnotation method.
+
+// ✅ ADD this final, correct version.
 const saveAnnotation = async () => {
   if (!taskData.value || canvasAnnotations.value.length === 0) {
-    console.warn('No annotations to save')
-    return
+    console.warn('No annotations to save');
+    return;
+  }
+
+  if (!konvaCanvas.value) {
+    console.error('Konva canvas is not ready. Cannot save.');
+    return;
   }
 
   try {
-    savingAnnotation.value = true
-    
-    if (!token.value) {
-      throw new Error('Authentication required')
-    }    const annotationData = {
-      annotations: canvasAnnotations.value.map(annotation => ({
-        ...annotation,
-        // Include class information in the saved data
-        class: annotation.className
-      }))
+    savingAnnotation.value = true;
+
+    if (!token.value) throw new Error('Authentication required');
+
+    // Get all necessary info and functions from the Konva component
+    const convertToOriginal = konvaCanvas.value.convertToOriginal;
+    const imageScale = konvaCanvas.value.getImageScale();
+
+    if (!convertToOriginal || imageScale <= 0) {
+      throw new Error('Invalid conversion functions or scaling information from canvas component.');
     }
+
+    const annotationData = {
+      annotations: canvasAnnotations.value.map((ann) => {
+        const converted: any = { type: ann.type, className: ann.className };
+
+        // Get the conversion function and imageScale from the child component
+        const convertToOriginal = konvaCanvas.value.convertToOriginal;
+        const imageScale = konvaCanvas.value.getImageScale();
+
+        if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
+          // For rectangles: Define the two opposite corners in raw canvas space
+          const topLeft = ann.startPoint;
+          const bottomRight = {
+            x: ann.startPoint.x + ann.width,
+            y: ann.startPoint.y + ann.height
+          };
+
+          // Convert both corner points using convertToOriginal
+          const convertedTopLeft = convertToOriginal(topLeft);
+          const convertedBottomRight = convertToOriginal(bottomRight);
+
+          // Calculate the final, correct top-left startPoint, positive width and height
+          converted.startPoint = {
+            x: Math.min(convertedTopLeft.x, convertedBottomRight.x),
+            y: Math.min(convertedTopLeft.y, convertedBottomRight.y)
+          };
+          converted.width = Math.abs(convertedBottomRight.x - convertedTopLeft.x);
+          converted.height = Math.abs(convertedBottomRight.y - convertedTopLeft.y);
+
+        } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
+          // For polygons and freehand: Convert each point
+          converted.points = ann.points.map(p => convertToOriginal(p));
+
+        } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
+          // For lines: Convert both endpoints
+          converted.startPoint = convertToOriginal(ann.startPoint);
+          converted.endPoint = convertToOriginal(ann.endPoint);
+
+        } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center && ann.radius) {
+          // For circles and dots: Convert center and scale radius
+          converted.center = convertToOriginal(ann.center);
+          // Convert radius by dividing by imageScale (raw radius is in canvas units)
+          converted.radius = ann.radius / imageScale;
+        }
+
+        return converted;
+      })
+    };
+
+    const savePayload = {
+      taskId: parseInt(taskId),
+      projectId: taskData.value.projectId,
+      annotationData,
+      metadata: {
+        timestamp: Date.now(),
+        canvasSize: {
+          width: konvaCanvas.value.getDisplayImageSize().width,
+          height: konvaCanvas.value.getDisplayImageSize().height
+        }
+      }
+    };
 
     await $fetch(`http://localhost:8787/api/annotations`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`
-      },
-      body: {
-        taskId: parseInt(taskId),
-        projectId: taskData.value.projectId,
-        annotationData
-      }
-    })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token.value}` },
+      body: savePayload
+    });
 
-    // Refresh annotations after saving
-    await fetchAnnotations()
-    
-    // Show success message or notification here if needed
-    console.log('Annotation saved successfully')
-    
+    await fetchAnnotations();
+    canvasAnnotations.value = []; // Clear annotations after saving
+
   } catch (err) {
-    console.error('Error saving annotation:', err)
-    // Handle error - show notification or error message
-    throw err
+    console.error('Error saving annotation:', err);
   } finally {
-    savingAnnotation.value = false
+    savingAnnotation.value = false;
   }
-}
+};
 
 const saveAndNext = async () => {
   if (!taskData.value?.nextTaskId) {
@@ -1299,16 +1020,16 @@ const saveAndNext = async () => {
 
   try {
     savingAndNext.value = true
-    
+
     // Save annotation only if there are annotations to save
     if (canvasAnnotations.value.length > 0) {
       await saveAnnotation()
     }
-    
+
     // Navigate to the next task
     const router = useRouter()
     router.push(`/annotate/${taskData.value.nextTaskId}`)
-    
+
   } catch (err) {
     console.error('Error saving annotation and moving to next task:', err)
     // Handle error - show notification or error message
@@ -1318,30 +1039,91 @@ const saveAndNext = async () => {
 }
 
 const applyAnnotation = (annotation: Annotation) => {
-  if (!isImageTask.value || !canvas.value || !ctx.value) {
-    console.warn('Cannot apply annotation: not an image task or canvas not ready')
-    return
+  if (!isImageTask.value || !konvaCanvas.value) {
+    console.warn('Cannot apply annotation: not an image task or Konva canvas not ready');
+    return;
   }
 
   try {
-    // Clear current canvas annotations
-    canvasAnnotations.value = []
-    
-    // Convert API annotation data to canvas format
-    const convertedAnnotations = convertApiAnnotationToCanvas(annotation.annotationData)
-    
-    // Add converted annotations to canvas
-    canvasAnnotations.value.push(...convertedAnnotations)
-    
-    // Redraw canvas with new annotations
-    redrawCanvas()
-    
-    console.log(`Applied annotation #${annotation.id} with ${convertedAnnotations.length} elements`)
-      } catch (error) {
-    console.error('Error applying annotation:', error)
-    // Could show a toast notification here
+    // Convert the annotation data from the database into the format the canvas expects.
+    const converted = convertApiAnnotationToCanvas(annotation.annotationData);
+
+    // Set the canvasAnnotations array. The Konva component will automatically redraw.
+    canvasAnnotations.value = converted;
+
+    console.log(`Applied annotation #${annotation.id} with ${converted.length} elements`);
+  } catch (error) {
+    console.error('Error applying annotation:', error);
   }
-}
+};
+
+const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] => {
+  if (!annotationData || !konvaCanvas.value) {
+    return [];
+  }
+
+  // Get the conversion functions directly from the Konva component.
+  const originalToDisplay = konvaCanvas.value.convertToDisplay;
+  const imageScale = konvaCanvas.value.getImageScale();
+
+  if (!originalToDisplay || !imageScale) {
+    console.error("Conversion functions not available from canvas component.");
+    return [];
+  }
+
+  const convertedAnnotations: CanvasAnnotation[] = [];
+  const annotationsToProcess = annotationData.annotations || (Array.isArray(annotationData) ? annotationData : [annotationData]);
+
+  for (const ann of annotationsToProcess) {
+    if (ann.type === 'rectangle' && ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
+      // Convert the start point from original to raw canvas coordinates
+      const canvasStartPoint = originalToDisplay(ann.startPoint);
+
+      // Scale the dimensions from original to raw canvas coordinates
+      const canvasWidth = ann.width * imageScale;
+      const canvasHeight = ann.height * imageScale;
+
+      convertedAnnotations.push({
+        type: 'rectangle',
+        startPoint: canvasStartPoint,
+        width: canvasWidth,
+        height: canvasHeight,
+        className: ann.className || ann.class
+      });
+
+    } else if ((ann.type === 'polygon' || ann.type === 'freehand') && ann.points) {
+      convertedAnnotations.push({
+        type: ann.type,
+        points: ann.points.map((p: { x: number; y: number }) => originalToDisplay(p)),
+        className: ann.className || ann.class,
+      });
+
+    } else if (ann.type === 'line' && ann.startPoint && ann.endPoint) {
+      convertedAnnotations.push({
+        type: 'line',
+        startPoint: originalToDisplay(ann.startPoint),
+        endPoint: originalToDisplay(ann.endPoint),
+        className: ann.className || ann.class,
+      });
+
+    } else if ((ann.type === 'circle' || ann.type === 'dot') && ann.center) {
+      // Convert center from original to raw canvas coordinates
+      const canvasCenter = originalToDisplay(ann.center);
+
+      // Scale radius from original to raw canvas coordinates
+      const canvasRadius = (ann.radius || 5) * imageScale;
+
+      convertedAnnotations.push({
+        type: ann.type,
+        center: canvasCenter,
+        radius: canvasRadius,
+        className: ann.className || ann.class,
+      });
+    }
+  }
+
+  return convertedAnnotations;
+};
 
 const deleteAnnotationFromDb = async (annotationId: number) => {
   if (!token.value) {
@@ -1351,7 +1133,7 @@ const deleteAnnotationFromDb = async (annotationId: number) => {
 
   try {
     deletingAnnotation.value = annotationId
-    
+
     await $fetch(`http://localhost:8787/api/annotations/${annotationId}`, {
       method: 'DELETE',
       headers: {
@@ -1361,9 +1143,9 @@ const deleteAnnotationFromDb = async (annotationId: number) => {
 
     // Remove annotation from local state
     annotations.value = annotations.value.filter(annotation => annotation.id !== annotationId)
-    
+
     console.log(`Annotation #${annotationId} deleted successfully`)
-    
+
   } catch (error) {
     console.error('Error deleting annotation:', error)
     // Could show a toast notification here
@@ -1372,107 +1154,19 @@ const deleteAnnotationFromDb = async (annotationId: number) => {
   }
 }
 
-const convertApiAnnotationToCanvas = (annotationData: any): CanvasAnnotation[] => {
-  const canvasAnnotations: CanvasAnnotation[] = []
-  
-  if (!annotationData) {
-    return canvasAnnotations
+
+
+// Watch for annotation changes to add to history
+watch(canvasAnnotations, (newAnnotations) => {
+  if (newAnnotations.length > 0) {
+    addToHistory()
   }
+}, { deep: true })
 
-  try {
-    // Handle different annotation data formats
-    let annotations = []
-    
-    if (annotationData.annotations && Array.isArray(annotationData.annotations)) {
-      // Format: { annotations: [...] }
-      annotations = annotationData.annotations
-    } else if (Array.isArray(annotationData)) {
-      // Format: [...]
-      annotations = annotationData
-    } else if (annotationData.type) {
-      // Format: single annotation object
-      annotations = [annotationData]
-    }
-
-    for (const ann of annotations) {
-      if (ann.type === 'rectangle') {
-        // Rectangle format: { type: 'rectangle', startPoint: {x, y}, width: number, height: number }
-        if (ann.startPoint && typeof ann.width === 'number' && typeof ann.height === 'number') {
-          canvasAnnotations.push({
-            type: 'rectangle',
-            startPoint: { x: ann.startPoint.x, y: ann.startPoint.y },
-            width: ann.width,
-            height: ann.height,
-            className: ann.className || ann.class
-          })
-        }
-        // COCO bbox format: { type: 'rectangle', bbox: [x, y, width, height] }
-        else if (ann.bbox && Array.isArray(ann.bbox) && ann.bbox.length >= 4) {
-          canvasAnnotations.push({
-            type: 'rectangle',
-            startPoint: { x: ann.bbox[0], y: ann.bbox[1] },
-            width: ann.bbox[2],
-            height: ann.bbox[3],
-            className: ann.className || ann.class
-          })
-        }
-      } else if (ann.type === 'polygon') {
-        // Polygon format: { type: 'polygon', points: [{x, y}, ...] }
-        if (ann.points && Array.isArray(ann.points) && ann.points.length >= 3) {
-          canvasAnnotations.push({
-            type: 'polygon',
-            points: ann.points.map((p: { x: number; y: number }) => ({ x: p.x, y: p.y })),
-            className: ann.className || ann.class
-          })
-        }
-        // COCO segmentation format: { type: 'polygon', segmentation: [[x1,y1,x2,y2,...]] }
-        else if (ann.segmentation && Array.isArray(ann.segmentation) && ann.segmentation[0]) {
-          const coords = ann.segmentation[0]
-          const points = []
-          
-          // Convert flat array to points array
-          for (let i = 0; i < coords.length; i += 2) {
-            if (i + 1 < coords.length) {
-              points.push({ x: coords[i], y: coords[i + 1] })
-            }
-          }
-          
-          if (points.length >= 3) {
-            canvasAnnotations.push({
-              type: 'polygon',
-              points: points,
-              className: ann.className || ann.class
-            })
-          }
-        }
-      } else if (ann.type === 'dot') {
-        // Dot format: { type: 'dot', center: {x, y}, radius: number }
-        if (ann.center && typeof ann.radius === 'number') {
-          canvasAnnotations.push({
-            type: 'dot',
-            center: { x: ann.center.x, y: ann.center.y },
-            radius: ann.radius,
-            className: ann.className || ann.class
-          })
-        }
-      }
-      // Handle legacy formats or other types
-      else if (ann.bbox && Array.isArray(ann.bbox)) {
-        // Fallback to bbox if type is not specified
-        canvasAnnotations.push({
-          type: 'rectangle',
-          startPoint: { x: ann.bbox[0], y: ann.bbox[1] },
-          width: ann.bbox[2],
-          height: ann.bbox[3],
-          className: ann.className || ann.class
-        })
-      }
-    }
-    
-  } catch (error) {
-    console.error('Error converting annotation data:', error)
-  }
-
-  return canvasAnnotations
-}
+// Initialize history on component mount
+onMounted(() => {
+  // Initialize with empty state
+  annotationHistory.value = [[]]
+  historyIndex.value = 0
+})
 </script>

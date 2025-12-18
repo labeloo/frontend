@@ -117,8 +117,8 @@ const emit = defineEmits<{
   'section-change': [section: string]
 }>()
 
-// Current active section - default to overview
-const activeSection = ref('overview')
+// Use the global state for section management
+const activeSection = useState('currentSection', () => 'overview')
 
 const handleLogout = () => {
     logout()
@@ -129,4 +129,10 @@ const handleNavClick = (section: string) => {
     activeSection.value = section
     emit('section-change', section)
 }
+
+// Watch for changes in the global state to update the navbar UI
+watch(activeSection, (newSection) => {
+    // The navbar UI will automatically update because activeSection is reactive
+    console.log('Navbar: Active section changed to:', newSection)
+}, { immediate: true })
 </script>

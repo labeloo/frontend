@@ -2,8 +2,8 @@
   <div>
     <div class="flex items-center justify-between mb-6">
       <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Project Tasks</h2>
-      <UButton color="primary">
-        <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
+      <UButton color="secondary" class="cursor-pointer">
+        <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2 " />
         Create Task
       </UButton>
     </div>

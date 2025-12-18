@@ -29,5 +29,23 @@ export default defineNuxtConfig({
 				],
 			},
 		},
+		define: {
+			global: 'globalThis',
+		},
+		optimizeDeps: {
+			include: ['vue-konva', 'konva'],
+			exclude: []
+		},
+		ssr: {
+			external: ['konva', 'canvas']
+		}
 	},
+	build: {
+		transpile: ['vue-konva']
+	},
+	nitro: {
+		experimental: {
+			wasm: true
+		}
+	}
 });

@@ -15,7 +15,7 @@
 
 <script setup lang="ts">
 // Use a global reactive state for section management
-const currentSection = useState('currentProjectSection', () => 'users')
+const currentSection = useState('currentProjectSection', () => 'annotate')
 
 const handleSectionChange = (section: string) => {
   currentSection.value = section

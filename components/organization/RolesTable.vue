@@ -14,6 +14,7 @@ import { watch } from 'vue';
 interface Role {
     name: string;
     description: string;
+    icon?: string;
     permissionFlags: Record<string, boolean>;
     // Using Record to handle additional API fields
     [key: string]: string | boolean | Record<string, boolean> | undefined;
@@ -118,7 +119,14 @@ await fetchRoles();
                     <!-- Role row for each role -->
                     <tr v-for="role in rolesData" :key="role.name" class="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                            {{ role.name }}
+                            <div class="flex items-center">
+                                <div class="p-2 bg-primary/10 rounded-lg mr-3">
+                                    <UIcon :name="role.icon || 'i-heroicons-user-group'" class="w-4 h-4 text-primary" />
+                                </div>
+                                <div>
+                                    <div class="font-medium">{{ role.name }}</div>
+                                </div>
+                            </div>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             {{ role.description }}
