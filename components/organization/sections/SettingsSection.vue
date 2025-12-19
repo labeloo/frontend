@@ -427,6 +427,202 @@
             </div>
           </div>        </div>
 
+        <!-- Backend Connections -->
+        <div v-else-if="activeSection === 'backend'" class="bg-white dark:bg-gray-800 rounded-lg shadow">
+          <div class="p-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Backend Connections</h3>
+            
+            <!-- Model Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+               <UModal 
+                 v-for="type in backendTypes"
+                 :key="type.id"
+                 v-model="modalStates[type.id]"
+               >
+                 <div 
+                   class="border rounded-lg p-4 cursor-pointer hover:border-primary-500 transition-colors relative group"
+                   :class="getConnection(type.id) ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'"
+                   @click="openModelConfig(type.id)"
+                 >
+                    <div class="flex items-start justify-between">
+                      <div class="flex items-center space-x-3">
+                        <div class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+                           <UIcon name="i-heroicons-cpu-chip" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div>
+                          <h4 class="font-medium text-gray-900 dark:text-white">{{ type.name }}</h4>
+                          <p class="text-xs text-gray-500 dark:text-gray-400">Configure {{ type.name }} connection</p>
+                        </div>
+                      </div>
+                      <div v-if="getConnection(type.id)" class="flex items-center text-green-600 dark:text-green-400 text-xs font-medium">
+                        <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-1" />
+                        Connected
+                      </div>
+                    </div>
+                 </div>
+
+                 <template #content>
+                    <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+                      <template #header>
+                        <div class="flex items-center justify-between">
+                          <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                            Configure {{ type.name }}
+                          </h3>
+                          <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[type.id] = false" />
+                        </div>
+                      </template>
+
+                      <div class="space-y-4">
+                          <UFormGroup label="Endpoint URL">
+                            <UInput
+                              v-model="newConnection.endpoint"
+                              placeholder="https://api.example.com"
+                            />
+                          </UFormGroup>
+
+                          <UFormGroup label="API Key">
+                            <UInput
+                              v-model="newConnection.apiKey"
+                              type="password"
+                              placeholder="sk-..."
+                              icon="i-heroicons-key"
+                            />
+                          </UFormGroup>
+                          
+                          <div v-if="testResult" class="text-sm" :class="testResult.success ? 'text-green-600' : 'text-red-600'">
+                            <div class="flex items-center">
+                              <UIcon :name="testResult.success ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'" class="w-4 h-4 mr-1" />
+                              {{ testResult.message }}
+                            </div>
+                          </div>
+                      </div>
+
+                      <template #footer>
+                        <div class="flex justify-end space-x-3">
+                          <UButton color="gray" variant="ghost" @click="modalStates[type.id] = false">Cancel</UButton>
+                          <UButton
+                            color="tertiary"
+                            variant="ghost"
+                            @click="testConnection"
+                            :loading="testingConnection"
+                            :disabled="!newConnection.endpoint"
+                          >
+                            Test Connection
+                          </UButton>
+                          <UButton
+                            color="primary"
+                            @click="saveConnection"
+                            :disabled="!connectionVerified"
+                          >
+                            {{ getConnection(type.id) ? 'Update' : 'Connect' }}
+                          </UButton>
+                        </div>
+                      </template>
+                    </UCard>
+                 </template>
+               </UModal>
+            </div>
+
+            <!-- Existing Connections List -->
+            <div class="space-y-4" v-if="backendConnections.length > 0">
+              <h4 class="text-sm font-medium text-gray-900 dark:text-white">Active Connections</h4>
+              
+              <div v-for="(conn, index) in backendConnections" :key="index" class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
+                <div class="flex items-center space-x-4">
+                  <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                    <UIcon name="i-heroicons-server" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <h5 class="text-sm font-medium text-gray-900 dark:text-white uppercase">{{ conn.backendTypeName }}</h5>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ conn.baseUrl }}</p>
+                  </div>
+                </div>
+                
+                <div class="flex items-center space-x-3">
+                  <UToggle v-model="conn.isActive" @change="toggleConnection(conn)" />
+                  
+                  <UModal v-model="modalStates[conn.backendId]">
+                    <UButton
+                      color="gray"
+                      variant="ghost"
+                      icon="i-heroicons-pencil-square"
+                      size="sm"
+                      @click="openModelConfig(conn.backendId)"
+                    />
+                    <template #content>
+                      <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
+                        <template #header>
+                          <div class="flex items-center justify-between">
+                            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
+                              Configure {{ conn.backendTypeName }}
+                            </h3>
+                            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[conn.backendId] = false" />
+                          </div>
+                        </template>
+
+                        <div class="space-y-4">
+                            <UFormGroup label="Endpoint URL">
+                              <UInput
+                                v-model="newConnection.endpoint"
+                                placeholder="https://api.example.com"
+                              />
+                            </UFormGroup>
+
+                            <UFormGroup label="API Key">
+                              <UInput
+                                v-model="newConnection.apiKey"
+                                type="password"
+                                placeholder="sk-..."
+                                icon="i-heroicons-key"
+                              />
+                            </UFormGroup>
+                            
+                            <div v-if="testResult" class="text-sm" :class="testResult.success ? 'text-green-600' : 'text-red-600'">
+                              <div class="flex items-center">
+                                <UIcon :name="testResult.success ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'" class="w-4 h-4 mr-1" />
+                                {{ testResult.message }}
+                              </div>
+                            </div>
+                        </div>
+
+                        <template #footer>
+                          <div class="flex justify-end space-x-3">
+                            <UButton color="gray" variant="ghost" @click="modalStates[conn.backendId] = false">Cancel</UButton>
+                            <UButton
+                              color="tertiary"
+                              variant="ghost"
+                              @click="testConnection"
+                              :loading="testingConnection"
+                              :disabled="!newConnection.endpoint"
+                            >
+                              Test Connection
+                            </UButton>
+                            <UButton
+                              color="primary"
+                              @click="saveConnection"
+                              :disabled="!connectionVerified"
+                            >
+                              Update
+                            </UButton>
+                          </div>
+                        </template>
+                      </UCard>
+                    </template>
+                  </UModal>
+
+                  <UButton
+                    color="warning"
+                    variant="ghost"
+                    icon="i-heroicons-trash"
+                    size="sm"
+                    @click="removeConnection(index)"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Danger Zone -->
         <div v-else-if="activeSection === 'danger'" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
           <div class="p-6">
@@ -520,6 +716,8 @@
           </div>        </div>
       </div>
     </div>
+
+
   </div>
 </template>
 
@@ -567,6 +765,26 @@ interface Props {
   organization: Organization | null
 }
 
+interface BackendType {
+  id: string
+  name: string
+  isActive: boolean
+}
+
+interface BackendConnection {
+  id: number
+  organizationId: number
+  backendId: string
+  backendTypeName: string
+  baseUrl: string
+  apiKey?: string
+  isActive: boolean
+  createdAt: number
+  updatedAt: number
+  // UI specific fields
+  status?: 'verified' | 'unverified'
+}
+
 const props = defineProps<Props>()
 const emit = defineEmits<{
   refresh: []
@@ -579,6 +797,45 @@ const saved = ref(false)
 const deleting = ref(false)
 const showDeleteConfirm = ref(false)
 const deleteConfirmation = ref('')
+
+// Backend Connections State
+const backendTypes = ref<BackendType[]>([])
+const backendConnections = ref<BackendConnection[]>([])
+const newConnection = ref({
+  name: 'sam2',
+  endpoint: '',
+  apiKey: ''
+})
+const testingConnection = ref(false)
+const connectionVerified = ref(false)
+const testResult = ref<{ success: boolean; message: string } | null>(null)
+const modalStates = ref<Record<string, boolean>>({})
+const selectedModel = ref('')
+
+onMounted(() => {
+  fetchBackendTypes()
+  fetchBackendConnections()
+})
+
+const getConnection = (name: string) => {
+  return backendConnections.value.find(c => c.backendId === name)
+}
+
+const openModelConfig = (modelName: string) => {
+  console.log('Opening config for:', modelName)
+  selectedModel.value = modelName
+  const existing = getConnection(modelName)
+  
+  newConnection.value = {
+    name: modelName,
+    endpoint: existing ? existing.baseUrl : '',
+    apiKey: existing ? existing.apiKey || '' : ''
+  }
+  
+  testResult.value = null
+  connectionVerified.value = false 
+  modalStates.value[modelName] = true
+}
 
 // Form state for editing
 const formData = ref({
@@ -639,6 +896,7 @@ watch(() => props.organization, (newOrg) => {
 // Setting sections
 const settingSections = [
   { key: 'general', label: 'General', icon: 'i-heroicons-building-office', disabled: false },
+  { key: 'backend', label: 'Backend Connections', icon: 'i-heroicons-server', disabled: false },
   { key: 'security', label: 'Security', icon: 'i-heroicons-shield-check', disabled: true },
   { key: 'notifications', label: 'Notifications', icon: 'i-heroicons-bell', disabled: true },
   { key: 'danger', label: 'Danger Zone', icon: 'i-heroicons-exclamation-triangle', disabled: false }
@@ -799,6 +1057,236 @@ const saveNotificationSettings = async () => {
     console.error('Error saving notification settings:', error)
   } finally {
     saving.value = false
+  }
+}
+
+const testConnection = async () => {
+  if (!newConnection.value.endpoint) return
+  
+  testingConnection.value = true
+  testResult.value = null
+  connectionVerified.value = false
+  
+  try {
+    // Ensure endpoint has protocol
+    let endpoint = newConnection.value.endpoint.trim()
+    if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
+      endpoint = `https://${endpoint}`
+    }
+    
+    // Remove trailing slash if present
+    if (endpoint.endsWith('/')) {
+      endpoint = endpoint.slice(0, -1)
+    }
+
+    // Update the input with the sanitized value
+    newConnection.value.endpoint = endpoint
+
+    const response = await $fetch<{ success: boolean; name: string }>(`${endpoint}/health`, {
+      method: 'GET',
+      timeout: 5000
+    })
+
+    if (response.success) {
+      testResult.value = {
+        success: true,
+        message: `Successfully connected to ${response.name || newConnection.value.name}`
+      }
+      connectionVerified.value = true
+      // Update the name to match what the server returned if needed, or just verify it matches
+      if (response.name && response.name !== newConnection.value.name) {
+        testResult.value.message += ` (Note: Server identified as ${response.name})`
+      }
+    } else {
+      throw new Error('Invalid response from server')
+    }
+  } catch (error: any) {
+    console.error('Connection test failed:', error)
+    testResult.value = {
+      success: false,
+      message: `Connection failed: ${error.message || 'Unknown error'}`
+    }
+    connectionVerified.value = false
+  } finally {
+    testingConnection.value = false
+  }
+}
+
+// API Methods for Backend Connections
+const fetchBackendTypes = async () => {
+  try {
+    const response = await $fetch<{ data: BackendType[] }>('http://localhost:8787/api/backendRelations/types', {
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'orgId': props.organization?.organizations?.id.toString() || ''
+      }
+    })
+    backendTypes.value = response.data
+    // Initialize modal states
+    response.data.forEach(type => {
+      modalStates.value[type.id] = false
+    })
+  } catch (error) {
+    console.error('Error fetching backend types:', error)
+  }
+}
+
+const fetchBackendConnections = async () => {
+  try {
+    const response = await $fetch<{ data: BackendConnection[] }>('http://localhost:8787/api/backendRelations', {
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'orgId': props.organization?.organizations?.id.toString() || ''
+      }
+    })
+    backendConnections.value = response.data.map(conn => ({
+      ...conn,
+      status: 'verified' // Assume fetched connections are verified
+    }))
+    // Initialize modal states for connections
+    response.data.forEach(conn => {
+      modalStates.value[conn.backendId] = false
+    })
+  } catch (error) {
+    console.error('Error fetching backend connections:', error)
+  }
+}
+
+const saveConnection = async () => {
+  if (!connectionVerified.value) return
+  
+  saving.value = true
+  try {
+    const existing = getConnection(newConnection.value.name)
+    // Find backend type by ID (which matches the name 'sam2', 'sam3' etc)
+    const backendType = backendTypes.value.find(t => t.id === newConnection.value.name)
+    
+    if (!backendType) {
+      throw new Error(`Backend type ${newConnection.value.name} not found`)
+    }
+
+    if (existing) {
+      // Update existing
+      const response = await $fetch<{ data: BackendConnection }>(`http://localhost:8787/api/backendRelations/${existing.id}`, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${token.value}`,
+          'orgId': props.organization?.organizations?.id.toString() || ''
+        },
+        body: {
+          baseUrl: newConnection.value.endpoint,
+          apiKey: newConnection.value.apiKey,
+          isActive: true
+        }
+      })
+      
+      // Update local state
+      const index = backendConnections.value.findIndex(c => c.id === existing.id)
+      if (index !== -1) {
+        backendConnections.value[index] = { ...response.data, status: 'verified' }
+      }
+    } else {
+      // Create new
+      const response = await $fetch<{ data: BackendConnection }>('http://localhost:8787/api/backendRelations', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token.value}`,
+          'orgId': props.organization?.organizations?.id.toString() || ''
+        },
+        body: {
+          backendId: backendType.id,
+          baseUrl: newConnection.value.endpoint,
+          apiKey: newConnection.value.apiKey,
+          isActive: true
+        }
+      })
+      
+      backendConnections.value.push({ ...response.data, status: 'verified' })
+    }
+
+    if (selectedModel.value) {
+      modalStates.value[selectedModel.value] = false
+    }
+    
+    const toast = useToast()
+    toast.add({
+      title: 'Connection saved',
+      description: `Backend connection for ${newConnection.value.name} has been saved successfully.`,
+      color: 'success',
+      icon: 'i-heroicons-check-circle'
+    })
+  } catch (error: any) {
+    console.error('Error saving connection:', error)
+    const toast = useToast()
+    toast.add({
+      title: 'Failed to save connection',
+      description: error.message || 'An error occurred while saving the connection.',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+const removeConnection = async (index: number) => {
+  const conn = backendConnections.value[index]
+  if (!conn) return
+
+  try {
+    await $fetch(`http://localhost:8787/api/backendRelations/${conn.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'orgId': props.organization?.organizations?.id.toString() || ''
+      }
+    })
+    
+    backendConnections.value.splice(index, 1)
+    
+    const toast = useToast()
+    toast.add({
+      title: 'Connection removed',
+      description: 'Backend connection has been removed successfully.',
+      color: 'success',
+      icon: 'i-heroicons-check-circle'
+    })
+  } catch (error: any) {
+    console.error('Error removing connection:', error)
+    const toast = useToast()
+    toast.add({
+      title: 'Failed to remove connection',
+      description: error.message || 'An error occurred while removing the connection.',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
+  }
+}
+
+const toggleConnection = async (conn: BackendConnection) => {
+  try {
+    await $fetch(`http://localhost:8787/api/backendRelations/${conn.id}`, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${token.value}`,
+        'orgId': props.organization?.organizations?.id.toString() || ''
+      },
+      body: {
+        isActive: conn.isActive
+      }
+    })
+  } catch (error: any) {
+    console.error('Error toggling connection:', error)
+    // Revert change on error
+    conn.isActive = !conn.isActive
+    
+    const toast = useToast()
+    toast.add({
+      title: 'Failed to update connection',
+      description: error.message || 'An error occurred while updating the connection status.',
+      color: 'error',
+      icon: 'i-heroicons-exclamation-circle'
+    })
   }
 }
 
