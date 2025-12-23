@@ -30,6 +30,7 @@
       @dragstart="handleStageDragStart"
       @dragend="handleStageDragEnd"
       @keydown="handleStageKeyDown"
+      @contextmenu="handleContextMenu"
       tabindex="0"
     >
     <!-- Background layer for image -->
@@ -211,6 +212,60 @@
           :config="getLabelConfig(annotation, index)"
         />
       </template>
+    </v-layer>
+    
+    <!-- Magic Stick Layer -->
+    <v-layer ref="magicLayer" :config="{ visible: props.currentTool === 'magic' }">
+      <v-group 
+        v-for="(point, index) in magicPoints" 
+        :key="`magic-point-${index}`" 
+        :config="{ x: point.x, y: point.y }"
+      >
+        <!-- Main colored dot -->
+        <v-circle
+          :config="{
+            radius: 8,
+            fill: point.polar ? '#22c55e' : '#ef4444',
+            stroke: 'white',
+            strokeWidth: 2,
+            shadowColor: 'black',
+            shadowBlur: 4,
+            shadowOpacity: 0.4,
+            shadowOffset: { x: 1, y: 1 }
+          }"
+        />
+        
+        <!-- Plus icon for include -->
+        <v-group v-if="point.polar">
+          <v-line
+            :config="{
+              points: [-4, 0, 4, 0],
+              stroke: 'white',
+              strokeWidth: 2.5,
+              lineCap: 'round'
+            }"
+          />
+          <v-line
+            :config="{
+              points: [0, -4, 0, 4],
+              stroke: 'white',
+              strokeWidth: 2.5,
+              lineCap: 'round'
+            }"
+          />
+        </v-group>
+        
+        <!-- Minus icon for exclude -->
+        <v-line
+          v-if="!point.polar"
+          :config="{
+            points: [-4, 0, 4, 0],
+            stroke: 'white',
+            strokeWidth: 2.5,
+            lineCap: 'round'
+          }"
+        />
+      </v-group>
     </v-layer>
     
     <!-- Active drawing layer for high-performance real-time drawing (ONLY for temporary shapes) -->
@@ -1294,6 +1349,55 @@ const isPointInImageBounds = (stagePoint: { x: number; y: number }) => {
          canvasPoint.y <= imageOffset.value.y + displayImageSize.value.height
 }
 
+// Magic Stick State
+const magicPoints = ref<{x: number, y: number, polar: boolean}[]>([])
+let magicHoverTimer: any = null
+
+// Placeholder for API calls
+const fetchMagicHover = async (x: number, y: number) => {
+  console.log('Magic Hover Request:', x, y)
+  // TODO: Implement API call
+  // const response = await fetch('/api/sam2/hover', {
+  //   method: 'POST',
+  //   body: JSON.stringify({ x, y })
+  // })
+  // const result = await response.json()
+  
+  // Show preview (e.g. temporary polygon on activeLayer)
+  // renderPreviewPolygon(result.points)
+}
+
+const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
+  console.log('Magic Click Request:', x, y, polar)
+  // TODO: Implement API call
+  // const response = await fetch('/api/sam2/click', {
+  //   method: 'POST',
+  //   body: JSON.stringify({ x, y, polar })
+  // })
+  // const result = await response.json()
+  
+  // Auto-apply annotation (assuming result contains points for a polygon)
+  // const newAnnotation: CanvasAnnotation = {
+  //   type: 'polygon',
+  //   points: result.points.map((p: any) => ({ 
+  //     x: p.x * imageScale.value + imageOffset.value.x, 
+  //     y: p.y * imageScale.value + imageOffset.value.y 
+  //   })),
+  //   className: 'auto-generated' // Or prompt user
+  // }
+  
+  // const newAnnotations = [...props.annotations, newAnnotation]
+  // emit('update:annotations', newAnnotations)
+}
+
+// Watch for tool changes to clear magic points
+watch(() => props.currentTool, (newTool) => {
+  if (newTool !== 'magic') {
+    magicPoints.value = []
+    if (magicHoverTimer) clearTimeout(magicHoverTimer)
+  }
+})
+
 // Use the composables for annotation configuration
 const { createRectangleConfig } = useRectConfig()
 const { createPolygonConfig } = usePolygonConfig()
@@ -1711,6 +1815,38 @@ const handleStageMouseDown = (e: any) => {
     
     return
   }
+
+  // Magic Stick Click Logic
+  if (props.currentTool === 'magic') {
+    const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
+    const mouseCanvasPos = mouseTransform.point(pointer)
+    
+    // Get image-relative coordinates
+    const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
+    const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
+    
+    // Check bounds
+    if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
+        imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
+      
+      const isLeftClick = e.evt.button === 0
+      const isRightClick = e.evt.button === 2
+      
+      if (isLeftClick || isRightClick) {
+        const polar = isLeftClick
+        
+        // Add visual feedback point
+        magicPoints.value.push({
+          x: mouseCanvasPos.x,
+          y: mouseCanvasPos.y,
+          polar
+        })
+        
+        fetchMagicClick(imageRelativeX, imageRelativeY, polar)
+      }
+    }
+    return
+  }
   
   // Don't start drawing if we're potentially about to start dragging
   if (potentialDragStart) {
@@ -1782,6 +1918,7 @@ const handleStageMouseDown = (e: any) => {
         emit('update:isAnnotating', true)
         console.log('🎯 Started polygon with unified imperative approach')
       } else {
+       
         // Check if click is near the first vertex to complete polygon
         if (currentPathImperative.length >= 3 && isNearFirstVertex(canvasPos)) {
           console.log('🎯 Clicked near first vertex, completing polygon')
@@ -1940,6 +2077,23 @@ const handleStageMouseMove = (e: any) => {
   const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
   const mouseCanvasPos = mouseTransform.point(pointer)
   mousePositionImperative = mouseCanvasPos
+
+  // Magic Stick Hover Logic
+  if (props.currentTool === 'magic') {
+    if (magicHoverTimer) clearTimeout(magicHoverTimer)
+    
+    magicHoverTimer = setTimeout(() => {
+      // Get image-relative coordinates
+      const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
+      const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
+      
+      // Check bounds
+      if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
+          imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
+        fetchMagicHover(imageRelativeX, imageRelativeY)
+      }
+    }, 500)
+  }
 
   // Handle "Soft Clay" drag for new vertices (Visuals First)
   if (isEditingVertex.value && currentVertexEdit?.isNewVertex) {
@@ -2169,6 +2323,13 @@ const handleStageKeyDown = (e: any) => {
       showAnnotationTools.value = false
       updateTransformer()
     }
+  }
+}
+
+const handleContextMenu = (e: any) => {
+  // Prevent the native browser context menu
+  if (e.evt) {
+    e.evt.preventDefault()
   }
 }
 

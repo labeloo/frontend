@@ -251,6 +251,12 @@ const tools: Tool[] = [
     tooltip: 'Draw circle annotations (C)'
   },
   {
+    id: 'magic',
+    label: 'Magic Stick',
+    icon: 'i-heroicons-sparkles',
+    tooltip: 'Magic Stick (M)'
+  },
+  {
     id: 'freehand',
     label: 'Freehand',
     icon: 'i-heroicons-pencil',
@@ -340,6 +346,9 @@ onMounted(() => {
         break
       case 'c':
         selectTool('circle')
+        break
+      case 'm':
+        selectTool('magic')
         break
       case 'f':
         selectTool('freehand')
