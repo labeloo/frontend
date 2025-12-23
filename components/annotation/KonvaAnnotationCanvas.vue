@@ -216,6 +216,20 @@
     
     <!-- Magic Stick Layer -->
     <v-layer ref="magicLayer" :config="{ visible: props.currentTool === 'magic' }">
+      <!-- Transparent overlay to capture all magic clicks, including over annotations -->
+      <v-rect
+        :config="{
+          x: 0,
+          y: 0,
+          width: stageSize.width,
+          height: stageSize.height,
+          fill: 'transparent',
+          listening: true
+        }"
+        @mousedown="handleMagicClick"
+        @contextmenu="handleMagicClick"
+      />
+      
       <v-group 
         v-for="(point, index) in magicPoints" 
         :key="`magic-point-${index}`" 
@@ -231,18 +245,20 @@
             shadowColor: 'black',
             shadowBlur: 4,
             shadowOpacity: 0.4,
-            shadowOffset: { x: 1, y: 1 }
+            shadowOffset: { x: 1, y: 1 },
+            listening: false
           }"
         />
         
         <!-- Plus icon for include -->
-        <v-group v-if="point.polar">
+        <v-group v-if="point.polar" :config="{ listening: false }">
           <v-line
             :config="{
               points: [-4, 0, 4, 0],
               stroke: 'white',
               strokeWidth: 2.5,
-              lineCap: 'round'
+              lineCap: 'round',
+              listening: false
             }"
           />
           <v-line
@@ -250,7 +266,8 @@
               points: [0, -4, 0, 4],
               stroke: 'white',
               strokeWidth: 2.5,
-              lineCap: 'round'
+              lineCap: 'round',
+              listening: false
             }"
           />
         </v-group>
@@ -262,7 +279,8 @@
             points: [-4, 0, 4, 0],
             stroke: 'white',
             strokeWidth: 2.5,
-            lineCap: 'round'
+            lineCap: 'round',
+            listening: false
           }"
         />
       </v-group>
@@ -3030,6 +3048,47 @@ onUnmounted(() => {
     clearTimeout(cacheUpdateTimer)
   }
 })
+
+// Magic click handler for the magic layer overlay
+const handleMagicClick = (e: any) => {
+  // Prevent the default context menu
+  if (e.evt) {
+    e.evt.preventDefault()
+  }
+  
+  const stageNode = e.target.getStage()
+  const pointer = stageNode.getPointerPosition()
+  
+  if (!pointer) return
+  
+  const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
+  const mouseCanvasPos = mouseTransform.point(pointer)
+  
+  // Get image-relative coordinates
+  const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
+  const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
+  
+  // Check bounds
+  if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
+      imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
+    
+    const isLeftClick = e.evt.button === 0
+    const isRightClick = e.evt.button === 2
+    
+    if (isLeftClick || isRightClick) {
+      const polar = isLeftClick
+      
+      // Add visual feedback point
+      magicPoints.value.push({
+        x: mouseCanvasPos.x,
+        y: mouseCanvasPos.y,
+        polar
+      })
+      
+      fetchMagicClick(imageRelativeX, imageRelativeY, polar)
+    }
+  }
+}
 
 // Expose methods to parent
 defineExpose({
