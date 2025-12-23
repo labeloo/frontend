@@ -1482,6 +1482,8 @@ const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
         !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
       )
       
+      let latestMagicAnnotation: CanvasAnnotation | null = null
+      
       for (const apiAnnotation of result.annotations) {
         if (apiAnnotation.type === 'polygon' && apiAnnotation.points) {
           // Convert API coordinates to canvas coordinates
@@ -1497,12 +1499,20 @@ const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
           }
           
           newAnnotations.push(newAnnotation)
+          latestMagicAnnotation = newAnnotation
           console.log(`Created magic annotation with ${canvasPoints.length} points, score: ${apiAnnotation.score}`)
         }
       }
       
       // Update annotations
       emit('update:annotations', newAnnotations)
+      
+      // Show class selector for the latest magic annotation if classes are available
+      if (latestMagicAnnotation && props.classes && props.classes.length > 0) {
+        const centerPoint = getMagicAnnotationCenter(latestMagicAnnotation)
+        console.log('🎯 SAM2: Showing class selector for magic annotation')
+        emit('show-class-selector', latestMagicAnnotation, centerPoint)
+      }
       
       // Don't clear magic points - keep them for accumulating multiple clicks
       // magicPoints.value = []
@@ -1547,6 +1557,31 @@ const clearMagicSession = () => {
   }
   
   console.log('🔄 Magic session cleared')
+}
+
+// Helper function to calculate the center point of a magic annotation for positioning class selector
+const getMagicAnnotationCenter = (annotation: CanvasAnnotation): { x: number; y: number } => {
+  if (annotation.type === 'polygon' && annotation.points && annotation.points.length > 0) {
+    // Calculate the centroid of the polygon
+    let totalX = 0
+    let totalY = 0
+    for (const point of annotation.points) {
+      totalX += point.x
+      totalY += point.y
+    }
+    return {
+      x: totalX / annotation.points.length,
+      y: totalY / annotation.points.length
+    }
+  }
+  
+  // Fallback for other types (rectangle, circle, etc.)
+  if (annotation.startPoint) {
+    return annotation.startPoint
+  }
+  
+  // Default fallback
+  return { x: 100, y: 100 }
 }
 
 // Use the composables for annotation configuration

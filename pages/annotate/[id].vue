@@ -694,12 +694,34 @@ const selectAnnotationClass = (className: string) => {
   // Remember the last selected class
   lastSelectedClass.value = className
 
-  // Add the class to the annotation
+  // Check if this is a magic-generated annotation that's already in the array
+  const originalClassName = pendingAnnotation.value.className
+  const isMagicAnnotation = originalClassName?.startsWith('magic-generated-')
+  
+  // Add the class to the pending annotation
   pendingAnnotation.value.className = className
-
-  // Complete the annotation
-  if (konvaCanvas.value) {
-    konvaCanvas.value.finalizeAnnotation(className)
+  
+  if (isMagicAnnotation) {
+    // Find the annotation in the main array and update it
+    const annotationIndex = canvasAnnotations.value.findIndex(ann => 
+      ann.className === originalClassName ||
+      (ann.type === pendingAnnotation.value?.type && 
+       ann.points && pendingAnnotation.value?.points && 
+       ann.points.length === pendingAnnotation.value.points.length &&
+       ann.points[0]?.x === pendingAnnotation.value.points[0]?.x &&
+       ann.points[0]?.y === pendingAnnotation.value.points[0]?.y)
+    )
+    
+    if (annotationIndex !== -1 && canvasAnnotations.value[annotationIndex]) {
+      // Update the annotation in the array with the selected class
+      canvasAnnotations.value[annotationIndex].className = className
+      console.log('🎯 Updated magic annotation with class:', className)
+    }
+  } else {
+    // This is a new annotation - complete it normally
+    if (konvaCanvas.value) {
+      konvaCanvas.value.finalizeAnnotation(className)
+    }
   }
 
   // Clean up
@@ -708,6 +730,18 @@ const selectAnnotationClass = (className: string) => {
 }
 
 const cancelClassSelection = () => {
+  // Check if we're cancelling a magic-generated annotation
+  if (pendingAnnotation.value?.className?.startsWith('magic-generated-')) {
+    // Remove the magic annotation from the array since user cancelled class selection
+    const originalClassName = pendingAnnotation.value.className
+    const magicIndex = canvasAnnotations.value.findIndex(ann => ann.className === originalClassName)
+    
+    if (magicIndex !== -1) {
+      canvasAnnotations.value.splice(magicIndex, 1)
+      console.log('🎯 Removed cancelled magic annotation')
+    }
+  }
+
   // Don't add the annotation if cancelled
   pendingAnnotation.value = null
   showClassSelector.value = false
@@ -939,8 +973,17 @@ const saveAnnotation = async () => {
     }
 
     const annotationData = {
-      annotations: canvasAnnotations.value.map((ann) => {
-        const converted: any = { type: ann.type, className: ann.className };
+      annotations: canvasAnnotations.value
+        .filter(ann => {
+          // Filter out any annotations that still have magic-generated class names
+          if (ann.className?.startsWith('magic-generated-')) {
+            console.warn('Skipping unsaved magic annotation with no class selected:', ann.className)
+            return false
+          }
+          return true
+        })
+        .map((ann) => {
+          const converted: any = { type: ann.type, className: ann.className };
 
         // Get the conversion function and imageScale from the child component
         const convertToOriginal = konvaCanvas.value.convertToOriginal;
