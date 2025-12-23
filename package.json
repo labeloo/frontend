@@ -23,6 +23,8 @@
     "zod": "^3.25.21"
   },
   "devDependencies": {
+    "@iconify-json/heroicons": "^1.2.3",
+    "@iconify-json/lucide": "^1.2.82",
     "@types/node": "^25.0.3"
   }
 }

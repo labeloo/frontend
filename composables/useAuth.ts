@@ -8,19 +8,20 @@ interface LoginCredentials {
 export const useAuth = () => {
   const token = useCookie('auth_token', {
     maxAge: 60 * 60 * 24 * 7, // 7 days
-    sameSite: 'strict',
-    secure: true
+    sameSite: 'lax', // Changed from 'strict' to allow cross-origin navigation
+    secure: process.env.NODE_ENV === 'production' // Only secure in production (HTTPS)
   })
 
   const isAuthenticated = computed(() => !!token.value)
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      const response = await fetch('http://localhost:8787/api/auth/login', {
+      const response = await fetch('http://192.168.1.8:8787/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        credentials: 'include',
         body: JSON.stringify(credentials),
       })
 
