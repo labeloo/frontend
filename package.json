@@ -21,5 +21,8 @@
     "vue-konva": "^3.2.2",
     "vue-router": "^4.5.1",
     "zod": "^3.25.21"
+  },
+  "devDependencies": {
+    "@types/node": "^25.0.3"
   }
 }

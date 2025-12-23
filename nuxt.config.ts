@@ -32,12 +32,17 @@ export default defineNuxtConfig({
 		define: {
 			global: 'globalThis',
 		},
+		resolve: {
+			alias: {
+				konva: 'konva/konva.js'
+			}
+		},
 		optimizeDeps: {
-			include: ['vue-konva', 'konva'],
+			include: ['konva'],
 			exclude: []
 		},
 		ssr: {
-			external: ['konva', 'canvas']
+			noExternal: ['vue-konva'],
 		}
 	},
 	build: {

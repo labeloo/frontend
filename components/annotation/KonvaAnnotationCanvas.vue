@@ -1130,7 +1130,10 @@ const loadImage = async (url: string) => {
       imageObj.value = img
       
       if (imageLayer.value) {
-        imageLayer.value.getNode().batchDraw()
+        const layerNode = imageLayer.value.getNode ? imageLayer.value.getNode() : imageLayer.value
+        if (layerNode && typeof layerNode.batchDraw === 'function') {
+          layerNode.batchDraw()
+        }
       }
       resolve()
     }
