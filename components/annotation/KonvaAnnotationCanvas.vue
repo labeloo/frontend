@@ -1155,6 +1155,9 @@ const loadImage = async (url: string) => {
   return new Promise<void>((resolve, reject) => {
     const img = new Image()
     
+    // Enable CORS to prevent tainted canvas issues
+    img.crossOrigin = 'anonymous'
+    
     img.onload = () => {
       originalImageSize.value = { width: img.width, height: img.height }
       
@@ -1369,34 +1372,164 @@ const fetchMagicHover = async (x: number, y: number) => {
 
 const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
   console.log('Magic Click Request:', x, y, polar)
-  // TODO: Implement API call
-  // const response = await fetch('/api/sam2/click', {
-  //   method: 'POST',
-  //   body: JSON.stringify({ x, y, polar })
-  // })
-  // const result = await response.json()
   
-  // Auto-apply annotation (assuming result contains points for a polygon)
-  // const newAnnotation: CanvasAnnotation = {
-  //   type: 'polygon',
-  //   points: result.points.map((p: any) => ({ 
-  //     x: p.x * imageScale.value + imageOffset.value.x, 
-  //     y: p.y * imageScale.value + imageOffset.value.y 
-  //   })),
-  //   className: 'auto-generated' // Or prompt user
-  // }
-  
-  // const newAnnotations = [...props.annotations, newAnnotation]
-  // emit('update:annotations', newAnnotations)
+  try {
+    // Prepare the form data
+    const formData = new FormData()
+    
+    // Get the current image as a blob
+    if (!imageObj.value || !props.imageUrl) {
+      console.error('No image loaded or imageUrl missing')
+      return
+    }
+    
+    // Fetch the original image directly to avoid CORS issues
+    let imageBlob: Blob
+    try {
+      // Try to fetch the image from the original URL
+      const imageResponse = await fetch(props.imageUrl, {
+        mode: 'cors', // Enable CORS
+        credentials: 'same-origin'
+      })
+      
+      if (!imageResponse.ok) {
+        throw new Error(`Failed to fetch image: ${imageResponse.status}`)
+      }
+      
+      imageBlob = await imageResponse.blob()
+    } catch (fetchError) {
+      console.warn('Failed to fetch original image, trying canvas approach with crossOrigin:', fetchError)
+      
+      // Fallback: Try to re-create the image with proper CORS headers
+      const img = new Image()
+      img.crossOrigin = 'anonymous' // Enable CORS
+      
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve()
+        img.onerror = () => reject(new Error('Failed to load image with CORS'))
+        img.src = props.imageUrl
+      })
+      
+      // Create canvas with the CORS-enabled image
+      const canvas = document.createElement('canvas')
+      canvas.width = img.width
+      canvas.height = img.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        throw new Error('Could not get canvas context')
+      }
+      
+      ctx.drawImage(img, 0, 0)
+      
+      // Convert canvas to blob
+      imageBlob = await new Promise<Blob>((resolve, reject) => {
+        canvas.toBlob((blob) => {
+          if (blob) resolve(blob)
+          else reject(new Error('Failed to convert canvas to blob'))
+        }, 'image/png')
+      })
+    }
+    
+    // Append form data
+    formData.append('image_file', imageBlob, 'image.png')
+    formData.append('label', '1')
+    formData.append('multimask_output', 'false')
+    
+    // Create clicks array with current accumulated magic points
+    const clicks = magicPoints.value.map(point => ({
+      x: Math.round((point.x - imageOffset.value.x) / imageScale.value),
+      y: Math.round((point.y - imageOffset.value.y) / imageScale.value),
+      label: point.polar ? 1 : 0
+    }))
+    
+    formData.append('clicks', JSON.stringify(clicks))
+    
+    // Make the API call
+    const response = await fetch('http://localhost:8000/clicked', {
+      method: 'POST',
+      body: formData
+    })
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`)
+    }
+    
+    const result = await response.json()
+    console.log('Magic Click Response:', result)
+    
+    // Process annotations from response
+    if (result.annotations && Array.isArray(result.annotations)) {
+      // Remove any previous magic-generated annotations before adding new ones
+      const newAnnotations = props.annotations.filter(ann => 
+        !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
+      )
+      
+      for (const apiAnnotation of result.annotations) {
+        if (apiAnnotation.type === 'polygon' && apiAnnotation.points) {
+          // Convert API coordinates to canvas coordinates
+          const canvasPoints = apiAnnotation.points.map((p: any) => ({
+            x: p.x * imageScale.value + imageOffset.value.x,
+            y: p.y * imageScale.value + imageOffset.value.y
+          }))
+          
+          const newAnnotation: CanvasAnnotation = {
+            type: 'polygon',
+            points: canvasPoints,
+            className: `magic-generated-${Date.now()}` // Unique identifier for magic annotations
+          }
+          
+          newAnnotations.push(newAnnotation)
+          console.log(`Created magic annotation with ${canvasPoints.length} points, score: ${apiAnnotation.score}`)
+        }
+      }
+      
+      // Update annotations
+      emit('update:annotations', newAnnotations)
+      
+      // Don't clear magic points - keep them for accumulating multiple clicks
+      // magicPoints.value = []
+    }
+    
+  } catch (error) {
+    console.error('Magic Click API Error:', error)
+    // Optionally show user-friendly error message
+  }
 }
 
 // Watch for tool changes to clear magic points
 watch(() => props.currentTool, (newTool) => {
   if (newTool !== 'magic') {
+    // Clear magic points and remove magic annotations when switching away from magic tool
     magicPoints.value = []
+    
+    // Remove any magic-generated annotations when leaving magic mode
+    const newAnnotations = props.annotations.filter(ann => 
+      !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
+    )
+    
+    if (newAnnotations.length !== props.annotations.length) {
+      emit('update:annotations', newAnnotations)
+    }
+    
     if (magicHoverTimer) clearTimeout(magicHoverTimer)
   }
 })
+
+// Function to manually clear magic session (can be called from parent component)
+const clearMagicSession = () => {
+  magicPoints.value = []
+  
+  // Remove any magic-generated annotations
+  const newAnnotations = props.annotations.filter(ann => 
+    !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
+  )
+  
+  if (newAnnotations.length !== props.annotations.length) {
+    emit('update:annotations', newAnnotations)
+  }
+  
+  console.log('🔄 Magic session cleared')
+}
 
 // Use the composables for annotation configuration
 const { createRectangleConfig } = useRectConfig()
@@ -2904,6 +3037,8 @@ defineExpose({
   cancelCurrentAnnotation,
   finishDrawing,
   finalizeAnnotation, // Part 1: Expose the Finalizer
+  clearMagicSession,
+  resetAnnotationState,
   getImageScale: () => imageScale.value,
   getImageOffset: () => imageOffset.value,
   getOriginalImageSize: () => originalImageSize.value,
