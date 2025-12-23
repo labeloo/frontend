@@ -4,7 +4,7 @@
     <div class="relative h-48 bg-gray-100 dark:bg-gray-700">
       <img 
         v-if="task.dataType.includes('image')"
-        :src="task.dataUrl" 
+        :src="getTaskImageUrl(task)" 
         :alt="`Task ${task.id}`"
         class="w-full h-full object-cover"
         @error="handleImageError"
@@ -132,6 +132,10 @@
 </template>
 
 <script setup lang="ts">
+import { useImageUrl } from '~/composables/useImageUrl'
+
+const { getTaskImageUrl } = useImageUrl()
+
 interface Task {
   id: number
   projectId: number

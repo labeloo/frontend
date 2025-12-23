@@ -298,7 +298,7 @@
             </div>
 
 
-            <KonvaAnnotationCanvas v-if="taskData?.dataUrl" ref="konvaCanvas" :image-url="taskData.dataUrl"
+            <KonvaAnnotationCanvas v-if="taskData?.dataUrl" ref="konvaCanvas" :image-url="getTaskImageUrl(taskData)"
               :annotations="canvasAnnotations" :current-tool="currentTool" :is-annotating="isAnnotating"
               :classes="projectData?.labelConfig?.classes || []" :canvas-width="800" :canvas-height="600"
               @update:annotations="canvasAnnotations = $event" @update:is-annotating="isAnnotating = $event"
@@ -375,6 +375,9 @@
 <script setup lang="ts">
 import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
 import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
+import { useImageUrl } from '~/composables/useImageUrl'
+
+const { getTaskImageUrl } = useImageUrl()
 
 interface TaskData {
   id: number

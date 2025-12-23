@@ -327,7 +327,7 @@
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Status: {{ task.status }}</p>
               <p class="text-sm text-gray-600 dark:text-gray-400">Type: {{ task.dataType }}</p>
-              <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
+              <img v-if="task.dataType.includes('image')" :src="getTaskImageUrl(task)" class="w-full h-32 object-cover mt-2 rounded" />
             </div>
           </div>
         </div>        <!-- Annotating Tab -->
@@ -366,7 +366,7 @@
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Status: {{ task.status }}</p>
               <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">Type: {{ task.dataType }}</p>
-              <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
+              <img v-if="task.dataType.includes('image')" :src="getTaskImageUrl(task)" class="w-full h-32 object-cover mt-2 rounded" />
               
               <!-- Action Buttons Section -->
               <div class="mt-3 space-y-2 flex flex-col items-center">
@@ -662,7 +662,7 @@
               </div>
               <p class="text-sm text-gray-600 dark:text-gray-400">Status: {{ task.status }}</p>
               <p class="text-sm text-gray-600 dark:text-gray-400">Type: {{ task.dataType }}</p>
-              <img v-if="task.dataType.includes('image')" :src="task.dataUrl" class="w-full h-32 object-cover mt-2 rounded" />
+              <img v-if="task.dataType.includes('image')" :src="getTaskImageUrl(task)" class="w-full h-32 object-cover mt-2 rounded" />
             </div>
           </div>
         </div>
@@ -676,6 +676,9 @@
 <script setup lang="ts">
 import { useAuth } from '~/composables/useAuth'
 import TaskAssignmentSlider from '~/components/project/TaskAssignmentSlider.vue'
+import { useImageUrl } from '~/composables/useImageUrl'
+
+const { getTaskImageUrl } = useImageUrl()
 
 interface Task {
   id: number
