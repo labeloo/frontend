@@ -154,7 +154,7 @@ const token = useCookie('auth_token')
 // Fetch organization details
 const fetchOrganization = async () => {
   try {
-    const response = await fetch(`http://localhost:8787/api/organizations/${organizationId.value}`, {
+    const response = await fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${organizationId.value}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json'

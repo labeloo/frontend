@@ -116,7 +116,7 @@ const fetchOrganizations = async () => {
       return
     }
 
-    const response = await fetch('http://localhost:8787/api/organizations/all', {
+    const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizations/all', {
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token.value}`

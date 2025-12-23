@@ -387,7 +387,7 @@ const fetchProjectData = async () => {
       throw new Error('Authentication required')
     }
 
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json'
@@ -491,7 +491,7 @@ const saveGeneralSettings = async () => {
       projectType: formData.value.type
     }
 
-    const response = await $fetch(`http://localhost:8787/api/projects/${projectData.value.id}`, {
+    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectData.value.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

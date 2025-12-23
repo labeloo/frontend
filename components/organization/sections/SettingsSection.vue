@@ -988,7 +988,7 @@ const saveGeneralSettings = async () => {
       }
     })
 
-    const response = await $fetch(`http://localhost:8787/api/organizations/${props.organization.organizations.id}`, {
+    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${props.organization.organizations.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -1115,7 +1115,7 @@ const testConnection = async () => {
 // API Methods for Backend Connections
 const fetchBackendTypes = async () => {
   try {
-    const response = await $fetch<{ data: BackendType[] }>('http://localhost:8787/api/backendRelations/types', {
+    const response = await $fetch<{ data: BackendType[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations/types', {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'orgId': props.organization?.organizations?.id.toString() || ''
@@ -1133,7 +1133,7 @@ const fetchBackendTypes = async () => {
 
 const fetchBackendConnections = async () => {
   try {
-    const response = await $fetch<{ data: BackendConnection[] }>('http://localhost:8787/api/backendRelations', {
+    const response = await $fetch<{ data: BackendConnection[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations', {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'orgId': props.organization?.organizations?.id.toString() || ''
@@ -1167,7 +1167,7 @@ const saveConnection = async () => {
 
     if (existing) {
       // Update existing
-      const response = await $fetch<{ data: BackendConnection }>(`http://localhost:8787/api/backendRelations/${existing.id}`, {
+      const response = await $fetch<{ data: BackendConnection }>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${existing.id}`, {
         method: 'PUT',
         headers: {
           'Authorization': `Bearer ${token.value}`,
@@ -1187,7 +1187,7 @@ const saveConnection = async () => {
       }
     } else {
       // Create new
-      const response = await $fetch<{ data: BackendConnection }>('http://localhost:8787/api/backendRelations', {
+      const response = await $fetch<{ data: BackendConnection }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token.value}`,
@@ -1234,7 +1234,7 @@ const removeConnection = async (index: number) => {
   if (!conn) return
 
   try {
-    await $fetch(`http://localhost:8787/api/backendRelations/${conn.id}`, {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1265,7 +1265,7 @@ const removeConnection = async (index: number) => {
 
 const toggleConnection = async (conn: BackendConnection) => {
   try {
-    await $fetch(`http://localhost:8787/api/backendRelations/${conn.id}`, {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1308,7 +1308,7 @@ const deleteOrganization = async () => {
       throw new Error('Organization ID not found')
     }
 
-    const response = await $fetch(`http://localhost:8787/api/organizations/${props.organization.organizations.id}`, {
+    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${props.organization.organizations.id}`, {
       method: 'DELETE',
       headers: {
         'Content-Type': 'application/json',

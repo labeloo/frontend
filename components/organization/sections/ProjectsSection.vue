@@ -183,12 +183,12 @@ const fetchProjects = async () => {
   try {
     loading.value = true
     error.value = null
-      const response = await fetch('http://localhost:8787/api/projects/all', {
+      const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects/all', {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json',
         'orgId': props.organizationId.toString()
-      }
+      },
     })
 
     if (!response.ok) {

@@ -446,7 +446,7 @@ const fetchProjectData = async () => {
   if (!token.value || !props.projectId) return
 
   try {
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
@@ -468,7 +468,7 @@ const fetchOrganizationUsers = async () => {
   try {
     loadingUsers.value = true
     
-    const response = await $fetch<{ data: OrganizationUser[] }>('http://localhost:8787/api/organizationRelations/users', {
+    const response = await $fetch<{ data: OrganizationUser[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -561,7 +561,7 @@ const handleAssignTasks = async () => {
 
     // Assign each task using the backend endpoint
     const assignmentPromises = tasksToAssign.map(async (taskId) => {
-      const response = await $fetch(`http://localhost:8787/api/tasks/assign/${taskId}`, {
+      const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/assign/${taskId}`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token.value}`,

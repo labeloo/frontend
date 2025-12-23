@@ -266,7 +266,7 @@ const recentUsersList = computed(() => {
 // Methods
 const fetchProjects = async () => {
   try {
-    const response = await fetch('http://localhost:8787/api/projects/all', {
+    const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects/all', {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json',
@@ -297,7 +297,7 @@ const fetchProjects = async () => {
 
 const fetchUsers = async () => {
   try {
-    const response = await $fetch<{ data: User[] }>('http://localhost:8787/api/organizationRelations/users', {
+    const response = await $fetch<{ data: User[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -315,7 +315,7 @@ const fetchUsers = async () => {
 
 const fetchRoles = async () => {
   try {
-    const response = await $fetch<{ data: Role[] }>('http://localhost:8787/api/organizationRoles/all', {
+    const response = await $fetch<{ data: Role[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token.value}`,

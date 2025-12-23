@@ -900,7 +900,7 @@ const fetchProjectData = async () => {
   if (!token.value || !props.projectId) return
 
   try {
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
@@ -942,7 +942,7 @@ const fetchTasks = async () => {
       queryParams.append('organizationId', organizationId.value.toString())
     }
     
-    const url = `http://localhost:8787/api/tasks/my-tasks${queryParams.toString() ? '?' + queryParams.toString() : ''}`
+    const url = `${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/my-tasks${queryParams.toString() ? '?' + queryParams.toString() : ''}`
     console.log('Fetching from URL:', url)
     
     const response = await $fetch<TasksResponse>(url, {
@@ -1062,7 +1062,7 @@ const assignSelectedTasks = async () => {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch('http://localhost:8787/api/tasks/update', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/tasks/update', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1115,7 +1115,7 @@ const completeSelectedTasks = async () => {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch('http://localhost:8787/api/tasks/update', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/tasks/update', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1168,7 +1168,7 @@ const reassignSelectedTasks = async () => {
       throw new Error('Authentication required')
     }
     
-    const response = await $fetch('http://localhost:8787/api/tasks/update', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/tasks/update', {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1347,7 +1347,7 @@ const handleExportDataset = async () => {
     
     console.log('Full request payload:', JSON.stringify(requestBody, null, 2))
     
-    const response = await fetch(`http://localhost:8787/api/tasks/export/${props.projectId}`, {
+    const response = await fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/export/${props.projectId}`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1500,7 +1500,7 @@ const checkAnnotationStatus = async () => {
 
     console.log('Checking annotation status for completed tasks:', tasks.value.completed.map(t => t.id))
 
-    const response = await $fetch(`http://localhost:8787/api/tasks/annotation-status/${props.projectId}`, {
+    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/annotation-status/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }

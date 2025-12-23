@@ -140,7 +140,7 @@ async function uploadLogo(file: File) {
     // Convert file to binary data
     const arrayBuffer = await file.arrayBuffer()
     
-    const response = await $fetch('http://localhost:8787/api/bucket/uploadPicture', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadPicture', {
       method: 'POST',
       headers: {
         'type': 'organization',
@@ -201,7 +201,7 @@ const createOrganization = async () => {
       ...(hasCustomLogo.value && organizationState.logo && { logo: organizationState.logo })
     }
 
-    const result = await useFetch('http://localhost:8787/api/organizations', {
+    const result = await useFetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizations', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -227,7 +227,7 @@ async function fetchRoles() {
   const token = useCookie('auth_token')
   if (!token.value || !orgId.value) return
   try {
-    const result = await useFetch('http://localhost:8787/api/organizationRoles/all', {
+    const result = await useFetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -285,7 +285,7 @@ async function fetchAllOrganizationUsers() {
   
   try {
     console.log('Fetching all organization users for orgId:', orgId.value)
-    const result = await $fetch('http://localhost:8787/api/organizationRelations/users', {
+    const result = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

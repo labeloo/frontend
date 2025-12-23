@@ -163,7 +163,7 @@ const handleBackToOrg = async () => {
         }
 
         // Fetch project data to get organization ID using $fetch like other components
-        const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${projectId}`, {
+        const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectId}`, {
             headers: {
                 'Authorization': `Bearer ${token.value}`
             }

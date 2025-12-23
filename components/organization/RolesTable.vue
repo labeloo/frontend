@@ -42,7 +42,7 @@ const fetchRoles = async () => {
     // Clear existing data first
     rolesData.value = [];
     
-    const result = await useFetch<{ data: Role[] }>('http://localhost:8787/api/organizationRoles/all', {
+    const result = await useFetch<{ data: Role[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
         method: 'GET',        headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${token.value}`,

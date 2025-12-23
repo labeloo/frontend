@@ -16,7 +16,7 @@ export const useAuth = () => {
 
   const login = async (credentials: LoginCredentials) => {
     try {
-      const response = await fetch('http://192.168.1.8:8787/api/auth/login', {
+      const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

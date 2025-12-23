@@ -533,7 +533,7 @@ const fetchTaskData = async () => {
       throw new Error('Authentication required')
     }
 
-    const response = await $fetch<TaskResponse>(`http://localhost:8787/api/tasks/${taskId}`, {
+    const response = await $fetch<TaskResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/${taskId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
@@ -552,7 +552,7 @@ const fetchAnnotations = async () => {
       throw new Error('Authentication required')
     }
 
-    const response = await $fetch<AnnotationsResponse>(`http://localhost:8787/api/annotations/task/${taskId}`, {
+    const response = await $fetch<AnnotationsResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/annotations/task/${taskId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
@@ -572,7 +572,7 @@ const fetchProjectData = async () => {
       throw new Error('Authentication required or no project ID')
     }
 
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${taskData.value.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${taskData.value.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json'
@@ -996,7 +996,7 @@ const saveAnnotation = async () => {
       }
     };
 
-    await $fetch(`http://localhost:8787/api/annotations`, {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/annotations`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token.value}` },
       body: savePayload
@@ -1134,7 +1134,7 @@ const deleteAnnotationFromDb = async (annotationId: number) => {
   try {
     deletingAnnotation.value = annotationId
 
-    await $fetch(`http://localhost:8787/api/annotations/${annotationId}`, {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/annotations/${annotationId}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token.value}`

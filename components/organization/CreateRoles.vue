@@ -97,7 +97,7 @@ const createRole = async () => {
   roleState.permissionFlags = { ...permissionFlags.value };
   
   try {
-    const result = await useFetch('http://localhost:8787/api/organizationRoles/create', {
+    const result = await useFetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

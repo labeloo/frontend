@@ -395,7 +395,7 @@ const fetchUsers = async () => {
     loading.value = true
     error.value = null
     
-    const response = await $fetch('http://localhost:8787/api/organizationRelations/users', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -467,7 +467,7 @@ const fetchRolesForSearch = async (forceRefresh = false) => {
   
   rolesLoading.value = true
   try {        
-    const res = await $fetch('http://localhost:8787/api/organizationRoles/all', {
+    const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -492,7 +492,7 @@ const fetchExistingUsers = async () => {
   if (!props.organizationId) return
   
   try {        
-    const res = await $fetch('http://localhost:8787/api/organizationRelations/users', {
+    const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -530,7 +530,7 @@ const debouncedUserSearch = (query: string) => {
   debounceTimeout = setTimeout(() => {
     if (!query) return
 
-    $fetch('http://localhost:8787/api/users/search', {
+    $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/users/search', {
       method: 'GET',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -581,7 +581,7 @@ const addUsersToOrganization = async () => {
   }
 
   try {
-    const response = await $fetch('http://localhost:8787/api/organizationRelations/addUser', {
+    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/addUser', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

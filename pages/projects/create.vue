@@ -1148,7 +1148,7 @@ const fetchOrganizationInfo = async () => {
   }
 
   try {
-    const response = await fetch(`http://localhost:8787/api/organizations/${organizationId.value}`, {
+    const response = await fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${organizationId.value}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json'
@@ -1220,7 +1220,7 @@ const createProject = async () => {
     console.log('Classes array:', projectForm.classes)
     console.log('Classes length:', projectForm.classes.length)
 
-    const projectResponse = await fetch('http://localhost:8787/api/projects', {
+    const projectResponse = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token.value}`,
@@ -1253,7 +1253,7 @@ const createProject = async () => {
           formData.append('files', file)
         })
 
-        const uploadResponse = await fetch('http://localhost:8787/api/bucket/uploadData', {
+        const uploadResponse = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadData', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token.value}`,
@@ -1303,7 +1303,7 @@ const createProject = async () => {
           videoFormData.append('files', video)
         })
 
-        const videoUploadResponse = await fetch('http://localhost:8787/api/bucket/uploadDataVideo', {
+        const videoUploadResponse = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadDataVideo', {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token.value}`,

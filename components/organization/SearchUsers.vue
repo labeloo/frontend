@@ -24,7 +24,7 @@ const fetchRoles = async (forceRefresh = false) => {
     
     rolesLoading.value = true
     try {        
-        const res = await $fetch('http://localhost:8787/api/organizationRoles/all', {
+        const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -121,7 +121,7 @@ const existingUsers = ref<number[]>([]) // Array of user IDs that are already in
 const fetchExistingUsers = async () => {
     if (!props.orgId) return
     
-    try {        const res = await $fetch('http://localhost:8787/api/organizationRelations/users', {
+    try {        const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
@@ -219,7 +219,7 @@ function debouncedSearch(query: string) {
     debounceTimeout = setTimeout(() => {
         if (!query) return
 
-        $fetch('http://localhost:8787/api/users/search', {
+        $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/users/search', {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${token.value}`,
@@ -341,7 +341,7 @@ async function addUsers() {
         console.log('=== API REQUEST DEBUG ===')
         console.log('Sending request with body:', usersToAdd)
         console.log('OrgId being sent:', props.orgId, 'Type:', typeof props.orgId)
-        console.log('Request URL:', 'http://localhost:8787/api/organizationRelations/addUser')
+        console.log('Request URL:', import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/addUser')
         console.log('Request method:', 'POST')
         console.log('Full headers:', {
             'Content-Type': 'application/json',
@@ -351,7 +351,7 @@ async function addUsers() {
         console.log('Full request body:', JSON.stringify(usersToAdd, null, 2))
         console.log('=== END DEBUG ===')
         
-        const response = await $fetch('http://localhost:8787/api/organizationRelations/addUser', {
+        const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/addUser', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',

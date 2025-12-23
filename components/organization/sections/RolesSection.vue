@@ -401,7 +401,7 @@ const resetForm = () => {
 const fetchRoles = async () => {
   loading.value = true
   try {
-    const res = await $fetch('http://localhost:8787/api/organizationRoles/all', {
+    const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -441,7 +441,7 @@ const createRole = async () => {
       organizationId: props.organizationId
     }
 
-    const result = await $fetch('http://localhost:8787/api/organizationRoles/create', {
+    const result = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/create', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -335,7 +335,7 @@ const fetchProjectData = async () => {
       throw new Error('Authentication required')
     }
 
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`,
         'Content-Type': 'application/json'
@@ -466,7 +466,7 @@ const uploadFiles = async () => {
       formData.append('files', file)
     })
 
-    const response = await fetch('http://localhost:8787/api/bucket/uploadData', {
+    const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadData', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token.value}`,

@@ -208,7 +208,7 @@ const fetchProjectData = async () => {
     if (!token.value) {
       throw new Error('Authentication required')
     }
-      const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+      const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
@@ -338,7 +338,7 @@ const updateClasses = async () => {
       }
     }
     
-    const response = await $fetch<ProjectResponse>(`http://localhost:8787/api/projects/${props.projectId}`, {
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${token.value}`,

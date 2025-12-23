@@ -6,6 +6,11 @@ export default defineNuxtConfig({
 	modules: ["@nuxt/ui", "@nuxt/fonts", "motion-v/nuxt"],
 	css: ["~/assets/css/main.css"],
 	devtools: { enabled: true },
+	runtimeConfig: {
+		public: {
+			apiUrl: process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8787'
+		}
+	},
 	ui: {
 		theme: {
 			colors: [
@@ -31,6 +36,7 @@ export default defineNuxtConfig({
 		},
 		define: {
 			global: 'globalThis',
+			'import.meta.env.NUXT_PUBLIC_API_URL': JSON.stringify(process.env.NUXT_PUBLIC_API_URL || 'http://localhost:8787')
 		},
 		resolve: {
 			alias: {
