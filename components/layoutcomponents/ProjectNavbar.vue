@@ -68,6 +68,27 @@
                         Upload Video
                     </button>
 
+                    <button @click="handleNavClick('video-annotation')" :class="[
+                        'w-full flex items-center px-3 py-2 text-sm font-bold rounded-md transition-all duration-300 cursor-pointer group relative overflow-hidden',
+                        activeSection === 'video-annotation'
+                            ? 'text-white shadow-md shadow-orange-500/20 burning-bg'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-orange-600 dark:hover:text-orange-400'
+                    ]">
+                        <!-- Burning background for inactive state hover effect -->
+                        <div v-if="activeSection !== 'video-annotation'" class="absolute inset-0 bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/20 dark:to-red-900/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        
+                        <UIcon name="i-heroicons-fire" :class="[
+                            'w-4 h-4 mr-3 transition-colors relative z-10',
+                            activeSection === 'video-annotation' ? 'text-white animate-pulse' : 'text-orange-500 group-hover:text-orange-600'
+                        ]" />
+                        <span :class="[
+                            'relative z-10',
+                            activeSection === 'video-annotation' ? 'text-white' : 'text-transparent bg-clip-text bg-gradient-to-r from-orange-500 to-red-600'
+                        ]">
+                            Video Annotation!
+                        </span>
+                    </button>
+
                     <button @click="handleNavClick('classes')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'classes'
@@ -201,3 +222,25 @@ const handleBackToOrg = async () => {
     }
 }
 </script>
+
+<style scoped>
+@keyframes burn {
+    0% {
+        background-position: 0% 50%;
+    }
+
+    50% {
+        background-position: 100% 50%;
+    }
+
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+.burning-bg {
+    background: linear-gradient(270deg, #ff4d00, #ff0000, #ff8800);
+    background-size: 600% 600%;
+    animation: burn 4s ease infinite;
+}
+</style>

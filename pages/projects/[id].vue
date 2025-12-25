@@ -53,6 +53,11 @@
         <ProjectSectionsProjectUploadVideoSection :project-id="projectId" />
       </div>
 
+      <!-- Video Annotation Section -->
+      <div v-else-if="currentSection === 'video-annotation'" class="p-6">
+        <ProjectSectionsProjectVideoAnnotationSection :project-id="projectId" />
+      </div>
+
       <!-- Annotation Section -->
       <div v-else-if="currentSection === 'annotate'" class="p-6">
         <ProjectSectionsProjectAnnotateSection :project-id="projectId" />
