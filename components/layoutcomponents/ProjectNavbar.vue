@@ -58,6 +58,16 @@
                         Upload Data
                     </button>
 
+                    <button @click="handleNavClick('upload-video')" :class="[
+                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                        activeSection === 'upload-video'
+                            ? 'bg-info text-white'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ]">
+                        <UIcon name="i-heroicons-video-camera" class="w-4 h-4 mr-3" />
+                        Upload Video
+                    </button>
+
                     <button @click="handleNavClick('classes')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'classes'
