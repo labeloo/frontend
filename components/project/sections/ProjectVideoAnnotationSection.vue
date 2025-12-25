@@ -29,17 +29,40 @@
     <!-- Video Player Section -->
     <div v-else class="flex-1 flex flex-col min-h-0 bg-gray-900 rounded-lg overflow-hidden">
       <!-- Video Container -->
-      <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden">
-        <video
-          ref="videoRef"
-          :src="videoUrl"
-          class="w-full h-full object-contain"
-          @loadedmetadata="onVideoLoaded"
-          @durationchange="onDurationChange"
-          @timeupdate="onTimeUpdate"
-          @ended="isPlaying = false"
-          @click="togglePlay"
-        ></video>
+      <div class="flex-1 relative bg-black flex items-center justify-center overflow-hidden" ref="videoContainerRef">
+        <div class="relative" :style="videoContainerStyle">
+            <video
+            ref="videoRef"
+            :src="videoUrl"
+            class="w-full h-full block"
+            @loadedmetadata="onVideoLoaded"
+            @durationchange="onDurationChange"
+            @timeupdate="onTimeUpdate"
+            @ended="isPlaying = false"
+            ></video>
+            
+            <!-- Interaction Layer -->
+            <div 
+                class="absolute inset-0 cursor-crosshair z-10"
+                @click="handleVideoClick"
+            ></div>
+
+            <!-- SVG Overlay for Annotations -->
+            <svg 
+                class="absolute inset-0 pointer-events-none z-20"
+                :viewBox="`0 0 ${videoNaturalWidth} ${videoNaturalHeight}`"
+                preserveAspectRatio="none"
+            >
+                <polygon
+                    v-for="(ann, index) in currentAnnotations"
+                    :key="index"
+                    :points="formatPoints(ann.points)"
+                    fill="rgba(0, 255, 0, 0.3)"
+                    stroke="rgba(0, 255, 0, 0.8)"
+                    stroke-width="2"
+                />
+            </svg>
+        </div>
       </div>
 
       <!-- Controls Section (Below Video) -->
@@ -47,12 +70,15 @@
         <!-- Debug Info (Temporary) -->
         <div class="text-xs text-gray-500 mb-2 font-mono">
             Time: {{ currentTime.toFixed(2) }} / {{ duration.toFixed(2) }} | 
-            Video Duration: {{ videoRef?.duration }} |
-            FPS: {{ fps }}
+            Frame: {{ currentFrame }} |
+            Status: {{ sam2Status }}
         </div>
 
         <!-- Progress Bar Container -->
-        <div class="relative w-full h-6 mb-2 cursor-pointer group/progress flex items-center" @click="handleProgressBarClick">
+        <div 
+            class="relative w-full h-6 mb-2 cursor-pointer group/progress flex items-center" 
+            @click="handleProgressBarClick"
+        >
             <!-- Background Track -->
             <div class="w-full h-2 bg-gray-600 rounded-lg group-hover/progress:h-3 transition-all duration-200 relative overflow-hidden">
                 <!-- Progress Fill -->
@@ -60,12 +86,14 @@
                     class="absolute top-0 left-0 h-full bg-primary-500 rounded-lg pointer-events-none transition-all duration-100"
                     :style="{ width: `${duration ? (currentTime / duration) * 100 : 0}%` }"
                 ></div>
+                <!-- Propagated Frames Indicator (Optional) -->
+                <div 
+                    v-for="frame in propagatedFrames" 
+                    :key="frame"
+                    class="absolute top-0 h-full bg-green-500/50 w-[2px]"
+                    :style="{ left: `${(frame / totalFrames) * 100}%` }"
+                ></div>
             </div>
-            <!-- Hover Thumb (Optional visual indicator) -->
-            <div 
-                class="absolute h-4 w-4 bg-white rounded-full shadow-md opacity-0 group-hover/progress:opacity-100 pointer-events-none transition-opacity duration-200"
-                :style="{ left: `${duration ? (currentTime / duration) * 100 : 0}%`, transform: 'translateX(-50%)' }"
-            ></div>
         </div>
 
         <div class="flex items-center justify-between text-white">
@@ -107,6 +135,16 @@
 
           <div class="flex items-center gap-4">
              <UButton
+                color="primary"
+                icon="i-heroicons-sparkles"
+                :loading="isPropagating"
+                @click="propagateVideo"
+                :disabled="!hasClicks"
+             >
+                Render / Propagate
+             </UButton>
+             
+             <UButton
                 variant="ghost"
                 color="white"
                 icon="i-heroicons-arrow-path"
@@ -121,7 +159,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onUnmounted } from 'vue'
+import { ref, computed, onUnmounted, watch, nextTick } from 'vue'
 
 const props = defineProps<{
   projectId: string
@@ -130,17 +168,100 @@ const props = defineProps<{
 const { fetch: apiFetch, url: apiUrl } = useApi()
 const toast = useToast()
 
+// SAM 2 Configuration
+const SAM2_API_URL = 'http://localhost:8000' // Adjust if needed
+
 const fileInput = ref<HTMLInputElement | null>(null)
 const videoRef = ref<HTMLVideoElement | null>(null)
+const videoContainerRef = ref<HTMLElement | null>(null)
 const isUploading = ref(false)
 const videoUrl = ref<string | null>(null)
+const videoUuid = ref<string | null>(null)
+const videoPath = ref<string | null>(null) // Absolute path on server
 const isPlaying = ref(false)
 const currentTime = ref(0)
 const duration = ref(0)
-const fps = ref(30) // Default FPS
+const fps = ref(30) // Default FPS, should be detected or passed
+const videoNaturalWidth = ref(0)
+const videoNaturalHeight = ref(0)
+const containerWidth = ref(0)
+const containerHeight = ref(0)
+
+// SAM 2 State
+const sam2Status = ref<'idle' | 'initializing' | 'ready' | 'error'>('idle')
+const isPropagating = ref(false)
+const propagatedAnnotations = ref<Record<number, any[]>>({}) // frame_idx -> annotations
+const currentClickAnnotations = ref<any[]>([]) // Annotations for the current frame from clicks
+const hasClicks = ref(false)
 
 const currentFrame = computed(() => Math.floor(currentTime.value * fps.value))
 const totalFrames = computed(() => Math.floor(duration.value * fps.value))
+
+const currentAnnotations = computed(() => {
+    // Prefer propagated annotations if available for this frame
+    if (propagatedAnnotations.value[currentFrame.value]) {
+        return propagatedAnnotations.value[currentFrame.value]
+    }
+    // Otherwise show click feedback if we are on the frame where we clicked
+    // Note: This logic might need refinement. For now, we just show what we have.
+    // If we just clicked, we want to show the result.
+    // But if we move away and come back, we might want to show it too.
+    // Ideally, clicks should be stored per frame too.
+    return currentClickAnnotations.value.filter(a => {
+        // Only show if we are on the frame (or close enough?)
+        // For now, let's assume clicks are transient until propagated, 
+        // OR we store them in a separate structure per frame.
+        // Let's simplify: currentClickAnnotations is just for the *last* click action.
+        // If we want to support multiple keyframes, we need a map.
+        return true 
+    })
+})
+
+const propagatedFrames = computed(() => {
+    return Object.keys(propagatedAnnotations.value).map(Number)
+})
+
+// Video sizing logic
+const videoContainerStyle = computed(() => {
+    if (!videoNaturalWidth.value || !videoNaturalHeight.value || !containerWidth.value || !containerHeight.value) {
+        return { width: '100%', height: '100%' }
+    }
+    
+    const videoRatio = videoNaturalWidth.value / videoNaturalHeight.value
+    const containerRatio = containerWidth.value / containerHeight.value
+    
+    let width, height
+    
+    if (containerRatio > videoRatio) {
+        height = containerHeight.value
+        width = height * videoRatio
+    } else {
+        width = containerWidth.value
+        height = width / videoRatio
+    }
+    
+    return {
+        width: `${width}px`,
+        height: `${height}px`
+    }
+})
+
+// Resize observer for container
+let resizeObserver: ResizeObserver | null = null
+
+watch(videoContainerRef, (el) => {
+    if (el) {
+        resizeObserver = new ResizeObserver((entries) => {
+            for (const entry of entries) {
+                containerWidth.value = entry.contentRect.width
+                containerHeight.value = entry.contentRect.height
+            }
+        })
+        resizeObserver.observe(el)
+    } else {
+        resizeObserver?.disconnect()
+    }
+})
 
 const triggerFileInput = () => {
   fileInput.value?.click()
@@ -175,7 +296,15 @@ const uploadVideo = async (file: File) => {
       if (data.uploadedFiles && data.uploadedFiles.length > 0) {
         const uploadedFile = data.uploadedFiles[0]
         videoUrl.value = `${apiUrl}/api/bucket/taskData/${props.projectId}/${uploadedFile.fileName}`
+        videoUuid.value = uploadedFile.uuid
+        videoPath.value = uploadedFile.path // Capture absolute path
+        
         toast.add({ title: 'Success', description: 'Video uploaded successfully', color: 'green' })
+        
+        // Initialize SAM 2
+        if (videoPath.value) {
+            await initSam2(videoPath.value)
+        }
       } else {
         console.warn('No uploaded files in response', data)
         toast.add({ title: 'Warning', description: 'Upload completed but no file returned', color: 'orange' })
@@ -191,18 +320,117 @@ const uploadVideo = async (file: File) => {
   }
 }
 
+const initSam2 = async (path: string) => {
+    sam2Status.value = 'initializing'
+    try {
+        const res = await fetch(`${SAM2_API_URL}/video/init`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_path: path })
+        })
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}))
+            throw new Error(err.detail || 'Failed to init SAM 2')
+        }
+        sam2Status.value = 'ready'
+        toast.add({ title: 'SAM 2 Ready', description: 'Video initialized for segmentation', color: 'green' })
+    } catch (e: any) {
+        console.error(e)
+        sam2Status.value = 'error'
+        toast.add({ title: 'Error', description: e.message || 'Failed to initialize SAM 2', color: 'red' })
+    }
+}
+
+const handleVideoClick = async (event: MouseEvent) => {
+    if (sam2Status.value !== 'ready' || !videoPath.value) return
+    
+    // Calculate coordinates relative to the video element (which matches natural size aspect ratio)
+    // The click event is on the overlay which matches the video size exactly due to our layout
+    const target = event.currentTarget as HTMLElement
+    const rect = target.getBoundingClientRect()
+    
+    // Click coordinates in element space
+    const clickX = event.clientX - rect.left
+    const clickY = event.clientY - rect.top
+    
+    // Scale to video natural size
+    const scaleX = videoNaturalWidth.value / rect.width
+    const scaleY = videoNaturalHeight.value / rect.height
+    
+    const x = clickX * scaleX
+    const y = clickY * scaleY
+    
+    console.log(`Click at ${x}, ${y} (Frame: ${currentFrame.value})`)
+    
+    try {
+        const res = await fetch(`${SAM2_API_URL}/video/click`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                video_path: videoPath.value,
+                frame_idx: currentFrame.value,
+                x,
+                y,
+                label: 1, // Foreground
+                obj_id: 1 // Default object ID
+            })
+        })
+        
+        if (!res.ok) throw new Error('Click failed')
+        
+        const data = await res.json()
+        // data.annotations is List[Annotation]
+        currentClickAnnotations.value = data.annotations
+        hasClicks.value = true
+        
+        // Clear propagated annotations for this frame to show the new click result immediately
+        // (Optional: might want to clear all propagation if we modify the seed)
+        
+    } catch (e) {
+        console.error(e)
+        toast.add({ title: 'Error', description: 'Failed to process click', color: 'red' })
+    }
+}
+
+const propagateVideo = async () => {
+    if (!videoPath.value) return
+    isPropagating.value = true
+    try {
+        const res = await fetch(`${SAM2_API_URL}/video/propagate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ video_path: videoPath.value })
+        })
+        
+        if (!res.ok) throw new Error('Propagation failed')
+        
+        const data = await res.json()
+        // data.annotations is { frame_idx: [Annotation] }
+        propagatedAnnotations.value = data.annotations
+        toast.add({ title: 'Success', description: 'Segmentation propagated', color: 'green' })
+    } catch (e) {
+        console.error(e)
+        toast.add({ title: 'Error', description: 'Propagation failed', color: 'red' })
+    } finally {
+        isPropagating.value = false
+    }
+}
+
+const formatPoints = (points: {x: number, y: number}[]) => {
+    return points.map(p => `${p.x},${p.y}`).join(' ')
+}
+
 const onDurationChange = () => {
     if (videoRef.value) {
         duration.value = videoRef.value.duration
-        console.log('Duration changed:', duration.value)
     }
 }
 
 const onVideoLoaded = () => {
-  console.log('Video loaded metadata')
   if (videoRef.value) {
     duration.value = videoRef.value.duration
-    console.log('Duration set to:', duration.value)
+    videoNaturalWidth.value = videoRef.value.videoWidth
+    videoNaturalHeight.value = videoRef.value.videoHeight
   }
 }
 
@@ -226,7 +454,6 @@ const togglePlay = () => {
 const stepFrame = (frames: number) => {
   if (!videoRef.value) return
   
-  // Pause if playing
   if (!videoRef.value.paused) {
     videoRef.value.pause()
     isPlaying.value = false
@@ -237,21 +464,11 @@ const stepFrame = (frames: number) => {
       vidDuration = videoRef.value.duration
   }
 
-  if (!vidDuration || isNaN(vidDuration) || !isFinite(vidDuration)) {
-      console.warn('Invalid duration, cannot step frame')
-      return
-  }
-
   const current = videoRef.value.currentTime
   const frameTime = 1 / fps.value
   let newTime = current + (frames * frameTime)
-  
-  // Clamp
   newTime = Math.max(0, Math.min(newTime, vidDuration))
   
-  console.log(`Stepping frame: ${frames}, Current: ${current}, New: ${newTime}`)
-
-  // Set time
   videoRef.value.currentTime = newTime
   currentTime.value = newTime
 }
@@ -260,17 +477,11 @@ const handleProgressBarClick = (event: MouseEvent) => {
     if (!videoRef.value) return
     
     let vidDuration = duration.value
-    // Fallback to video element duration if ref is 0 or invalid
     if (!vidDuration || isNaN(vidDuration) || !isFinite(vidDuration)) {
         vidDuration = videoRef.value.duration
     }
 
-    console.log('Click - Duration:', vidDuration, 'Ref Duration:', duration.value, 'Element Duration:', videoRef.value.duration)
-
-    if (!vidDuration || isNaN(vidDuration) || !isFinite(vidDuration)) {
-        console.warn('Invalid duration, cannot seek')
-        return
-    }
+    if (!vidDuration || isNaN(vidDuration) || !isFinite(vidDuration)) return
 
     const progressBar = event.currentTarget as HTMLElement
     const rect = progressBar.getBoundingClientRect()
@@ -278,17 +489,32 @@ const handleProgressBarClick = (event: MouseEvent) => {
     const percentage = Math.max(0, Math.min(1, x / rect.width))
     const newTime = percentage * vidDuration
     
-    console.log(`Seeking to: ${newTime} (${percentage * 100}%)`)
-    
     videoRef.value.currentTime = newTime
     currentTime.value = newTime
 }
 
-const resetVideo = () => {
+const resetVideo = async () => {
+  if (videoPath.value) {
+      try {
+          await fetch(`${SAM2_API_URL}/video/reset`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ video_path: videoPath.value })
+          })
+      } catch (e) {
+          console.error('Failed to reset video on server', e)
+      }
+  }
+
   videoUrl.value = null
+  videoPath.value = null
   currentTime.value = 0
   duration.value = 0
   isPlaying.value = false
+  propagatedAnnotations.value = {}
+  currentClickAnnotations.value = []
+  hasClicks.value = false
+  sam2Status.value = 'idle'
 }
 
 const formatTime = (seconds: number) => {
@@ -299,7 +525,7 @@ const formatTime = (seconds: number) => {
 }
 
 onUnmounted(() => {
-  // Cleanup if needed
+  resizeObserver?.disconnect()
 })
 </script>
 
