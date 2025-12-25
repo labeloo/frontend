@@ -106,6 +106,41 @@
           </div>
         </div>
 
+        <!-- AI Settings Section -->
+        <div v-if="projectData">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <UIcon name="i-heroicons-cpu-chip" class="w-5 h-5 mr-2" />
+            AI Settings
+          </h2>
+
+          <div class="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 border border-purple-200 dark:border-purple-800">
+            <div class="space-y-3">
+              <div>
+                <label class="text-xs font-medium text-purple-600 dark:text-purple-400 uppercase tracking-wide flex justify-between items-center">
+                  <span>AI Backend</span>
+                  <button @click="refreshBackends" class="text-purple-500 hover:text-purple-700 dark:hover:text-purple-300" title="Refresh Backends">
+                    <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
+                  </button>
+                </label>
+                <div class="mt-1">
+                  <select 
+                    v-model="currentBackendId" 
+                    class="w-full text-sm rounded-md border-purple-300 dark:border-purple-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-purple-500 focus:border-purple-500"
+                  >
+                    <option :value="null" disabled>Select Backend</option>
+                    <option v-for="backend in availableBackends" :key="backend.id" :value="backend.id">
+                      {{ backend.backendId }}
+                    </option>
+                  </select>
+                  <p v-if="!availableBackends.length" class="text-xs text-gray-500 mt-1 italic">
+                    No backends available for this organization.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Attributes Section -->
         <div v-if="taskData">
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
@@ -450,6 +485,37 @@ const annotations = ref<Annotation[]>([])
 const savingAnnotation = ref(false)
 const savingAndNext = ref(false)
 const deletingAnnotation = ref<number | null>(null)
+
+// Backend Relations State
+const { 
+  selectedBackendId, 
+  fetchBackends, 
+  getBackends, 
+  setSelectedBackend 
+} = useBackendRelations()
+
+const availableBackends = computed(() => {
+  if (!projectData.value?.organizationId) return []
+  return getBackends(projectData.value.organizationId)
+})
+
+const currentBackendId = computed({
+  get: () => selectedBackendId.value,
+  set: (val) => setSelectedBackend(val)
+})
+
+const refreshBackends = async () => {
+  if (projectData.value?.organizationId) {
+    await fetchBackends(projectData.value.organizationId, true)
+  }
+}
+
+// Watch for project data to fetch backends
+watch(() => projectData.value?.organizationId, async (newVal) => {
+  if (newVal) {
+    await fetchBackends(newVal)
+  }
+})
 
 // Auth
 const token = useCookie('auth_token')
