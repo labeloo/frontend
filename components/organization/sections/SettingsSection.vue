@@ -1098,7 +1098,7 @@ const testConnection = async () => {
         testResult.value.message += ` (Note: Server identified as ${response.name})`
       }
     } else {
-      throw new Error('Invalid response from server')
+      throw new Error('Invalid response from server'+ response.name + response.success)
     }
   } catch (error: any) {
     console.error('Connection test failed:', error)
