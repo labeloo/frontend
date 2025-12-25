@@ -301,6 +301,7 @@
             <KonvaAnnotationCanvas v-if="taskData?.dataUrl" ref="konvaCanvas" :image-url="getTaskImageUrl(taskData)"
               :annotations="canvasAnnotations" :current-tool="currentTool" :is-annotating="isAnnotating"
               :classes="projectData?.labelConfig?.classes || []" :canvas-width="800" :canvas-height="600"
+              :organization-id="projectData?.organizationId"
               @update:annotations="canvasAnnotations = $event" @update:is-annotating="isAnnotating = $event"
               @annotation-completed="onAnnotationCompleted" @annotation-updated="onAnnotationUpdated"
               @annotation-deleted="onAnnotationDeleted" @show-class-selector="onShowClassSelector" />
@@ -404,6 +405,7 @@ interface ProjectData {
   }
   createdAt: number
   updatedAt: number
+  organizationId?: number
 }
 
 interface ProjectResponse {

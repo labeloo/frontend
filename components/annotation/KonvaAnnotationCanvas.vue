@@ -337,6 +337,27 @@
     </button>
   </div>
   
+  <!-- Magic Tool Settings -->
+  <div 
+    v-if="props.currentTool === 'magic'"
+    class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 flex items-center space-x-2 z-20 border border-gray-200 dark:border-gray-600"
+  >
+    <span class="text-xs font-medium text-gray-500 dark:text-gray-400">AI Backend:</span>
+    <select 
+      v-model="selectedBackendId" 
+      class="text-sm border-none bg-transparent focus:ring-0 text-gray-900 dark:text-white cursor-pointer outline-none"
+      style="max-width: 200px;"
+    >
+      <option :value="null" disabled>Select Backend</option>
+      <option v-for="backend in availableBackends" :key="backend.id" :value="backend.id">
+        {{ backend.backendId }}
+      </option>
+    </select>
+    <button @click="fetchBackends" class="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full text-gray-500" title="Refresh Backends">
+        <UIcon name="i-heroicons-arrow-path" class="w-4 h-4" />
+    </button>
+  </div>
+  
   <!-- Performance Mode Indicator -->
   <div 
     v-if="isPerformanceMode"
@@ -395,6 +416,7 @@
  *    - Strategic caching only when needed
  */
 
+import { useApi } from '~/composables/useApi';
 import { useRectConfig } from '~/composables/useRectConfig';
 import { usePolygonConfig } from '~/composables/usePolygonConfig';
 import { useCircleConfig } from '~/composables/useCircleConfig';
@@ -419,6 +441,7 @@ interface Props {
   classes?: string[]
   canvasWidth?: number
   canvasHeight?: number
+  organizationId?: string | number
 }
 
 interface Emits {
@@ -444,6 +467,55 @@ const stageContainer = ref<HTMLElement | null>(null)
 const imageLayer = ref<any>(null)
 const staticLayer = ref<any>(null)
 const activeLayer = ref<any>(null)
+
+// Backend Relations State
+const availableBackends = ref<any[]>([])
+const selectedBackendId = ref<number | null>(null)
+const { fetch: apiFetch } = useApi()
+
+const fetchBackends = async () => {
+  if (!props.organizationId) return
+  
+  try {
+    const response = await apiFetch('/api/backendRelations', {
+      headers: {
+        'orgId': props.organizationId.toString()
+      }
+    })
+    const result = await response.json()
+    if (result.data) {
+      availableBackends.value = result.data
+      
+      // Restore selection from local storage if available
+      const savedBackendId = localStorage.getItem('labeloo-magic-backend-id')
+      if (savedBackendId) {
+        const found = availableBackends.value.find(b => b.id === Number(savedBackendId))
+        if (found) {
+          selectedBackendId.value = found.id
+        }
+      }
+      
+      // If no selection but backends exist, select the first one
+      if (!selectedBackendId.value && availableBackends.value.length > 0) {
+        selectedBackendId.value = availableBackends.value[0].id
+      }
+    }
+  } catch (error) {
+    console.error('Failed to fetch backends:', error)
+  }
+}
+
+watch(() => props.organizationId, (newVal) => {
+  if (newVal) {
+    fetchBackends()
+  }
+}, { immediate: true })
+
+watch(selectedBackendId, (newVal) => {
+  if (newVal) {
+    localStorage.setItem('labeloo-magic-backend-id', newVal.toString())
+  }
+})
 
 
 
@@ -1462,8 +1534,18 @@ const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
     
     formData.append('clicks', JSON.stringify(clicks))
     
+    // Find selected backend
+    const backend = availableBackends.value.find(b => b.id === selectedBackendId.value)
+    if (!backend) {
+        console.warn('No AI backend selected')
+        return
+    }
+    
+    const baseUrl = backend.baseUrl.replace(/\/$/, '') // Remove trailing slash
+    const url = `${baseUrl}/clicked`
+
     // Make the API call
-    const response = await fetch('http://localhost:8000/clicked', {
+    const response = await fetch(url, {
       method: 'POST',
       body: formData
     })
