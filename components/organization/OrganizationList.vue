@@ -22,7 +22,7 @@
           class="mx-auto w-48 h-auto mb-3" />
         <h3 class="text-2xl font-semibold text-secondary mb-4">No Organizations Found</h3>
         <p class="text-gray-500 mb-6">Get started by creating your first organization</p>      
-          <UModal size="2xl" class="modal-fullwidth">
+          <UModal fullscreen>
           <UButton label="Create Organization" color="secondary" class="cursor-pointer" size="xl" />
 
           <template #content>
