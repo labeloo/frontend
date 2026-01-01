@@ -38,6 +38,31 @@
                         Tasks
                     </button>
 
+                    <!-- Reviews Tab with Badge -->
+                    <button @click="handleReviewsClick" :class="[
+                        'w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
+                        activeSection === 'reviews'
+                            ? 'bg-info text-white'
+                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
+                    ]">
+                        <div class="flex items-center">
+                            <UIcon name="i-heroicons-clipboard-document-check" class="w-4 h-4 mr-3" />
+                            Reviews
+                        </div>
+                        <!-- Pending Count Badge -->
+                        <span 
+                            v-if="projectPendingCount > 0"
+                            :class="[
+                                'flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold rounded-full',
+                                activeSection === 'reviews' 
+                                    ? 'bg-white/20 text-white' 
+                                    : 'bg-amber-500 text-white'
+                            ]"
+                        >
+                            {{ projectPendingCount > 99 ? '99+' : projectPendingCount }}
+                        </span>
+                    </button>
+
                     <button @click="handleNavClick('users')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'users'
@@ -101,6 +126,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
+import { useReviewCounts } from '@/composables/useReviewCounts'
 
 // Define middleware as a navigation guard
 definePageMeta({
@@ -113,8 +139,12 @@ definePageMeta({
 })
 
 const { logout } = useAuth()
+const { fetchProjectCounts, getProjectPendingCount } = useReviewCounts()
 const route = useRoute()
 const token = useCookie('auth_token')
+
+// Get project ID from route
+const projectId = computed(() => route.params.id as string)
 
 // Emit events for component navigation
 const emit = defineEmits<{
@@ -123,6 +153,9 @@ const emit = defineEmits<{
 
 // Current active section - sync with global state
 const activeSection = useState('currentProjectSection', () => 'annotate')
+
+// Project pending review count
+const projectPendingCount = ref(0)
 
 const handleLogout = () => {
     logout()
@@ -133,6 +166,30 @@ const handleNavClick = (section: string) => {
     activeSection.value = section
     emit('section-change', section)
 }
+
+// Handle reviews click - navigate to project reviews page
+const handleReviewsClick = () => {
+    activeSection.value = 'reviews'
+    emit('section-change', 'reviews')
+    navigateTo(`/projects/${projectId.value}/reviews`)
+}
+
+// Fetch project review counts
+async function loadReviewCounts() {
+    if (projectId.value) {
+        const counts = await fetchProjectCounts(parseInt(projectId.value))
+        projectPendingCount.value = counts.pending
+    }
+}
+
+// Load counts on mount and when project changes
+onMounted(() => {
+    loadReviewCounts()
+})
+
+watch(projectId, () => {
+    loadReviewCounts()
+})
 
 // Handle back to organization navigation
 const handleBackToOrg = async () => {
