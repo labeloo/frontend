@@ -17,7 +17,7 @@
       <!-- Status Badge -->
       <div class="absolute top-3 right-3">
         <span :class="statusBadgeClass">
-          {{ task.status.toUpperCase() }}
+          {{ statusLabel }}
         </span>
       </div>
 
@@ -54,6 +54,66 @@
       <div v-if="task.assignedTo" class="mb-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
         <UIcon name="i-heroicons-user" class="w-4 h-4 mr-1" />
         Assigned to User #{{ task.assignedTo }}
+      </div>
+
+      <!-- Review Status Section -->
+      <div 
+        v-if="shouldShowReviewStatus && task.reviewStatus"
+        class="mb-3 p-2 rounded-lg border"
+        :class="[
+          isCurrentUserReviewer 
+            ? 'bg-primary-50 dark:bg-primary-950/30 border-primary-200 dark:border-primary-800' 
+            : 'bg-gray-50 dark:bg-gray-700/50 border-gray-200 dark:border-gray-600'
+        ]"
+      >
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <ReviewStatusBadge 
+              :status="task.reviewStatus" 
+              size="sm"
+              @click="$emit('viewReview', task)"
+              class="cursor-pointer hover:opacity-80 transition-opacity"
+            />
+            
+            <!-- Auto-approved indicator -->
+            <UBadge 
+              v-if="task.isAutoApproved"
+              color="success"
+              variant="subtle"
+              size="xs"
+            >
+              <UIcon name="i-heroicons-bolt" class="w-3 h-3 mr-0.5" aria-hidden="true" />
+              Auto
+            </UBadge>
+            
+            <!-- Review round indicator -->
+            <span 
+              v-if="task.reviewRound && task.reviewRound > 1"
+              class="text-xs text-gray-500 dark:text-gray-400"
+            >
+              Round {{ task.reviewRound }}
+            </span>
+          </div>
+
+          <!-- Assigned to current user indicator -->
+          <UBadge 
+            v-if="isCurrentUserReviewer"
+            color="primary"
+            variant="subtle"
+            size="xs"
+          >
+            Assigned to you
+          </UBadge>
+        </div>
+
+        <!-- Reviewer info -->
+        <div 
+          v-if="task.reviewerEmail && !isCurrentUserReviewer"
+          class="flex items-center gap-1 mt-1.5 text-xs text-gray-500 dark:text-gray-400"
+        >
+          <UIcon name="i-heroicons-user-circle" class="w-3 h-3" aria-hidden="true" />
+          <span>Reviewer: {{ task.reviewerEmail }}</span>
+        </div>
       </div>
 
       <!-- Progress Bar (for annotating tasks) -->
@@ -115,7 +175,45 @@
           Continue
         </UButton>
 
-        <!-- Review Button (for completed tasks) -->        <UButton 
+        <!-- Review Task Button (for tasks in_review and assigned to current user) -->
+        <UButton 
+          v-if="task.status === 'in_review' && task.isCurrentUserReview" 
+          color="warning" 
+          size="sm" 
+          @click="$emit('startReview', task)"
+          class="flex-1"
+        >
+          <UIcon name="i-heroicons-clipboard-document-check" class="w-4 h-4 mr-1" />
+          Review Task
+        </UButton>
+
+        <!-- View Review Button (for tasks in_review but not assigned to current user) -->
+        <UButton 
+          v-if="task.status === 'in_review' && !task.isCurrentUserReview" 
+          color="neutral" 
+          variant="outline"
+          size="sm" 
+          @click="$emit('viewReview', task)"
+          class="flex-1"
+        >
+          <UIcon name="i-heroicons-eye" class="w-4 h-4 mr-1" />
+          View Review
+        </UButton>
+
+        <!-- Fix Issues Button (for tasks with changes_needed) -->
+        <UButton 
+          v-if="task.status === 'changes_needed'" 
+          color="error" 
+          size="sm" 
+          @click="$emit('fixIssues', task)"
+          class="flex-1"
+        >
+          <UIcon name="i-heroicons-wrench-screwdriver" class="w-4 h-4 mr-1" />
+          Fix Issues
+        </UButton>
+
+        <!-- Completed Review Button (for completed tasks) -->
+        <UButton 
           v-if="showCompletionInfo && task.status === 'completed'" 
           color="success" 
           variant="outline"
@@ -133,6 +231,7 @@
 
 <script setup lang="ts">
 import { useImageUrl } from '~/composables/useImageUrl'
+import type { ReviewStatus } from '~/types/reviews'
 
 const { getTaskImageUrl } = useImageUrl()
 
@@ -141,12 +240,20 @@ interface Task {
   projectId: number
   dataUrl: string
   dataType: string
-  status: 'unassigned' | 'annotating' | 'completed'
+  status: 'unassigned' | 'annotating' | 'in_review' | 'changes_needed' | 'completed'
   assignedTo: number | null
   metadata: string
   priority: number
   createdAt: number
   updatedAt: number
+  // Review-related fields (populated from API when available)
+  reviewStatus?: ReviewStatus
+  reviewerId?: number
+  reviewerEmail?: string
+  isAutoApproved?: boolean
+  reviewRound?: number
+  /** Whether current user is the assigned reviewer for this task */
+  isCurrentUserReview?: boolean
 }
 
 // Props
@@ -155,6 +262,10 @@ const props = defineProps<{
   showAssignButton?: boolean
   showProgress?: boolean
   showCompletionInfo?: boolean
+  /** Current user ID to highlight if assigned as reviewer */
+  currentUserId?: number
+  /** Whether to show review status information */
+  showReviewStatus?: boolean
 }>()
 
 // Emits
@@ -163,6 +274,12 @@ defineEmits<{
   assign: [task: Task]
   continue: [task: Task]
   review: [task: Task]
+  /** Emitted when user clicks to view review details */
+  viewReview: [task: Task]
+  /** Emitted when reviewer clicks to start reviewing a task */
+  startReview: [task: Task]
+  /** Emitted when annotator clicks to fix issues after rejection */
+  fixIssues: [task: Task]
 }>()
 
 // Computed properties
@@ -173,11 +290,46 @@ const statusBadgeClass = computed(() => {
       return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300`
     case 'annotating':
       return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300`
+    case 'in_review':
+      return `${baseClasses} bg-purple-100 text-purple-800 dark:bg-purple-900/40 dark:text-purple-300`
+    case 'changes_needed':
+      return `${baseClasses} bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300`
     case 'completed':
       return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300`
     default:
       return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300`
   }
+})
+
+/**
+ * Whether to show review status information
+ */
+const shouldShowReviewStatus = computed(() => {
+  if (props.showReviewStatus === false) return false
+  // Show review status for tasks that are in review-related states
+  return ['in_review', 'changes_needed', 'completed'].includes(props.task.status)
+})
+
+/**
+ * Whether the current user is assigned as reviewer
+ */
+const isCurrentUserReviewer = computed(() => {
+  return props.currentUserId !== undefined && 
+         props.task.reviewerId === props.currentUserId
+})
+
+/**
+ * Display label for task status
+ */
+const statusLabel = computed(() => {
+  const labels: Record<string, string> = {
+    unassigned: 'UNASSIGNED',
+    annotating: 'ANNOTATING',
+    in_review: 'IN REVIEW',
+    changes_needed: 'CHANGES NEEDED',
+    completed: 'COMPLETED'
+  }
+  return labels[props.task.status] || props.task.status.toUpperCase()
 })
 
 const parsedMetadata = computed(() => {

@@ -369,15 +369,35 @@
         </div>
       </div>
     </div>
+
+    <!-- Annotation Submit Confirmation Modal -->
+    <AnnotationSubmitConfirmModal
+      :is-open="flowState.showConfirmModal"
+      :requires-review="flowState.requiresReview"
+      :assigned-reviewer-email="flowState.assignedReviewerEmail"
+      :is-submitting="isCompleting"
+      @confirm="handleConfirmSubmit"
+      @cancel="cancelSubmission"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
 import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
+import AnnotationSubmitConfirmModal from '~/components/review/AnnotationSubmitConfirmModal.vue'
 import { useImageUrl } from '~/composables/useImageUrl'
 
 const { getTaskImageUrl } = useImageUrl()
+
+// Review workflow composable
+const {
+  startSubmissionFlow,
+  confirmSubmission,
+  cancelSubmission,
+  flowState,
+  isCompleting
+} = useAnnotationSubmissionFlow()
 
 interface TaskData {
   id: number
@@ -1081,6 +1101,56 @@ const saveAndNext = async () => {
     // Handle error - show notification or error message
   } finally {
     savingAndNext.value = false
+  }
+}
+
+/**
+ * Handle confirmation of annotation submission
+ * Called when user confirms in the AnnotationSubmitConfirmModal
+ */
+const handleConfirmSubmit = async () => {
+  const result = await confirmSubmission()
+  
+  if (result) {
+    // Refresh annotations list to show updated status
+    await fetchAnnotations()
+    
+    // Clear canvas annotations after successful submission
+    canvasAnnotations.value = []
+    
+    // Optionally reload task data to get updated status
+    await loadData()
+  }
+}
+
+/**
+ * Submit annotation with review workflow integration
+ * This replaces the simple save flow with the full review workflow
+ */
+const submitAnnotationForReview = async () => {
+  if (!taskData.value || canvasAnnotations.value.length === 0) {
+    console.warn('No annotations to submit')
+    return
+  }
+
+  // First save the annotation
+  await saveAnnotation()
+  
+  // Get the latest annotation ID (the one we just saved)
+  if (annotations.value.length > 0) {
+    const latestAnnotation = annotations.value[annotations.value.length - 1]
+    
+    if (latestAnnotation) {
+      // Start the submission flow with confirmation
+      await startSubmissionFlow(
+        latestAnnotation.id,
+        taskData.value.projectId,
+        parseInt(taskId),
+        {
+          navigateOnSuccess: `/projects/${taskData.value.projectId}`
+        }
+      )
+    }
   }
 }
 
