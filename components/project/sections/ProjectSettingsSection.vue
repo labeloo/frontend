@@ -261,6 +261,24 @@
         </div>
       </div>
 
+      <!-- Review Workflow Section - Only shown to users with editProject permission -->
+      <div v-if="canEditProject" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-gray-200 dark:border-gray-700">
+        <div class="p-6">
+          <div class="mb-6">
+            <h3 class="text-lg font-medium text-gray-900 dark:text-white">Review Workflow</h3>
+            <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">
+              Configure how annotations are reviewed in this project
+            </p>
+          </div>
+          
+          <ReviewProjectReviewSettingsForm
+            :project-id="Number(projectId)"
+            :can-edit="canEditProject"
+            @updated="handleReviewSettingsUpdated"
+          />
+        </div>
+      </div>
+
       <!-- Danger Zone -->
       <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
         <div class="p-6">
@@ -336,6 +354,7 @@ const props = defineProps<Props>()
 
 // Auth
 const token = useCookie('auth_token')
+const toast = useToast()
 
 // Reactive state
 const isEditing = ref(false)
@@ -344,6 +363,7 @@ const saved = ref(false)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const projectData = ref<ProjectData | null>(null)
+const canEditProject = ref(false)
 
 // Form state
 const formData = ref({
@@ -419,6 +439,41 @@ const fetchProjectData = async () => {
   } finally {
     loading.value = false
   }
+}
+
+/**
+ * Fetch user permissions for this project
+ */
+const fetchPermissions = async () => {
+  try {
+    if (!token.value) return
+
+    const response = await $fetch<{ data: { permissions: string[] } }>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}/permissions`,
+      {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      }
+    )
+
+    canEditProject.value = response.data.permissions?.includes('editProject') ?? false
+  } catch (err) {
+    console.error('Error fetching permissions:', err)
+    canEditProject.value = false
+  }
+}
+
+/**
+ * Handle review settings update
+ */
+const handleReviewSettingsUpdated = () => {
+  toast.add({
+    title: 'Review workflow updated',
+    description: 'Project review settings have been saved successfully.',
+    color: 'success',
+    icon: 'i-heroicons-check-circle'
+  })
 }
 
 const getProjectTypeName = (type?: number) => {
@@ -549,6 +604,7 @@ const saveGeneralSettings = async () => {
 // Lifecycle
 onMounted(() => {
   fetchProjectData()
+  fetchPermissions()
 })
 
 // Warn user before leaving with unsaved changes

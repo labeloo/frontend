@@ -126,6 +126,15 @@ export interface ProjectReviewSettings {
 }
 
 /**
+ * Extended project review settings returned from API
+ * Includes computed/derived workflow information
+ */
+export interface ProjectReviewSettingsResponse extends ProjectReviewSettings {
+  /** The current effective workflow mode based on settings */
+  currentWorkflowMode?: string
+}
+
+/**
  * Represents a user eligible to perform reviews
  */
 export interface EligibleReviewer {
