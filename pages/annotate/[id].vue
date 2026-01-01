@@ -48,6 +48,45 @@
         </div>
       </div> <!-- Content -->
       <div v-else class="space-y-6 p-6">
+        <!-- Assigned Reviewer Banner -->
+        <div 
+          v-if="isAssignedReviewer && isTaskReviewable" 
+          class="bg-linear-to-r from-amber-500 to-orange-500 rounded-lg p-4 shadow-lg"
+        >
+          <div class="flex items-center">
+            <div class="shrink-0">
+              <UIcon name="i-heroicons-clipboard-document-check" class="w-6 h-6 text-white" />
+            </div>
+            <div class="ml-3">
+              <h3 class="text-sm font-semibold text-white">
+                You are assigned to review this annotation
+              </h3>
+              <p class="text-xs text-amber-100 mt-1">
+                Please review the annotation and provide your feedback below.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Annotation Status Section (Review Workflow) -->
+        <div v-if="shouldShowReviewSection && activeAnnotation">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <UIcon name="i-heroicons-clipboard-document-list" class="w-5 h-5 mr-2" />
+            Review Status
+          </h2>
+          
+          <AnnotationStatus 
+            :annotation="{
+              reviewStatus: activeAnnotation.reviewStatus as ReviewStatus | undefined,
+              taskStatus: taskData?.status as TaskStatus | undefined,
+              assignedReviewer: activeAnnotation.reviewerId ? { id: activeAnnotation.reviewerId, email: '' } : undefined,
+              reviewRoundCount: 1
+            }"
+            :workflow-mode="workflowMode === 'auto' ? 'auto-approve' : workflowMode === 'always-required' ? 'review-required' : undefined"
+            :show-details="true"
+          />
+        </div>
+
         <!-- Project Details Section -->
         <div v-if="projectData">
           <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
@@ -244,6 +283,38 @@
             </div>
           </div>
         </div>
+
+        <!-- Review Form Section (for eligible reviewers) -->
+        <div v-if="canSubmitReview && activeAnnotation && taskData">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <UIcon name="i-heroicons-pencil-square" class="w-5 h-5 mr-2" />
+            Submit Review
+          </h2>
+          
+          <div class="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
+            <ReviewForm
+              :annotation-id="activeAnnotation.id"
+              :project-id="taskData.projectId"
+              mode="create"
+              @submitted="onReviewSubmitted"
+            />
+          </div>
+        </div>
+
+        <!-- Review List Section -->
+        <div v-if="activeAnnotation && taskData">
+          <h2 class="text-lg font-medium text-gray-900 dark:text-white mb-4 flex items-center">
+            <UIcon name="i-heroicons-chat-bubble-left-right" class="w-5 h-5 mr-2" />
+            Review History
+          </h2>
+          
+          <ReviewList
+            :key="reviewListKey"
+            :annotation-id="activeAnnotation.id"
+            :project-id="taskData.projectId"
+            :current-user-id="currentUser?.id"
+          />
+        </div>
       </div>
     </div>
 
@@ -251,16 +322,52 @@
     <div class="flex-1 flex flex-col"> <!-- Header -->
       <div class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 px-6 py-4">
         <div class="flex items-center justify-between">
-          <h2 class="text-lg font-medium text-gray-900 dark:text-white">
-            Annotation Workspace
-          </h2>
+          <div class="flex items-center space-x-3">
+            <h2 class="text-lg font-medium text-gray-900 dark:text-white">
+              Annotation Workspace
+            </h2>
+            <!-- Mode Indicator Badge -->
+            <UBadge 
+              v-if="pageMode !== 'annotate'"
+              :color="pageMode === 'review' ? 'warning' : pageMode === 'fix' ? 'error' : 'info'"
+              variant="subtle"
+              size="sm"
+            >
+              <UIcon 
+                :name="pageMode === 'review' ? 'i-heroicons-clipboard-document-check' : 
+                       pageMode === 'fix' ? 'i-heroicons-wrench-screwdriver' : 
+                       'i-heroicons-eye'" 
+                class="w-3 h-3 mr-1" 
+              />
+              {{ pageModeLabel }}
+            </UBadge>
+            <!-- Task Status Badge -->
+            <UBadge 
+              v-if="taskData?.status"
+              :color="taskData.status === 'completed' ? 'success' : 
+                      taskData.status === 'in_review' ? 'warning' :
+                      taskData.status === 'changes_needed' ? 'error' : 'neutral'"
+              variant="subtle"
+              size="sm"
+            >
+              {{ taskData.status.replace('_', ' ') }}
+            </UBadge>
+          </div>
           <div class="flex items-center space-x-4">
             <UButton color="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
               Refresh
             </UButton>
-            <UButton color="secondary" size="lg" @click="saveAnnotation" :loading="savingAnnotation"
-              :disabled="canvasAnnotations.length === 0" class="cursor-pointer">
+            <!-- Show Save button only in annotate or fix mode -->
+            <UButton 
+              v-if="pageMode === 'annotate' || pageMode === 'fix'"
+              color="secondary" 
+              size="lg" 
+              @click="saveAnnotation" 
+              :loading="savingAnnotation"
+              :disabled="canvasAnnotations.length === 0" 
+              class="cursor-pointer"
+            >
               <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
               Save Annotation
             </UButton>
@@ -386,7 +493,13 @@
 import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
 import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
 import AnnotationSubmitConfirmModal from '~/components/review/AnnotationSubmitConfirmModal.vue'
+import ReviewStatusBadge from '~/components/review/ReviewStatusBadge.vue'
+import AnnotationStatus from '~/components/review/AnnotationStatus.vue'
+import ReviewList from '~/components/review/ReviewList.vue'
+import ReviewForm from '~/components/review/ReviewForm.vue'
 import { useImageUrl } from '~/composables/useImageUrl'
+import { useProjectReviewSettings } from '~/composables/useProjectReviewSettings'
+import type { ReviewStatus, ReviewMode, ProjectReviewSettings, TaskStatus } from '~/types/reviews'
 
 const { getTaskImageUrl } = useImageUrl()
 
@@ -398,6 +511,9 @@ const {
   flowState,
   isCompleting
 } = useAnnotationSubmissionFlow()
+
+// Project review settings composable
+const { getProjectReviewSettings } = useProjectReviewSettings()
 
 interface TaskData {
   id: number
@@ -455,6 +571,16 @@ interface AnnotationsResponse {
   data: Annotation[]
 }
 
+/** Current user info with permissions */
+interface CurrentUser {
+  id: number
+  email: string
+  permissions: string[]
+}
+
+/** Route query params for review mode */
+type AnnotateMode = 'annotate' | 'review' | 'view-review' | 'fix'
+
 // Get route params
 const route = useRoute()
 const taskId = route.params.id as string
@@ -471,6 +597,23 @@ const deletingAnnotation = ref<number | null>(null)
 
 // Auth
 const token = useCookie('auth_token')
+
+// Current user state
+const currentUser = ref<CurrentUser | null>(null)
+
+// Review-related state
+const reviewSettings = ref<ProjectReviewSettings | null>(null)
+const isLoadingReviewSettings = ref(false)
+const reviewListKey = ref(0) // Used to force refresh ReviewList component
+
+// Page mode from query param
+const pageMode = computed<AnnotateMode>(() => {
+  const mode = route.query.mode as string
+  if (mode === 'review' || mode === 'view-review' || mode === 'fix') {
+    return mode
+  }
+  return 'annotate'
+})
 
 // Refs
 const konvaCanvas = ref<any>(null)
@@ -549,6 +692,101 @@ const parsedMetadata = computed(() => {
   }
 })
 
+// ==================== Review-related computed properties ====================
+
+/** Get the currently selected/active annotation for review */
+const activeAnnotation = computed(() => {
+  if (annotations.value.length === 0) return null
+  // Return the first annotation (most recent)
+  return annotations.value[0] ?? null
+})
+
+/** Get the workflow mode from project review settings */
+const workflowMode = computed<ReviewMode | null>(() => {
+  return reviewSettings.value?.reviewMode ?? null
+})
+
+/** Check if task is in a reviewable state */
+const isTaskReviewable = computed(() => {
+  const status = taskData.value?.status
+  return status === 'in_review' || status === 'changes_needed'
+})
+
+/** Check if annotation is in a reviewable state */
+const isAnnotationReviewable = computed(() => {
+  const reviewStatus = activeAnnotation.value?.reviewStatus
+  return reviewStatus === 'pending' || reviewStatus === 'changes_requested'
+})
+
+/** Check if current user has review permission */
+const hasReviewPermission = computed(() => {
+  return currentUser.value?.permissions?.includes('reviewAnnotations') ?? false
+})
+
+/** Check if current user is the annotator of the active annotation */
+const isCurrentUserAnnotator = computed(() => {
+  if (!currentUser.value || !activeAnnotation.value) return false
+  return activeAnnotation.value.userId === currentUser.value.id
+})
+
+/** Check if current user is assigned as reviewer for this annotation */
+const isAssignedReviewer = computed(() => {
+  if (!currentUser.value || !activeAnnotation.value) return false
+  return activeAnnotation.value.reviewerId === currentUser.value.id
+})
+
+/** Check if self-review is allowed (when user is both annotator and reviewer) */
+const isSelfReviewAllowed = computed(() => {
+  // By default, self-review is not allowed unless explicitly configured
+  return reviewSettings.value?.allowSelfReview ?? false
+})
+
+/** 
+ * Check if current user can submit a review for this annotation
+ * Conditions:
+ * 1. User has reviewAnnotations permission
+ * 2. Task is in reviewable state (in_review or changes_needed)
+ * 3. Annotation is in reviewable state (pending or changes_requested)
+ * 4. User is not the annotator (unless self-review is allowed)
+ * 5. OR user is the assigned reviewer
+ */
+const canSubmitReview = computed(() => {
+  // Must have review permission
+  if (!hasReviewPermission.value) return false
+  
+  // Task must be in reviewable state
+  if (!isTaskReviewable.value) return false
+  
+  // Annotation must be in reviewable state
+  if (!isAnnotationReviewable.value) return false
+  
+  // If user is assigned reviewer, they can always review
+  if (isAssignedReviewer.value) return true
+  
+  // Otherwise, user cannot be the annotator (unless self-review allowed)
+  if (isCurrentUserAnnotator.value && !isSelfReviewAllowed.value) return false
+  
+  return true
+})
+
+/** Check if review section should be shown at all */
+const shouldShowReviewSection = computed(() => {
+  // Show if task has any review-related status or if there are reviews
+  return workflowMode.value !== null || 
+         isTaskReviewable.value || 
+         taskData.value?.status === 'completed'
+})
+
+/** Get the mode text for display */
+const pageModeLabel = computed(() => {
+  switch (pageMode.value) {
+    case 'review': return 'Reviewing'
+    case 'view-review': return 'View Review'
+    case 'fix': return 'Fixing Issues'
+    default: return 'Annotating'
+  }
+})
+
 // Methods
 const fetchTaskData = async () => {
   try {
@@ -614,6 +852,60 @@ const fetchProjectData = async () => {
   }
 }
 
+/** Fetch current user info including permissions */
+const fetchCurrentUser = async () => {
+  try {
+    if (!token.value) return
+
+    const response = await $fetch<{ data: CurrentUser }>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/users/me`,
+      {
+        headers: {
+          'Authorization': `Bearer ${token.value}`
+        }
+      }
+    )
+
+    currentUser.value = response.data
+  } catch (err) {
+    console.error('Error fetching current user:', err)
+    currentUser.value = null
+  }
+}
+
+/** Fetch project review settings */
+const fetchReviewSettings = async () => {
+  if (!taskData.value?.projectId) return
+
+  try {
+    isLoadingReviewSettings.value = true
+    const settings = await getProjectReviewSettings(taskData.value.projectId)
+    reviewSettings.value = settings
+  } catch (err) {
+    console.error('Error fetching review settings:', err)
+    reviewSettings.value = null
+  } finally {
+    isLoadingReviewSettings.value = false
+  }
+}
+
+/** Refresh the review list component */
+const refreshReviewList = () => {
+  reviewListKey.value++
+}
+
+/** Handle successful review submission */
+const onReviewSubmitted = async () => {
+  // Refresh the review list
+  refreshReviewList()
+  
+  // Reload annotations to get updated status
+  await fetchAnnotations()
+  
+  // Reload task data to get updated task status
+  await fetchTaskData()
+}
+
 const loadData = async () => {
   try {
     loading.value = true;
@@ -622,10 +914,14 @@ const loadData = async () => {
     // Reset canvas annotations when loading new data
     canvasAnnotations.value = [];
 
+    // Fetch current user first (needed for permissions)
+    await fetchCurrentUser();
+
     await fetchTaskData();
     await Promise.all([
       fetchProjectData(),
-      fetchAnnotations()
+      fetchAnnotations(),
+      fetchReviewSettings()
     ]);
 
     // New logic: If there are annotations from the DB, apply the first one.
