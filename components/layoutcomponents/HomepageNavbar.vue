@@ -12,15 +12,27 @@
                     <span>Reviews</span>
                     <!-- Pending Count Badge -->
                     <span 
-                        v-if="globalPendingCount > 0"
-                        class="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold text-white bg-amber-500 rounded-full"
+                        v-if="pendingCount > 0"
+                        class="absolute -top-1 -right-1 flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-bold text-white bg-red-500 rounded-full animate-pulse"
                     >
-                        {{ globalPendingCount > 99 ? '99+' : globalPendingCount }}
+                        {{ pendingCount > 99 ? '99+' : pendingCount }}
                     </span>
                 </NuxtLink>
                 
                 <UtilsColorModeButton class="hover:cursor-pointer" />
-                <UButton color="secondary" class="hover:cursor-pointer" @click="handleLogout">Logout</UButton>
+                
+                <!-- User Menu with Notifications -->
+                <UDropdown :items="userMenuItems" :popper="{ placement: 'bottom-end' }">
+                    <UButton color="secondary" variant="ghost" class="hover:cursor-pointer">
+                        <UIcon name="i-heroicons-user-circle" class="w-5 h-5 mr-1" />
+                        <span class="hidden sm:inline">Account</span>
+                        <!-- Notification indicator -->
+                        <span 
+                            v-if="hasNotifications" 
+                            class="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"
+                        />
+                    </UButton>
+                </UDropdown>
             </div>
         </div>
     </header>
@@ -28,7 +40,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
-import { useReviewCounts } from '@/composables/useReviewCounts'
+import { useReviewNotificationsAutoRefresh } from '@/composables/useReviewNotifications'
 
 // Define middleware as a navigation guard
 definePageMeta({
@@ -41,14 +53,66 @@ definePageMeta({
 })
 
 const { logout } = useAuth()
-const { globalPendingCount, fetchGlobalCounts } = useReviewCounts()
+const router = useRouter()
 
+// Use auto-refresh notifications (polls every 30 seconds)
+const { pendingCount, hasNotifications } = useReviewNotificationsAutoRefresh(30000)
+
+/**
+ * Handle logout
+ */
 const handleLogout = () => {
     logout()
 }
 
-// Fetch review counts on mount
-onMounted(() => {
-    fetchGlobalCounts()
+/**
+ * Navigate to reviews page
+ */
+const goToReviews = () => {
+    router.push('/reviews')
+}
+
+/**
+ * User menu dropdown items
+ */
+const userMenuItems = computed(() => {
+    const items: any[][] = []
+    
+    // Notifications section (if any pending reviews)
+    if (pendingCount.value > 0) {
+        items.push([
+            {
+                label: `You have ${pendingCount.value} pending review${pendingCount.value > 1 ? 's' : ''}`,
+                icon: 'i-heroicons-clipboard-document-check',
+                class: 'text-amber-600 dark:text-amber-400',
+                click: goToReviews
+            }
+        ])
+    }
+    
+    // Account actions
+    items.push([
+        {
+            label: 'My Reviews',
+            icon: 'i-heroicons-clipboard-document-list',
+            click: goToReviews
+        },
+        {
+            label: 'Settings',
+            icon: 'i-heroicons-cog-6-tooth',
+            disabled: true
+        }
+    ])
+    
+    // Logout
+    items.push([
+        {
+            label: 'Logout',
+            icon: 'i-heroicons-arrow-right-on-rectangle',
+            click: handleLogout
+        }
+    ])
+    
+    return items
 })
 </script>

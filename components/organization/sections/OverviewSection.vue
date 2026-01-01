@@ -105,6 +105,14 @@
               <p v-if="project.description" class="text-sm text-gray-600 dark:text-gray-400 line-clamp-2">
                 {{ project.description }}
               </p>
+              <!-- Pending Reviews Badge -->
+              <div 
+                v-if="getProjectReviewCount(project.id) > 0"
+                class="flex items-center text-xs text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-1 rounded-md w-fit"
+              >
+                <UIcon name="i-heroicons-clipboard-document-check" class="w-3 h-3 mr-1" />
+                <span>{{ getProjectReviewCount(project.id) }} pending</span>
+              </div>
               <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                 <span class="flex items-center space-x-1">
                   <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
@@ -191,6 +199,8 @@
 </template>
 
 <script setup lang="ts">
+import { useProjectReviewCounts } from '@/composables/useReviewNotifications'
+
 interface Project {
   id: number
   organizationId: number
@@ -235,6 +245,10 @@ const loading = ref(true)
 
 // Token for API requests
 const token = useCookie('auth_token')
+
+// Review counts for projects
+const projectIds = computed(() => projects.value.map(p => p.id))
+const { getCount: getProjectReviewCount, fetchAll: fetchProjectReviewCounts } = useProjectReviewCounts(projectIds)
 
 // Computed properties
 const activeProjects = computed(() => {
@@ -346,6 +360,9 @@ const fetchAllData = async () => {
       fetchUsers(),
       fetchRoles()
     ])
+    
+    // Fetch review counts for projects
+    await fetchProjectReviewCounts()
   } finally {
     loading.value = false
   }

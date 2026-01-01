@@ -126,7 +126,7 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
-import { useReviewCounts } from '@/composables/useReviewCounts'
+import { useReviewNotifications } from '@/composables/useReviewNotifications'
 
 // Define middleware as a navigation guard
 definePageMeta({
@@ -139,7 +139,7 @@ definePageMeta({
 })
 
 const { logout } = useAuth()
-const { fetchProjectCounts, getProjectPendingCount } = useReviewCounts()
+const { fetchProjectPendingCount, projectPendingCounts, startPolling, stopPolling } = useReviewNotifications()
 const route = useRoute()
 const token = useCookie('auth_token')
 
@@ -154,8 +154,11 @@ const emit = defineEmits<{
 // Current active section - sync with global state
 const activeSection = useState('currentProjectSection', () => 'annotate')
 
-// Project pending review count
-const projectPendingCount = ref(0)
+// Project pending review count (reactive from composable cache)
+const projectPendingCount = computed(() => {
+    if (!projectId.value) return 0
+    return projectPendingCounts.value.get(parseInt(projectId.value)) ?? 0
+})
 
 const handleLogout = () => {
     logout()
@@ -177,14 +180,19 @@ const handleReviewsClick = () => {
 // Fetch project review counts
 async function loadReviewCounts() {
     if (projectId.value) {
-        const counts = await fetchProjectCounts(parseInt(projectId.value))
-        projectPendingCount.value = counts.pending
+        await fetchProjectPendingCount(parseInt(projectId.value))
     }
 }
 
-// Load counts on mount and when project changes
+// Load counts on mount and start polling
 onMounted(() => {
     loadReviewCounts()
+    startPolling(30000) // Poll every 30 seconds
+})
+
+// Stop polling on unmount
+onUnmounted(() => {
+    stopPolling()
 })
 
 watch(projectId, () => {
