@@ -229,6 +229,8 @@ interface PermissionFlags {
   editProjects: boolean;
   createProjects: boolean;
   deleteProjects: boolean;
+  reviewAnnotations: boolean;
+  viewReviews: boolean;
 }
 
 interface Role {
@@ -264,6 +266,8 @@ const permissionFlags = ref<PermissionFlags>({
   editProjects: false,
   createProjects: false,
   deleteProjects: false,
+  reviewAnnotations: false,
+  viewReviews: false,
 })
 
 const newRole = ref({
@@ -279,6 +283,8 @@ const newRole = ref({
     editProjects: false,
     createProjects: false,
     deleteProjects: false,
+    reviewAnnotations: false,
+    viewReviews: false,
   } as PermissionFlags
 })
 
@@ -380,6 +386,8 @@ const resetForm = () => {
       editProjects: false,
       createProjects: false,
       deleteProjects: false,
+      reviewAnnotations: false,
+      viewReviews: false,
     }
   }
 
@@ -392,6 +400,8 @@ const resetForm = () => {
     editProjects: false,
     createProjects: false,
     deleteProjects: false,
+    reviewAnnotations: false,
+    viewReviews: false,
   }
 
   flagsModified.value = false

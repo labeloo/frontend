@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, computed, defineEmits } from 'vue'
+import { reactive, ref, computed } from 'vue'
 
 const props = defineProps<{
     orgId: string;
@@ -15,6 +15,8 @@ interface PermissionFlags {
   editProjects: boolean;
   createProjects: boolean;
   deleteProjects: boolean;
+  reviewAnnotations: boolean;
+  viewReviews: boolean;
 }
 
 // Create ref for permission flags to manage state
@@ -27,6 +29,8 @@ const permissionFlags = ref<PermissionFlags>({
   editProjects: false,
   createProjects: false,
   deleteProjects: false,
+  reviewAnnotations: false,
+  viewReviews: false,
 });
 
 // Track if the flags have been modified to show indicators

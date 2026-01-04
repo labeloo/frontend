@@ -11,6 +11,8 @@ interface RoleState {
   editProjects: boolean
   createProjects: boolean
   deleteProjects: boolean
+  reviewAnnotations: boolean
+  viewReviews: boolean
 }
 
 // Add props to receive initial state from parent
@@ -27,6 +29,8 @@ const state = reactive<RoleState>({
   editProjects: false,
   createProjects: false,
   deleteProjects: false,
+  reviewAnnotations: false,
+  viewReviews: false,
 })
 
 // Initialize state from props when component mounts and when props change
@@ -249,6 +253,52 @@ const emit = defineEmits(['update:state'])
             <span
               class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
               :class="[state.deleteProjects ? 'translate-x-6' : 'translate-x-1']"
+            />
+          </Switch>
+        </UFormField>
+      </div>
+
+      <div class="space-y-2">
+        <UFormField label="Review Annotations" name="reviewAnnotations" size="lg">
+          <template #description>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Review and approve annotations in projects</p>
+          </template>
+          <Switch
+            v-model="state.reviewAnnotations"
+            :disabled="otherFlagsDisabled"
+            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            :class=" [
+              state.reviewAnnotations ? 'bg-green-500' : 'bg-gray-300',
+              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
+            ]"
+          >
+            <span class="sr-only">Enable review annotations role</span>
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
+              :class="[state.reviewAnnotations ? 'translate-x-6' : 'translate-x-1']"
+            />
+          </Switch>
+        </UFormField>
+      </div>
+
+      <div class="space-y-2">
+        <UFormField label="View Reviews" name="viewReviews" size="lg">
+          <template #description>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">View review history and feedback on annotations</p>
+          </template>
+          <Switch
+            v-model="state.viewReviews"
+            :disabled="otherFlagsDisabled"
+            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
+            :class=" [
+              state.viewReviews ? 'bg-green-500' : 'bg-gray-300',
+              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
+            ]"
+          >
+            <span class="sr-only">Enable view reviews role</span>
+            <span
+              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
+              :class="[state.viewReviews ? 'translate-x-6' : 'translate-x-1']"
             />
           </Switch>
         </UFormField>
