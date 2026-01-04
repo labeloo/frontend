@@ -58,7 +58,7 @@ export const useProjectReviewSettings = () => {
     isFetchingSettings.value = true
 
     try {
-      const settings = await $fetch<ProjectReviewSettingsWithWorkflow>(
+      const response = await $fetch<{ data: ProjectReviewSettingsWithWorkflow }>(
         `${apiUrl}/api/projects/${projectId}/review-settings`,
         {
           method: 'GET',
@@ -67,7 +67,7 @@ export const useProjectReviewSettings = () => {
         }
       )
 
-      return settings
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -94,7 +94,7 @@ export const useProjectReviewSettings = () => {
     isUpdatingSettings.value = true
 
     try {
-      const updatedSettings = await $fetch<ProjectReviewSettings>(
+      const response = await $fetch<{ data: ProjectReviewSettings }>(
         `${apiUrl}/api/projects/${projectId}/review-settings`,
         {
           method: 'PATCH',
@@ -110,7 +110,7 @@ export const useProjectReviewSettings = () => {
         color: 'success'
       })
 
-      return updatedSettings
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -133,7 +133,7 @@ export const useProjectReviewSettings = () => {
     isFetchingReviewers.value = true
 
     try {
-      const reviewers = await $fetch<EligibleReviewer[]>(
+      const response = await $fetch<{ data: EligibleReviewer[] }>(
         `${apiUrl}/api/projects/${projectId}/eligible-reviewers`,
         {
           method: 'GET',
@@ -142,7 +142,7 @@ export const useProjectReviewSettings = () => {
         }
       )
 
-      return reviewers
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({

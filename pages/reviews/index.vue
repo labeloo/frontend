@@ -133,13 +133,15 @@ async function checkPermission(): Promise<void> {
 
 /**
  * Fetch review statistics
+ * Uses the assigned-to-me endpoint to derive counts
  */
 async function fetchStats(): Promise<void> {
   try {
     isLoadingStats.value = true
     
-    const response = await $fetch<{ data: { pending: number; completedToday: number } }>(
-      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/reviews/stats`,
+    // Use the available assigned-to-me endpoint
+    const response = await $fetch<{ data: Array<{ status: string }> }>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/reviews/assigned-to-me`,
       {
         headers: {
           Authorization: `Bearer ${token.value}`
@@ -147,7 +149,12 @@ async function fetchStats(): Promise<void> {
       }
     )
     
-    stats.value = response.data
+    // Derive counts from the response
+    const reviews = response.data || []
+    stats.value = {
+      pending: reviews.filter(r => r.status === 'pending').length,
+      completedToday: 0 // Not available without dedicated stats endpoint
+    }
   } catch (error) {
     console.error('Error fetching review stats:', error)
     // Use defaults

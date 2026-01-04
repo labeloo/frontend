@@ -72,7 +72,7 @@ export const useReviewApi = () => {
     isCreating.value = true
 
     try {
-      const review = await $fetch<Review>(
+      const response = await $fetch<{ data: Review }>(
         `${apiUrl}/api/projects/${projectId}/annotations/${annotationId}/reviews`,
         {
           method: 'POST',
@@ -88,7 +88,7 @@ export const useReviewApi = () => {
         color: 'success'
       })
 
-      return review
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -115,7 +115,7 @@ export const useReviewApi = () => {
     isFetching.value = true
 
     try {
-      const reviews = await $fetch<Review[]>(
+      const response = await $fetch<{ data: Review[] }>(
         `${apiUrl}/api/projects/${projectId}/annotations/${annotationId}/reviews`,
         {
           method: 'GET',
@@ -124,7 +124,7 @@ export const useReviewApi = () => {
         }
       )
 
-      return reviews
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -153,7 +153,7 @@ export const useReviewApi = () => {
     isUpdating.value = true
 
     try {
-      const review = await $fetch<Review>(
+      const response = await $fetch<{ data: Review }>(
         `${apiUrl}/api/projects/${projectId}/reviews/${reviewId}`,
         {
           method: 'PATCH',
@@ -169,7 +169,7 @@ export const useReviewApi = () => {
         color: 'success'
       })
 
-      return review
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -206,13 +206,13 @@ export const useReviewApi = () => {
       const queryString = params.toString()
       const url = `${apiUrl}/api/projects/${projectId}/reviews${queryString ? `?${queryString}` : ''}`
 
-      const response = await $fetch<PaginatedReviews>(url, {
+      const response = await $fetch<{ data: PaginatedReviews }>(url, {
         method: 'GET',
         headers: getHeaders(),
         credentials: 'include'
       })
 
-      return response
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -235,7 +235,7 @@ export const useReviewApi = () => {
     isFetching.value = true
 
     try {
-      const reviews = await $fetch<ReviewWithContext[]>(
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
         `${apiUrl}/api/projects/${projectId}/reviews/assigned-to-me`,
         {
           method: 'GET',
@@ -244,7 +244,7 @@ export const useReviewApi = () => {
         }
       )
 
-      return reviews
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({
@@ -266,7 +266,7 @@ export const useReviewApi = () => {
     isFetching.value = true
 
     try {
-      const reviews = await $fetch<ReviewWithContext[]>(
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
         `${apiUrl}/api/reviews/assigned-to-me`,
         {
           method: 'GET',
@@ -275,7 +275,7 @@ export const useReviewApi = () => {
         }
       )
 
-      return reviews
+      return response.data
     } catch (error) {
       const message = formatError(error)
       toast.add({

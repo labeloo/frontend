@@ -3,7 +3,12 @@
  * 
  * Used in navigation components to display pending review badges.
  * Provides both global counts and project-specific counts.
+ * 
+ * Uses the assigned-to-me endpoints to derive counts since there's no
+ * dedicated stats endpoint in the backend.
  */
+
+import type { ReviewWithContext } from '~/types/reviews'
 
 export interface ReviewCounts {
   /** Total pending reviews assigned to current user */
@@ -60,6 +65,7 @@ export function useReviewCounts(): UseReviewCountsReturn {
   
   /**
    * Fetch global review counts for current user
+   * Uses the assigned-to-me endpoint to count pending reviews
    */
   async function fetchGlobalCounts(): Promise<ReviewCounts> {
     // Return cached if valid
@@ -74,8 +80,9 @@ export function useReviewCounts(): UseReviewCountsReturn {
     try {
       isLoadingGlobal.value = true
       
-      const response = await $fetch<{ data: ReviewCounts }>(
-        `${config.public.apiBase}/api/reviews/stats`,
+      // Use the existing assigned-to-me endpoint to get reviews assigned to current user
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
+        `${config.public.apiUrl}/api/reviews/assigned-to-me`,
         {
           headers: {
             Authorization: `Bearer ${token.value}`
@@ -83,10 +90,19 @@ export function useReviewCounts(): UseReviewCountsReturn {
         }
       )
       
-      globalPendingCount.value = response.data.pending
+      // Count pending reviews from the response
+      const reviews = response.data || []
+      const pendingCount = reviews.filter(r => r.status === 'pending').length
+      const changesRequestedCount = reviews.filter(r => r.status === 'changes_requested').length
+      
+      globalPendingCount.value = pendingCount
       lastFetchTime.value = Date.now()
       
-      return response.data
+      return {
+        pending: pendingCount,
+        completedToday: 0, // Not available from this endpoint
+        changesRequested: changesRequestedCount
+      }
     } catch (error) {
       console.error('Error fetching global review counts:', error)
       return {
@@ -101,6 +117,7 @@ export function useReviewCounts(): UseReviewCountsReturn {
   
   /**
    * Fetch project-specific review counts
+   * Uses the project-scoped assigned-to-me endpoint
    */
   async function fetchProjectCounts(projectId: number): Promise<ProjectReviewCounts> {
     // Check cache first
@@ -110,10 +127,9 @@ export function useReviewCounts(): UseReviewCountsReturn {
     }
     
     try {
-      const response = await $fetch<{ 
-        data: { pending: number; approved: number; changesRequested: number } 
-      }>(
-        `${config.public.apiBase}/api/projects/${projectId}/reviews/stats`,
+      // Use the existing project-scoped assigned-to-me endpoint
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
+        `${config.public.apiUrl}/api/projects/${projectId}/reviews/assigned-to-me`,
         {
           headers: {
             Authorization: `Bearer ${token.value}`
@@ -121,12 +137,18 @@ export function useReviewCounts(): UseReviewCountsReturn {
         }
       )
       
+      // Count from the response
+      const reviews = response.data || []
+      const pendingCount = reviews.filter(r => r.status === 'pending').length
+      const approvedCount = reviews.filter(r => r.status === 'approved').length
+      const changesRequestedCount = reviews.filter(r => r.status === 'changes_requested').length
+      
       const counts: ProjectReviewCounts = {
         projectId,
-        pending: response.data.pending,
-        approved: response.data.approved,
-        changesRequested: response.data.changesRequested,
-        completedToday: 0
+        pending: pendingCount,
+        approved: approvedCount,
+        changesRequested: changesRequestedCount,
+        completedToday: 0 // Not available from this endpoint
       }
       
       // Cache the result

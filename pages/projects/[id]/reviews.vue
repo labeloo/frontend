@@ -210,15 +210,17 @@ async function checkPermission(): Promise<void> {
 
 /**
  * Fetch review statistics for this project
+ * Uses the project-scoped assigned-to-me endpoint to derive counts
  */
 async function fetchStats(): Promise<void> {
   try {
     isLoadingStats.value = true
     
+    // Use the available project-scoped assigned-to-me endpoint
     const response = await $fetch<{ 
-      data: { pending: number; approved: number; changesRequested: number } 
+      data: Array<{ status: string }> 
     }>(
-      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectId.value}/reviews/stats`,
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectId.value}/reviews/assigned-to-me`,
       {
         headers: {
           Authorization: `Bearer ${token.value}`
@@ -226,7 +228,13 @@ async function fetchStats(): Promise<void> {
       }
     )
     
-    stats.value = response.data
+    // Derive counts from the response
+    const reviews = response.data || []
+    stats.value = {
+      pending: reviews.filter(r => r.status === 'pending').length,
+      approved: reviews.filter(r => r.status === 'approved').length,
+      changesRequested: reviews.filter(r => r.status === 'changes_requested').length
+    }
   } catch (err) {
     console.error('Error fetching review stats:', err)
     stats.value = { pending: 0, approved: 0, changesRequested: 0 }

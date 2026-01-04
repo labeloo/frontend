@@ -215,7 +215,7 @@ async function fetchTasks(): Promise<void> {
     const config = useRuntimeConfig()
     
     const response = await $fetch<{ tasks: TaskWithReview[], total: number }>(
-      `${config.public.apiBase}/projects/${props.projectId}/tasks`,
+      `${config.public.apiUrl}/api/projects/${props.projectId}/tasks`,
       {
         headers: {
           Authorization: `Bearer ${authToken.value}`

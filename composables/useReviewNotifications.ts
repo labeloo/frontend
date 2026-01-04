@@ -8,6 +8,9 @@
  * - Auto-refresh with configurable polling interval
  * - Smart caching to minimize API calls
  * 
+ * Uses the available backend endpoints (assigned-to-me) since dedicated
+ * stats endpoints are not available.
+ * 
  * @example
  * ```vue
  * <script setup>
@@ -22,6 +25,8 @@
  * </template>
  * ```
  */
+
+import type { ReviewWithContext } from '~/types/reviews'
 
 export interface ReviewNotification {
   /** Unique identifier */
@@ -133,6 +138,7 @@ export function useReviewNotifications(): UseReviewNotificationsReturn {
   
   /**
    * Fetch all notification data
+   * Uses the assigned-to-me endpoint to derive counts
    */
   async function refresh(): Promise<void> {
     // Skip if cache is valid (unless forced)
@@ -147,39 +153,22 @@ export function useReviewNotifications(): UseReviewNotificationsReturn {
     try {
       isLoading.value = true
       
-      // Fetch pending reviews count
-      const statsResponse = await $fetch<{ data: { pending: number; completedToday?: number } }>(
-        `${config.public.apiBase}/api/reviews/stats`,
+      // Fetch reviews assigned to current user using the available endpoint
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
+        `${config.public.apiUrl}/api/reviews/assigned-to-me`,
         {
           headers: {
             Authorization: `Bearer ${token.value}`
           }
         }
-      ).catch(() => ({ data: { pending: 0 } }))
+      ).catch(() => ({ data: [] }))
       
-      pendingCount.value = statsResponse.data.pending
+      // Count pending reviews from the response
+      const reviews = response.data || []
+      pendingCount.value = reviews.filter(r => r.status === 'pending').length
       
-      // Fetch own annotation reviews (optional endpoint - may not exist)
-      try {
-        const ownReviewsResponse = await $fetch<{ data: OwnAnnotationReview[] }>(
-          `${config.public.apiBase}/api/reviews/my-annotations`,
-          {
-            headers: {
-              Authorization: `Bearer ${token.value}`
-            }
-          }
-        )
-        
-        // Only update with new unseen reviews
-        const existingIds = new Set(ownAnnotationReviews.value.map(r => r.reviewId))
-        const newReviews = ownReviewsResponse.data.filter(r => !existingIds.has(r.reviewId))
-        
-        if (newReviews.length > 0) {
-          ownAnnotationReviews.value = [...ownAnnotationReviews.value, ...newReviews]
-        }
-      } catch {
-        // Endpoint may not exist - that's okay
-      }
+      // Note: Own annotation reviews (my-annotations endpoint) does not exist in backend
+      // This feature would require backend support. For now, we skip it.
       
       lastFetchTime = Date.now()
       lastRefreshed.value = new Date()
@@ -193,6 +182,7 @@ export function useReviewNotifications(): UseReviewNotificationsReturn {
   
   /**
    * Fetch pending review count for a specific project
+   * Uses the project-scoped assigned-to-me endpoint
    */
   async function fetchProjectPendingCount(projectId: number): Promise<number> {
     // Check cache first
@@ -206,8 +196,9 @@ export function useReviewNotifications(): UseReviewNotificationsReturn {
     }
     
     try {
-      const response = await $fetch<{ data: { pending: number } }>(
-        `${config.public.apiBase}/api/projects/${projectId}/reviews/stats`,
+      // Use the available project-scoped assigned-to-me endpoint
+      const response = await $fetch<{ data: ReviewWithContext[] }>(
+        `${config.public.apiUrl}/api/projects/${projectId}/reviews/assigned-to-me`,
         {
           headers: {
             Authorization: `Bearer ${token.value}`
@@ -215,7 +206,9 @@ export function useReviewNotifications(): UseReviewNotificationsReturn {
         }
       )
       
-      const count = response.data.pending
+      // Count pending from the response
+      const reviews = response.data || []
+      const count = reviews.filter(r => r.status === 'pending').length
       projectPendingCounts.value.set(projectId, count)
       
       return count
