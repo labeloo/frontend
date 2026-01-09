@@ -11,16 +11,6 @@
             Manage your project details, users, tasks, and settings
           </p>
         </div>
-        <div class="flex gap-3">
-          <UButton color="secondary" variant="outline" class="cursor-pointer">
-            <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
-            Edit Project
-          </UButton>
-          <UButton color="secondary" variant="outline" class="cursor-pointer">
-            <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
-            Add New Task
-          </UButton>
-        </div>
       </div>
     </div>    
 
