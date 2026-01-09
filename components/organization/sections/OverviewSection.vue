@@ -184,7 +184,7 @@
             Invite Members
           </UButton>
           <UButton 
-            color="info" 
+            color="primary" 
             variant="soft"
             icon="i-heroicons-shield-check"
             class="justify-center"

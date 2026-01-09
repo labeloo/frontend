@@ -92,7 +92,7 @@
                 v-if="hasChanges"
                 @click="updateClasses"
                 :loading="updating"
-                color="info"
+                color="primary"
                 size="sm"
                 icon="i-heroicons-check"
                 class="cursor-pointer"

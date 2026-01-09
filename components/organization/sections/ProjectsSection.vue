@@ -100,7 +100,7 @@
           <div class="flex justify-between items-center">
             <UButton  
               size="sm" 
-              color="info"
+              color="primary"
               icon="i-heroicons-eye" 
               class="text-white"
               @click.stop="viewProject(project.id)"

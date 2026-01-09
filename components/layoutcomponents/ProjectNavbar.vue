@@ -21,7 +21,7 @@
                     <button @click="handleNavClick('annotate')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'annotate'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 mr-3" />
@@ -31,7 +31,7 @@
                     <button @click="handleNavClick('tasks')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'tasks'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-clipboard-document-list" class="w-4 h-4 mr-3" />
@@ -42,7 +42,7 @@
                     <button @click="handleReviewsClick" :class="[
                         'w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'reviews'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <div class="flex items-center">
@@ -66,7 +66,7 @@
                     <button @click="handleNavClick('users')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'users'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
@@ -76,7 +76,7 @@
                     <button @click="handleNavClick('upload-data')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'upload-data'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4 mr-3" />
@@ -86,7 +86,7 @@
                     <button @click="handleNavClick('classes')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'classes'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-academic-cap" class="w-4 h-4 mr-3" />
@@ -96,7 +96,7 @@
                     <button @click="handleNavClick('settings')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'settings'
-                            ? 'bg-info text-white'
+                            ? 'bg-primary text-white'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />

@@ -1,6 +1,7 @@
 
 
-<template>    <div>
+<template>
+    <div class="">
         <main id="homepage" class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
             <div class="bg-white dark:bg-gray-800 rounded-lg shadow px-6 py-8">
                 <div class="mb-6">

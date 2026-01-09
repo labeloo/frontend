@@ -207,7 +207,7 @@
         </div>
       </div>
       <div class="flex justify-end gap-4 mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-        <UButton color="info" variant="outline" size="lg" class="cursor-pointer" @click.stop="clearForm">
+        <UButton color="primary" variant="outline" size="lg" class="cursor-pointer" @click.stop="clearForm">
           Clear Form
         </UButton>
         <UButton color="secondary" size="lg" class="cursor-pointer" @click.stop="createRole" :loading="creating">

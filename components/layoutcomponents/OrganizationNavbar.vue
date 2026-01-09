@@ -3,7 +3,7 @@
     <aside class="bg-white dark:bg-gray-800 shadow-lg h-screen w-64 fixed left-0 top-0 z-40 border-r border-gray-200 dark:border-gray-700">
         <div class="flex flex-col h-full">
             <!-- Logo/Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class=" bg-primary dark:bg-primary-500 p-6 border-b border-gray-200 dark:border-gray-700">
                 <NuxtLink :to="{ name: 'homepage' }">
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
                 </NuxtLink>
@@ -11,14 +11,14 @@
             <div class="flex-1 p-4 overflow-y-auto">
                 <!-- Manual navigation for debugging -->
                 <div class="space-y-1">
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Organization</div>
+                    <div class="text-xs font-semibold text-black-500 uppercase tracking-wide mb-3">Organization</div>
                     
                     <button
                         @click="handleNavClick('overview')"
                         :class="[
                             'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             activeSection === 'overview'
-                                ? 'bg-primary text-white'
+                                ? 'bg-primary text-black'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -31,7 +31,7 @@
                         :class="[
                             'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             activeSection === 'projects'
-                                ? 'bg-primary text-white'
+                                ? 'bg-primary text-black'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -39,14 +39,14 @@
                         Projects
                     </button>
                     
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Management</div>
+                    <div class="text-xs font-semibold text-black-500 uppercase tracking-wide mb-3 mt-6">Management</div>
                     
                     <button
                         @click="handleNavClick('users')"
                         :class="[
                             'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             activeSection === 'users'
-                                ? 'bg-primary text-white'
+                                ? 'bg-primary text-black'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -59,7 +59,7 @@
                         :class="[
                             'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             activeSection === 'roles'
-                                ? 'bg-primary text-white'
+                                ? 'bg-primary text-black'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -72,7 +72,7 @@
                         :class="[
                             'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
                             activeSection === 'settings'
-                                ? 'bg-primary text-white'
+                                ? 'bg-primary text-black'
                                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                         ]"
                     >
@@ -86,7 +86,7 @@
             <div class="p-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex flex-col gap-2">
                     <UtilsColorModeButton class="hover:cursor-pointer" />
-                    <UButton color="secondary" block class="hover:cursor-pointer" @click="handleLogout">
+                    <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
                         <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
                         Logout
                     </UButton>

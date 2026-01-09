@@ -1,6 +1,8 @@
+/* assets/css/main.css */
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Animasyonlar kalabilir, sorun yok */
 .fade-up-enter-active,
 .fade-up-leave-active {
   transition: all 0.6s ease;
@@ -22,39 +24,9 @@
   transform: translateY(20px);
 }
 
-@theme static{
-  --color-primary: #0B2139; /*bunlar bg-primary, text-primary, fill-primary gibi classlar oluşturuyor */
-  --color-secondary: #FAA23E; /*aynı zamanda color typeına uygun isim verdiysek color="secondary" de çalışıyor */
-  --color-info: #36827F;
-  --color-success: #99C24D;
-  --color-warning: #F2D7EE;
-  /* neutral rengini primary'e göre otomatik ayarlıyor custom oluşturmana gerek yok*/
-}
-
-/* Primary button styling - ensures white text on primary background */
-.btn-primary, 
-[data-color="primary"],
-.bg-primary {
-  color: white !important;
-}
-
-/* For Nuxt UI buttons specifically */
-.ui-button[data-color="primary"] {
-  color: white !important;
-}
-
-/* Alternative approach using Nuxt UI's component classes */
-.btn[data-color="primary"] .btn-text,
-.btn[data-color="primary"] {
-  color: white !important;
-}
-
-
-
-/* .primary{
-  color:#0B2139; 
-}
-
-.secondary {
-  color:#FAA23E; 
-} */
+/* 
+   ÖNEMLİ NOT:
+   Buradan --color-primary gibi tanımları SİLDİK.
+   Çünkü renkleri CSS'ten değil, Nuxt UI'ın AppConfig yapısından yöneteceğiz.
+   Eğer buraya sabit renk yazarsan tema değiştirici ÇALIŞMAZ.
+*/

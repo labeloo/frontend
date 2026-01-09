@@ -5,7 +5,7 @@
       <UModal 
       fullscreen
       >
-        <UButton label="Create Organization" color="secondary" class="cursor-pointer" />
+        <UButton label="Create Organization" color="primary" class="cursor-pointer" />
         <template #content>
           <OrganizationCreateOrg />
         </template>
@@ -35,7 +35,7 @@
     <div v-else class="min-h-[400px] grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <div v-for="org in organizations" :key="org.id"
         class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-        <div class="h-3 bg-secondary"></div>
+        <div class="h-3 bg-primary"></div>
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">
             <h3 class="text-xl font-semibold text-gray-900 dark:text-white truncate">{{ org.name || 'Unnamed Organization' }}</h3>
@@ -54,7 +54,7 @@
           <p class="text-gray-500 dark:text-gray-300 mb-6 line-clamp-2" style="min-height: 3rem">
             {{ org.description || 'No description provided' }}
           </p>
-            <div class="flex items-center justify-between mt-4">            <UButton color="info" variant="solid" :to="'/organizations/' + org.id" class="text-white">
+            <div class="flex items-center justify-between mt-4">            <UButton color="primary" variant="solid" :to="'/organizations/' + org.id" class="text-white">
               View Details
             </UButton>
             <p class="text-xs text-black dark:text-white">

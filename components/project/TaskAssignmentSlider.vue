@@ -27,7 +27,7 @@
       <div class="flex items-center space-x-2">
         <UBadge 
           v-if="availableTasks > 0" 
-          color="info" 
+          color="primary" 
           variant="subtle"
           size="md"
         >

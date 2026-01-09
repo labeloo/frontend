@@ -13,15 +13,7 @@ export default defineNuxtConfig({
 	},
 	ui: {
 		theme: {
-			colors: [
-				"primary",
-				"secondary",
-				"tertiary",
-				"info",
-				"success",
-				"warning",
-				"error",
-			],
+ 			colors: ['primary', 'secondary', 'tertiary', 'info', 'success', 'warning', 'error']
 		},
 	},
 	vite: {

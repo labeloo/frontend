@@ -19,7 +19,7 @@
     <div v-else>
       <!-- Organization Header -->
       <div v-if="organization" class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8 overflow-hidden">
-        <div class="h-3 bg-secondary"></div>
+        <div class="h-3 bg-primary"></div>
         <div class="p-8">
           <div class="flex items-start justify-between">
             <div class="flex items-center space-x-6">
@@ -65,7 +65,7 @@
           <!-- Overview Section (Default) -->
           <OrganizationSectionsOverviewSection 
             v-if="activeSection === 'overview'"
-            :organization-id="organizationId"
+            :organization-id="organizationId?.toString()"
           />
 
           <!-- Projects Section -->

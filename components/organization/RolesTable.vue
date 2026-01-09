@@ -132,7 +132,7 @@ await fetchRoles();
                             {{ role.description }}
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                            <UButton size="sm" color="info" @click="showPermissionFlags(role)">
+                            <UButton size="sm" color="primary" @click="showPermissionFlags(role)">
                                 View Permissions
                             </UButton>
                         </td>
