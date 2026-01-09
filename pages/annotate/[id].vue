@@ -248,6 +248,18 @@
                   </span>
                 </div>
                 <div class="flex items-center space-x-2">
+                  <!-- Quick Review Button (only show if user can review) -->
+                  <UButton 
+                    v-if="canSubmitReview && canvasReviewState.checkAnnotationReviewable(annotation.reviewStatus, taskData?.status)"
+                    size="xs" 
+                    color="warning"
+                    variant="solid"
+                    @click="(e) => handleAnnotationClickForReview(annotation, e as MouseEvent)"
+                    title="Quick review this annotation"
+                  >
+                    <UIcon name="i-heroicons-clipboard-document-check" class="w-3.5 h-3.5 mr-1" />
+                    Review
+                  </UButton>
                   <UButton size="xs" color="primary" @click="applyAnnotation(annotation)" :disabled="!isImageTask">
                     Apply
                   </UButton>
@@ -486,6 +498,18 @@
       @confirm="handleConfirmSubmit"
       @cancel="cancelSubmission"
     />
+
+    <!-- Canvas Review Popup -->
+    <AnnotationReviewPopup
+      v-if="canvasReviewState.state.selectedAnnotationId && canvasReviewState.state.projectId"
+      :visible="canvasReviewState.state.isPopupVisible"
+      :annotation-id="canvasReviewState.state.selectedAnnotationId"
+      :project-id="canvasReviewState.state.projectId"
+      :position="canvasReviewState.state.popupPosition"
+      :is-reviewable="canvasReviewState.state.isAnnotationReviewable"
+      @success="handleCanvasReviewSuccess"
+      @close="canvasReviewState.closeReviewPopup"
+    />
   </div>
 </template>
 
@@ -493,6 +517,7 @@
 import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
 import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
 import AnnotationSubmitConfirmModal from '~/components/review/AnnotationSubmitConfirmModal.vue'
+import AnnotationReviewPopup from '~/components/review/AnnotationReviewPopup.vue'
 import ReviewStatusBadge from '~/components/review/ReviewStatusBadge.vue'
 import AnnotationStatus from '~/components/review/AnnotationStatus.vue'
 import ReviewList from '~/components/review/ReviewList.vue'
@@ -605,6 +630,9 @@ const currentUser = ref<CurrentUser | null>(null)
 const reviewSettings = ref<ProjectReviewSettings | null>(null)
 const isLoadingReviewSettings = ref(false)
 const reviewListKey = ref(0) // Used to force refresh ReviewList component
+
+// Canvas review composable
+const canvasReviewState = useCanvasReview()
 
 // Page mode from query param
 const pageMode = computed<AnnotateMode>(() => {
@@ -951,6 +979,44 @@ const navigateBack = () => {
     router.back()
   }
 }
+
+// ==================== Canvas Review Handlers ====================
+
+/**
+ * Handle annotation click for quick review
+ * Opens the review popup when a reviewer clicks an annotation
+ */
+const handleAnnotationClickForReview = (annotation: Annotation, clickEvent: MouseEvent) => {
+  // Only proceed if user can submit reviews
+  if (!canSubmitReview.value) return
+  
+  // Check if this specific annotation is reviewable
+  const isReviewable = canvasReviewState.checkAnnotationReviewable(
+    annotation.reviewStatus,
+    taskData.value?.status
+  )
+  
+  if (!taskData.value?.projectId) return
+  
+  // Open the review popup at click position
+  canvasReviewState.openReviewPopup(
+    annotation.id,
+    taskData.value.projectId,
+    { x: clickEvent.clientX, y: clickEvent.clientY },
+    isReviewable
+  )
+}
+
+/**
+ * Handle successful review submission from canvas popup
+ * Reuses the existing onReviewSubmitted logic
+ */
+const handleCanvasReviewSuccess = async () => {
+  // Reuse the existing review submission handler
+  await onReviewSubmitted()
+}
+
+// ==================== End Canvas Review Handlers ====================
 
 const parseDataType = (dataType: string) => {
   // Remove quotes if present
