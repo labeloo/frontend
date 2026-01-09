@@ -1,5 +1,5 @@
 <template>
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="max-w-7xl bg-white dark:bg-neutral-900 mx-auto px-4 sm:px-6 lg:px-8 py-8">
     <!-- Loading State -->
     <div v-if="loading" class="flex flex-col justify-center items-center min-h-[400px] py-8 space-y-3">
       <ULoading />
@@ -18,7 +18,7 @@
     <!-- Main Content -->
     <div v-else>
       <!-- Organization Header -->
-      <div v-if="organization" class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8 overflow-hidden">
+      <div v-if="organization" class="bg-white dark:bg-neutral-800 rounded-lg shadow-md mb-8 overflow-hidden">
         <div class="h-3 bg-primary"></div>
         <div class="p-8">
           <div class="flex items-start justify-between">
@@ -59,7 +59,7 @@
           </div>
         </div>
       </div>      <!-- Dynamic Section Content -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
+      <div class="bg-white dark:bg-neutral-800 rounded-lg shadow-md">
         <div class="p-8">
 
           <!-- Overview Section (Default) -->

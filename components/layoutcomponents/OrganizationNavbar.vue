@@ -8,7 +8,7 @@
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
                 </NuxtLink>
             </div>            <!-- Navigation Menu -->
-            <div class="flex-1 p-4 overflow-y-auto">
+            <div class="flex-1 p-4 bg-white dark:bg-neutral-800 overflow-y-auto">
                 <!-- Manual navigation for debugging -->
                 <div class="space-y-1">
                     <div class="text-xs font-semibold text-black-500 uppercase tracking-wide mb-3">Organization</div>
@@ -83,8 +83,8 @@
             </div>
 
             <!-- Footer Actions -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex flex-col gap-2">
+            <div class="p-4 border-t bg-white dark:bg-neutral-800 border-gray-200 dark:border-gray-700">
+                <div class="flex flex-col gap-2 ">
                     <UtilsColorModeButton class="hover:cursor-pointer" />
                     <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
                         <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />

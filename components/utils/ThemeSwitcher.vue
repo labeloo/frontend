@@ -8,7 +8,7 @@ const uiConfig = appConfig.ui as any
 // --- RENK LİSTELERİ ---
 
 const colors = [
-  'red', 'orange', 'amber', 'yellow', 'lime', 'green', 
+  'orange', 'red', 'amber', 'yellow', 'lime', 'green', 
   'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 
   'violet', 'purple', 'fuchsia', 'pink', 'rose'
 ]
@@ -19,7 +19,7 @@ const grays = ['slate', 'gray', 'zinc', 'neutral', 'stone']
 
 // Renkli butonlar için (500 tonları)
 const colorHexMap: Record<string, string> = {
-  red: '#ef4444', orange: '#f97316', amber: '#f59e0b', yellow: '#eab308', 
+   orange: '#f97316', red: '#ef4444', amber: '#f59e0b', yellow: '#eab308', 
   lime: '#84cc16', green: '#22c55e', emerald: '#10b981', teal: '#14b8a6', 
   cyan: '#06b6d4', sky: '#0ea5e9', blue: '#3b82f6', indigo: '#6366f1', 
   violet: '#8b5cf6', purple: '#a855f7', fuchsia: '#d946ef', pink: '#ec4899', rose: '#f43f5e'
@@ -72,7 +72,7 @@ const toggleDark = () => {
     
     <!-- Header -->
     <div class="flex items-center justify-between mb-4 sticky top-0 bg-white dark:bg-gray-900 z-10 py-2">
-      <span class="font-bold text-sm">Tema Ayarları</span>
+      <span class="font-bold text-sm">Theme Settings</span>
       <UButton 
         :icon="colorMode.value === 'dark' ? 'i-heroicons-moon-20-solid' : 'i-heroicons-sun-20-solid'"
         color="neutral" variant="ghost" size="xs" @click="toggleDark"

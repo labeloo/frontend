@@ -3,8 +3,8 @@ export default defineAppConfig({
   ui: {
     // RENK AYARLARI (Hatanın çözümü: colors objesi içine aldık)
     colors: {
-      primary: 'green',
-      secondary: 'orange',
+      primary: 'orange',
+      secondary: 'teal',
       neutral: 'slate', // "gray" yerine "neutral" kullanıyoruz
     },
 

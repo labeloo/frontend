@@ -1,15 +1,15 @@
 <template>
     <!-- Sidebar -->
     <aside
-        class="bg-white dark:bg-gray-800 shadow-lg h-screen w-64 fixed left-0 top-0 z-40 border-r border-gray-200 dark:border-gray-700">
+        class=" bg-white dark:bg-neutral-800 shadow-lg h-screen w-64 fixed left-0 top-0 z-40 border-r border-gray-200 dark:border-gray-700">
         <div class="flex flex-col h-full">
             <!-- Logo/Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
+            <div class="p-6 border-b bg-primary dark:bg-primary-500 border-gray-200 dark:border-gray-700">
                 <NuxtLink :to="{ name: 'homepage' }">
                     <h1 class="text-2xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
                 </NuxtLink>
                 <div class="mt-2">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Project Dashboard</p>
+                    <p class="text-md text-black dark:text-black">Project Dashboard</p>
                 </div>
             </div>
 
@@ -21,7 +21,7 @@
                     <button @click="handleNavClick('annotate')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'annotate'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 mr-3" />
@@ -31,7 +31,7 @@
                     <button @click="handleNavClick('tasks')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'tasks'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-clipboard-document-list" class="w-4 h-4 mr-3" />
@@ -42,7 +42,7 @@
                     <button @click="handleReviewsClick" :class="[
                         'w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'reviews'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <div class="flex items-center">
@@ -66,7 +66,7 @@
                     <button @click="handleNavClick('users')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'users'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
@@ -76,7 +76,7 @@
                     <button @click="handleNavClick('upload-data')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'upload-data'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4 mr-3" />
@@ -86,7 +86,7 @@
                     <button @click="handleNavClick('classes')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'classes'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-academic-cap" class="w-4 h-4 mr-3" />
@@ -96,7 +96,7 @@
                     <button @click="handleNavClick('settings')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'settings'
-                            ? 'bg-primary text-white'
+                            ? 'bg-primary text-black'
                             : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
                     ]">
                         <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />
@@ -114,7 +114,7 @@
                         <UIcon name="i-heroicons-arrow-left" class="w-4 h-4 mr-2" />
                         Back to Organization
                     </UButton>
-                    <UButton color="secondary" block class="hover:cursor-pointer" @click="handleLogout">
+                    <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
                         <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
                         Logout
                     </UButton>

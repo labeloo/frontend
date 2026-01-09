@@ -3,7 +3,7 @@
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white">My Organizations</h2>
       <UModal 
-      fullscreen
+      fullscreen 
       >
         <UButton label="Create Organization" color="primary" class="cursor-pointer" />
         <template #content>
@@ -34,7 +34,7 @@
     <!-- If there are organizations-->
     <div v-else class="min-h-[400px] grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       <div v-for="org in organizations" :key="org.id"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
+        class="bg-white dark:bg-neutral-800 rounded-lg shadow-md border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-300 overflow-hidden">
         <div class="h-3 bg-primary"></div>
         <div class="p-6">
           <div class="flex items-center justify-between mb-4">

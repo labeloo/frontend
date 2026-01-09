@@ -1,5 +1,5 @@
 <template>
-  <div class="p-8">
+  <div class="p-8 bg-white dark:bg-neutral-900" >
     <!-- Project Header -->
     <div class="mb-8">
       <div class="flex items-center justify-between">
@@ -15,7 +15,7 @@
     </div>    
 
     <!-- Dynamic Content Based on Active Section -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+    <div class="bg-white dark:bg-neutral-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
       <!-- Users Section -->
       <div v-if="currentSection === 'users'" class="p-6">
         <ProjectSectionsProjectUsersSection :project-id="projectId" />

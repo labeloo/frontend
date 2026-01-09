@@ -162,11 +162,11 @@
       </div>
 
       <!-- Quick Actions -->
-      <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+      <div class="bg-white dark:bg-neutral-900 border border-gray-200 dark:border-gray-700 rounded-lg p-6">
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Quick Actions</h3>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <UButton 
-            color="secondary" 
+            color="success" 
             variant="soft"
             icon="i-heroicons-plus"
             class="justify-center"
@@ -175,7 +175,7 @@
             Create New Project
           </UButton>
           <UButton 
-            color="success" 
+            color="info" 
             variant="soft"
             icon="i-heroicons-user-plus"
             class="justify-center"
@@ -184,7 +184,7 @@
             Invite Members
           </UButton>
           <UButton 
-            color="primary" 
+            color="warning" 
             variant="soft"
             icon="i-heroicons-shield-check"
             class="justify-center"

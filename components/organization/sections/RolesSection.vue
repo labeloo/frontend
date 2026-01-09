@@ -11,7 +11,7 @@
       </UButton>
     </div> <!-- Stats Cards -->
     <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6" @click.stop>
+      <div class="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-6" @click.stop>
         <div class="flex items-center">
           <div class="p-2 bg-blue-100 dark:bg-blue-900 rounded-lg">
             <UIcon name="i-heroicons-user-group" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6" @click.stop>
+      <div class="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow p-6" @click.stop>
         <div class="flex items-center">
           <div class="p-2 bg-green-100 dark:bg-green-900 rounded-lg">
             <UIcon name="i-heroicons-shield-check" class="w-6 h-6 text-green-600 dark:text-green-400" />
@@ -60,7 +60,7 @@
 
       <div v-else class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700" @click.stop>
-          <thead class="bg-gray-50 dark:bg-gray-700">
+          <thead class="bg-gray-50 dark:bg-neutral-700">
             <tr>
               <th
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
@@ -84,7 +84,7 @@
               </th>
             </tr>
           </thead>
-          <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700" @click.stop>
+          <tbody class="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-gray-700" @click.stop>
             <tr v-for="role in filteredRoles" :key="role.id" class="hover:bg-gray-50 dark:hover:bg-gray-700"
               @click.stop>
               <td class="px-6 py-4 whitespace-nowrap" @click.stop>
@@ -127,7 +127,7 @@
       </div>
     </div> <!-- Create Role Form -->
     <div
-      class="create-role-form bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-8 mt-6"
+      class="create-role-form bg-white dark:bg-neutral-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 p-8 mt-6"
       @click.stop>
       <div class="mb-8">
         <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-2">Create New Role</h3>
@@ -166,7 +166,7 @@
             <div class="space-y-4">
               <!-- Selected icon preview -->
               <div v-if="newRole.icon"
-                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-neutral-900 rounded-lg border">
                 <div class="p-2 bg-primary/10 rounded-lg">
                   <UIcon :name="newRole.icon" class="w-5 h-5 text-secondary" />
                 </div>
@@ -177,7 +177,7 @@
 
               <!-- Icon selection grid -->
               <div
-                class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border max-h-48 overflow-y-auto">
+                class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-gray-50 dark:bg-neutral-900 rounded-lg border max-h-48 overflow-y-auto">
                 <button v-for="icon in availableIcons" :key="icon.value" type="button"
                   @click="newRole.icon = icon.value"
                   class="p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50"
@@ -199,7 +199,7 @@
               <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Select the permissions this role should have.
                 Changes are saved automatically.</p>
             </template>
-            <div class="bg-gray-50 dark:bg-gray-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700"
+            <div class="bg-gray-50 dark:bg-neutral-900 rounded-lg p-6 border border-gray-200 dark:border-gray-700"
               @click.stop>
               <OrganizationManageRoles :initialState="permissionFlags" @update:state="handlePermissionUpdate" />
             </div>

@@ -10,7 +10,7 @@
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
       <!-- Settings Navigation -->
       <div class="lg:col-span-1">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div class="bg-white dark:bg-neutral-900 rounded-lg shadow">
           <div class="p-4">
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Settings</h3>            <nav class="space-y-1">
               <button
@@ -48,7 +48,7 @@
 
       <!-- Settings Content -->
       <div class="lg:col-span-2">        <!-- General Settings -->
-        <div v-if="activeSection === 'general'" class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div v-if="activeSection === 'general'" class="bg-white dark:bg-neutral-900 rounded-lg shadow">
           <div class="p-6">
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">General Information</h3>
             
@@ -121,10 +121,10 @@
                   <UInput 
                     id="organization-name"
                     v-model="formData.name" 
-                    placeholder="e.g., Acme Corporation, Tech Innovations Inc."
+                    placeholder="Enter your organization name"
                     size="xl"
-                    :color="formData.name.trim().length === 0 ? 'error' : 'primary'"
-                    class="text-lg font-medium shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
+                    :color="formData.name.trim().length === 0 ? 'error' : 'neutral'"
+                    class="text-lg font-medium shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm rounded-xl px-4 py-4 bg-white dark:bg-neutral-800 ring-1 ring-neutral-300 dark:ring-neutral-600 focus:ring-2 focus:ring-neutral-500 dark:focus:ring-neutral-400"
                     :aria-label="'Organization name input - currently: ' + (formData.name || 'empty')"
                   />
                   <div v-if="formData.name.trim().length > 0" class="absolute inset-y-0 right-0 flex items-center pr-4">
@@ -133,20 +133,20 @@
                 </div>
                 <template #help>
                   <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg" :class="[
-                    formData.name.trim().length === 0 ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
+                    formData.name.trim().length === 0 ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800'
                   ]">
                     <UIcon 
                       :name="formData.name.trim().length === 0 ? 'i-heroicons-exclamation-triangle' : 'i-heroicons-information-circle'" 
                       :class="[
                         'w-5 h-5 mt-0.5 flex-shrink-0',
-                        formData.name.trim().length === 0 ? 'text-red-500' : 'text-blue-500'
+                        formData.name.trim().length === 0 ? 'text-red-500' : 'text-neutral-500'
                       ]"
                     />
                     <div>
                       <p 
                         :class="[
                           'text-sm font-medium',
-                          formData.name.trim().length === 0 ? 'text-red-800 dark:text-red-200' : 'text-blue-800 dark:text-blue-200'
+                          formData.name.trim().length === 0 ? 'text-red-800 dark:text-red-200' : 'text-neutral-800 dark:text-neutral-200'
                         ]"
                       >
                         {{ formData.name.trim().length === 0 ? 'Organization name is required' : 'Perfect! This name looks great' }}
@@ -154,7 +154,7 @@
                       <p 
                         :class="[
                           'text-xs mt-1',
-                          formData.name.trim().length === 0 ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'
+                          formData.name.trim().length === 0 ? 'text-red-700 dark:text-red-300' : 'text-neutral-700 dark:text-neutral-300'
                         ]"
                       >
                         {{ formData.name.trim().length === 0 ? 'Please enter a name for your organization to continue.' : 'This name will appear in invitations, project headers, and throughout the platform.' }}
@@ -196,7 +196,7 @@
                     :rows="5"
                     maxlength="500"
                     size="xl"
-                    class="w-full text-base leading-relaxed shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm resize-none rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
+                    class="w-full text-base leading-relaxed shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm resize-none rounded-xl px-4 py-4 bg-white dark:bg-neutral-800 ring-1 ring-neutral-300 dark:ring-neutral-600 focus:ring-2 focus:ring-neutral-500 dark:focus:ring-neutral-400"
                     style="resize: none !important;"
                     :aria-label="'Organization description input - ' + (formData.description.length > 0 ? formData.description.length + ' characters entered' : 'empty')"
                   />
@@ -205,7 +205,7 @@
                       :class="[
                         'text-xs font-medium tabular-nums px-2 py-1 rounded-md',
                         formData.description.length > 450 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300' :
-                        formData.description.length > 400 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
+                        formData.description.length > 400 ? 'bg-neutral-100 text-neutral-800 dark:bg-neutral-900/20 dark:text-neutral-300' :
                         'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
                       ]"
                     >
@@ -214,13 +214,13 @@
                   </div>
                 </div>
                 <template #help>
-                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                    <UIcon name="i-heroicons-light-bulb" class="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
+                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg bg-neutral-50 dark:bg-neutral-900/20 border border-neutral-200 dark:border-neutral-800">
+                    <UIcon name="i-heroicons-light-bulb" class="w-5 h-5 text-neutral-500 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p class="text-sm font-medium text-purple-800 dark:text-purple-200">
+                      <p class="text-sm font-medium text-neutral-800 dark:text-neutral-200">
                         {{ formData.description.length === 0 ? 'Pro tip: Add a description to make your organization more discoverable' : 'Great! Your description helps others understand your organization' }}
                       </p>
-                      <p class="text-xs text-purple-700 dark:text-purple-300 mt-1">
+                      <p class="text-xs text-neutral-700 dark:text-neutral-300 mt-1">
                         {{ formData.description.length === 0 ? 'A good description includes your mission, industry, or what makes your organization special.' : 'This description will be visible to team members and in organization directories.' }}
                       </p>
                     </div>
@@ -428,7 +428,7 @@
           </div>        </div>
 
         <!-- Backend Connections -->
-        <div v-else-if="activeSection === 'backend'" class="bg-white dark:bg-gray-800 rounded-lg shadow">
+        <div v-else-if="activeSection === 'backend'" class="bg-white dark:bg-neutral-900 rounded-lg shadow">
           <div class="p-6">
             <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Backend Connections</h3>
             
@@ -441,7 +441,7 @@
                >
                  <div 
                    class="border rounded-lg p-4 cursor-pointer hover:border-primary-500 transition-colors relative group"
-                   :class="getConnection(type.id) ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'"
+                   :class="getConnection(type.id) ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-neutral-800'"
                    @click="openModelConfig(type.id)"
                  >
                     <div class="flex items-start justify-between">
@@ -624,7 +624,7 @@
         </div>
 
         <!-- Danger Zone -->
-        <div v-else-if="activeSection === 'danger'" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
+        <div v-else-if="activeSection === 'danger'" class="bg-white dark:bg-neutral-900 rounded-lg shadow border border-red-200 dark:border-red-800">
           <div class="p-6">
             <h3 class="text-lg font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
             

@@ -176,7 +176,7 @@
         </p>
       </div>
     </div>    <!-- Users List -->
-    <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+    <div v-else class="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow overflow-hidden">
       <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h3 class="text-lg font-medium text-gray-900 dark:text-white">Organization Members</h3>
       </div>

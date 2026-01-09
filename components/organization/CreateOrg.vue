@@ -461,7 +461,7 @@ function goToOrganizationPage() {
               :key="i"
               class="flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-md transition-all duration-200"
               :class="[
-                activeTab === i ? 'bg-white dark:bg-gray-800 text-secondary dark:text-secondary shadow-sm font-medium' : 'hover:bg-gray-200 dark:hover:bg-gray-700',
+                activeTab === i ? 'bg-white dark:bg-gray-800 text-primary dark:text-primary shadow-sm font-medium' : 'hover:bg-gray-200 dark:hover:bg-gray-700',
                 (i === 0 && completedTabs.organization) || (i === 1 && !completedTabs.organization) || (i === 2 && (!completedTabs.organization || !completedTabs.roles)) 
                   ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
               ]"
@@ -570,7 +570,7 @@ function goToOrganizationPage() {
                 <UButton 
                 label="Create and Continue" 
                 type="submit" 
-                color="secondary"
+                color="primary"
                 size="lg"
                 class="self-end cursor-pointer mt-3" 
                 trailing
@@ -604,7 +604,7 @@ function goToOrganizationPage() {
                 <UModal v-model="showRolesModal" @after:leave="refreshTabsAfterModalClose">
                   <UButton 
                     label="Create a New Role" 
-                    color="secondary" 
+                    color="primary" 
                     size="lg"
                     class="cursor-pointer w-full md:w-auto"
                     icon="lucide:plus-circle"
@@ -621,7 +621,7 @@ function goToOrganizationPage() {
                   label="Continue to Next Step" 
                   @click="completeRolesTab" 
                   type="button" 
-                  color="secondary"
+                  color="primary"
                   size="lg" 
                   class="self-end cursor-pointer mt-3"
                   trailing
@@ -652,7 +652,7 @@ function goToOrganizationPage() {
               <!-- See Organization button -->
               <UButton 
                 label="See Organization" 
-                color="secondary"
+                color="primary"
                 size="lg"
                 class="self-end cursor-pointer mt-6"
                 icon="lucide:eye"
@@ -665,7 +665,7 @@ function goToOrganizationPage() {
         <!-- Right side: Preview (1 column on large screens) -->
       <div class="lg:col-span-1 bg-white dark:bg-gray-900 rounded-lg p-5 border border-gray-200 dark:border-gray-700 shadow-md sticky top-4 self-start">
         <h3 class="text-xl font-medium text-gray-900 dark:text-white mb-6 flex items-center">
-          <UIcon name="lucide:eye" class="mr-3 text-secondary" />
+          <UIcon name="lucide:eye" class="mr-3 text-primary" />
           Organization Preview
         </h3>
 
@@ -734,7 +734,7 @@ function goToOrganizationPage() {
         </div>        <!-- Roles Summary (Show when on roles tab or later) -->
         <div v-if="activeTab >= 1" class="mb-8">
           <h4 class="font-medium text-gray-900 dark:text-white mb-3 flex items-center text-lg">
-            <UIcon name="lucide:shield" class="mr-2 text-secondary" />
+            <UIcon name="lucide:shield" class="mr-2 text-primary" />
             Roles Overview
           </h4>
           <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 shadow-sm">
@@ -754,7 +754,7 @@ function goToOrganizationPage() {
         <!-- Users Summary (Show when on users tab) -->
         <div v-if="activeTab >= 2" class="mb-8">
           <h4 class="font-medium text-gray-900 dark:text-white mb-3 flex items-center text-lg">
-            <UIcon name="lucide:users" class="mr-2 text-secondary" />
+            <UIcon name="lucide:users" class="mr-2 text-primary" />
             Team Members
           </h4>
           <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 shadow-sm">
