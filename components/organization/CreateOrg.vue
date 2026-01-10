@@ -2,7 +2,10 @@
 import type { TabsItem } from '@nuxt/ui'
 import { onMounted, watch, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
-import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+import { FALLBACK_LOGO_PLACEHOLDER } from '~/utils/constants'
+
+// Get the API URL using runtime config (works properly in Nuxt)
+const apiUrl = useApiUrl()
 
 // Tab configuration
 const items = [
@@ -57,6 +60,9 @@ const logoFile = ref<File | null>(null)
 const logoUploading = ref(false)
 const logoUploadError = ref('')
 
+// Default logo - use the Labeloo logo from the public bucket
+const defaultLogo = computed(() => `${apiUrl}/api/bucket/public/default-org-logo`)
+
 // Define types for roles and users
 interface Role {
   name: string;
@@ -90,9 +96,18 @@ function updateUserSummary(users: User[]) {
   capturedUsers.value = users
 }
 
-// Default logo to show in the preview if none provided
-const defaultLogo = DEFAULT_ORGANIZATION_LOGO
-const logoPreview = computed(() => organizationState.logo || defaultLogo)
+// Logo preview - construct full URL for uploaded logos, use default for empty
+const logoPreview = computed(() => {
+  if (organizationState.logo) {
+    // If logo is already a full URL, use it directly
+    if (organizationState.logo.startsWith('http')) {
+      return organizationState.logo
+    }
+    // Otherwise, prepend the API URL to the relative path
+    return `${apiUrl}${organizationState.logo}`
+  }
+  return defaultLogo.value
+})
 
 // Router instance
 const router = useRouter()
@@ -140,7 +155,7 @@ async function uploadLogo(file: File) {
     // Convert file to binary data
     const arrayBuffer = await file.arrayBuffer()
     
-    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadPicture', {
+    const response = await $fetch(`${apiUrl}/api/bucket/uploadPicture`, {
       method: 'POST',
       headers: {
         'type': 'organization',
@@ -171,8 +186,8 @@ async function uploadLogo(file: File) {
 const handleImageError = (event: Event) => {
   const target = event.target as HTMLImageElement
   if (target) {
-    // Set a simple data URI for a gray circle as fallback
-    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgdmlld0JveD0iMCAwIDEwMCAxMDAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjUwIiBmaWxsPSIjRTVFN0VCIi8+Cjxzdmcgd2lkdGg9IjUwIiBoZWlnaHQ9IjUwIiB2aWV3Qm94PSIwIDAgNTAgNTAiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeD0iMjUiIHk9IjI1Ij4KPHBhdGggZD0iTTI1IDRDMTMuNSA0IDQuMTcgMTMuNSA0LjE3IDI1UzEzLjUgNDYgMjUgNDZTNDUuODMgMzYuNSA0NS44MyAyNVMzNi41IDQgMjUgNFpNMjUgMTAuNEMyOC40NiAxMC40IDMxLjI1IDEzLjIxIDMxLjI1IDE2LjdTMjguNDYgMjMgMjUgMjNTMTguNzUgMjAuMTkgMTguNzUgMTYuN1MyMS41NCAxMC40IDI1IDEwLjRaTTI1IDQwLjJDMTkuODEgNDAuMiAxNS4yMSAzNy4zNCAxMi41IDMyLjg4QzEyLjU2IDI5LjE2IDIwLjg1IDI2Ljg4IDI1IDI2Ljg4UzM3LjQ0IDI5LjE2IDM3LjUgMzIuODhDMzQuNzkgMzcuMzQgMzAuMTkgNDAuMiAyNSA0MC4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
+    // Use fallback placeholder logo
+    target.src = FALLBACK_LOGO_PLACEHOLDER
   }
 }
 
@@ -201,7 +216,7 @@ const createOrganization = async () => {
       ...(hasCustomLogo.value && organizationState.logo && { logo: organizationState.logo })
     }
 
-    const result = await useFetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizations', {
+    const result = await useFetch(`${apiUrl}/api/organizations`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -227,7 +242,7 @@ async function fetchRoles() {
   const token = useCookie('auth_token')
   if (!token.value || !orgId.value) return
   try {
-    const result = await useFetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
+    const result = await useFetch(`${apiUrl}/api/organizationRoles/all`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -285,7 +300,7 @@ async function fetchAllOrganizationUsers() {
   
   try {
     console.log('Fetching all organization users for orgId:', orgId.value)
-    const result = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
+    const result = await $fetch(`${apiUrl}/api/organizationRelations/users`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',

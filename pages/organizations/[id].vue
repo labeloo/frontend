@@ -25,7 +25,7 @@
             <div class="flex items-center space-x-6">
               <div class="flex-shrink-0">
                 <img 
-                  :src="organization.organizations.logo || DEFAULT_ORGANIZATION_LOGO" 
+                  :src="organization.organizations.logo || defaultOrgLogo" 
                   :alt="`${organization.organizations.name} logo`"
                   class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
                   @error="handleImageError"
@@ -103,7 +103,13 @@
 </template>
 
 <script setup lang="ts">
-import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+import { DEFAULT_ORGANIZATION_LOGO_PATH } from '~/utils/constants'
+
+// Get the API URL using runtime config
+const apiUrl = useApiUrl()
+
+// Computed default logo URL
+const defaultOrgLogo = computed(() => `${apiUrl}${DEFAULT_ORGANIZATION_LOGO_PATH}`)
 
 interface Organization {
   organizations: {

@@ -44,7 +44,7 @@
           
           <div class="flex items-center mb-4">
             <img 
-              :src="org.logo || DEFAULT_ORGANIZATION_LOGO" 
+              :src="org.logo || defaultOrgLogo" 
               alt="Organization logo" 
               class="w-12 h-12 rounded-full object-cover mr-3"
               @error="handleImageError"
@@ -69,7 +69,13 @@
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+import { DEFAULT_ORGANIZATION_LOGO_PATH } from '~/utils/constants'
+
+// Get the API URL using runtime config
+const apiUrl = useApiUrl()
+
+// Computed default logo URL
+const defaultOrgLogo = computed(() => `${apiUrl}${DEFAULT_ORGANIZATION_LOGO_PATH}`)
 
 interface Organization {
   id: number;
