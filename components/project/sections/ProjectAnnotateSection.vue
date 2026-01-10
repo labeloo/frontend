@@ -251,18 +251,37 @@
             </div>
           </div>
         </div>
+      </div>
 
-        <!-- Helper Text for Project Editors -->
-        <div 
-          v-if="canViewAllTasks && (userPermissions.canEditProject || isOrgAdmin)" 
-          class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+      <!-- Centralized Start Annotating Button -->
+      <div 
+        v-if="tasks?.annotating && tasks.annotating.length > 0" 
+        class="flex justify-center py-6"
+      >
+        <UButton
+          @click="startAnnotating"
+          size="xl"
+          color="primary"
+          class="px-8 py-4 text-lg font-bold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 cursor-pointer"
         >
-          <div class="flex items-center">
-            <UIcon name="i-heroicons-eye" class="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" />
-            <p class="text-xs text-blue-700 dark:text-blue-300">
-              <span class="font-medium">Enhanced View:</span> You're viewing all tasks in this project due to your {{ isOrgAdmin ? 'Organization Administrator' : 'Project Editor' }} permissions.
-            </p>
-          </div>
+          <UIcon name="i-heroicons-play-circle" class="w-7 h-7 mr-3" />
+          Start Annotating
+          <span class="ml-3 px-3 py-1 bg-white/20 rounded-full text-sm">
+            {{ tasks.annotating.length }} {{ tasks.annotating.length === 1 ? 'task' : 'tasks' }}
+          </span>
+        </UButton>
+      </div>
+
+      <!-- Helper Text for Project Editors -->
+      <div 
+        v-if="canViewAllTasks && (userPermissions.canEditProject || isOrgAdmin)" 
+        class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3"
+      >
+        <div class="flex items-center">
+          <UIcon name="i-heroicons-eye" class="w-4 h-4 text-blue-600 dark:text-blue-400 mr-2" />
+          <p class="text-xs text-blue-700 dark:text-blue-300">
+            <span class="font-medium">Enhanced View:</span> You're viewing all tasks in this project due to your {{ isOrgAdmin ? 'Organization Administrator' : 'Project Editor' }} permissions.
+          </p>
         </div>
       </div>
 
@@ -1266,6 +1285,25 @@ const handleAssignmentError = (errorMessage: string) => {
 const navigateToAnnotate = (taskId: number) => {
   const router = useRouter()
   router.push(`/annotate/${taskId}`)
+}
+
+// Start annotating - navigate to the first available task
+const startAnnotating = () => {
+  if (!tasks.value?.annotating || tasks.value.annotating.length === 0) {
+    toast.add({
+      title: 'No Tasks Available',
+      description: 'You have no tasks assigned for annotation.',
+      color: 'warning'
+    })
+    return
+  }
+
+  // Get the first task from the annotating list
+  const firstTask = tasks.value.annotating[0]
+  if (firstTask) {
+    const router = useRouter()
+    router.push(`/annotate/${firstTask.id}`)
+  }
 }
 
 // Export functionality
