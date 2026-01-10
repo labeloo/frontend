@@ -52,13 +52,9 @@ const messageCharCount = computed(() => message.value.length)
 const isMessageTooLong = computed(() => messageCharCount.value > MAX_MESSAGE_LENGTH)
 
 /**
- * Validate message for reject action
+ * Validate message for reject action (message is now optional)
  */
 const validateMessageForReject = (): boolean => {
-  if (!message.value.trim()) {
-    messageError.value = 'Message is required when rejecting'
-    return false
-  }
   if (isMessageTooLong.value) {
     messageError.value = `Message must be ${MAX_MESSAGE_LENGTH} characters or less`
     return false
@@ -107,7 +103,7 @@ const handleReject = async () => {
 
   const payload: CreateReviewPayload = {
     status: 'changes_requested',
-    message: message.value.trim(),
+    message: message.value.trim() || undefined,
     notifyAnnotator: true
   }
 
@@ -244,7 +240,7 @@ onUnmounted(() => {
                   class="block text-xs font-medium text-gray-700 dark:text-gray-300"
                 >
                   Feedback Message
-                  <span class="text-gray-400 font-normal">(optional for approve, required for reject)</span>
+                  <span class="text-gray-400 font-normal">(optional)</span>
                 </label>
                 <span
                   class="text-xs"

@@ -81,10 +81,10 @@ const statusOptions: { value: ReviewAction; label: string; description: string; 
 ]
 
 /**
- * Check if message is required based on selected status
+ * Message is now optional for all actions
  */
 const isMessageRequired = computed(() => {
-  return selectedStatus.value === 'rejected' || selectedStatus.value === 'changes_requested'
+  return false
 })
 
 /**
@@ -107,7 +107,6 @@ const isLoading = computed(() => isCreating.value || isUpdating.value)
  */
 const canSubmit = computed(() => {
   if (!selectedStatus.value) return false
-  if (isMessageRequired.value && !message.value.trim()) return false
   if (isMessageTooLong.value) return false
   return true
 })
@@ -128,12 +127,7 @@ const validateForm = (): boolean => {
     isValid = false
   }
 
-  // Validate message
-  if (isMessageRequired.value && !message.value.trim()) {
-    errors.message = 'Feedback message is required when rejecting or requesting changes'
-    isValid = false
-  }
-
+  // Validate message length only
   if (isMessageTooLong.value) {
     errors.message = `Message must be ${MAX_MESSAGE_LENGTH} characters or less`
     isValid = false
@@ -316,15 +310,6 @@ watch(message, () => {
       >
         <UIcon name="i-heroicons-exclamation-circle" class="w-4 h-4" aria-hidden="true" />
         {{ errors.message }}
-      </p>
-
-      <!-- Message Hint -->
-      <p
-        v-if="isMessageRequired && !errors.message"
-        class="text-xs text-amber-600 dark:text-amber-400 flex items-center gap-1"
-      >
-        <UIcon name="i-heroicons-information-circle" class="w-4 h-4" aria-hidden="true" />
-        Feedback is required when rejecting or requesting changes
       </p>
     </div>
 
