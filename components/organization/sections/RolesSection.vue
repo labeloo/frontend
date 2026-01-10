@@ -89,8 +89,11 @@
               @click.stop>
               <td class="px-6 py-4 whitespace-nowrap" @click.stop>
                 <div class="flex items-center">
-                  <div class="p-2 bg-primary/10 rounded-lg mr-3">
-                    <UIcon :name="role.icon || 'i-heroicons-user-group'" class="w-4 h-4 text-primary" />
+                  <div class="p-2 rounded-lg mr-3" 
+                    :style="{ backgroundColor: colorHexMap[role.color || 'blue'] + '20' }">
+                    <UIcon :name="role.icon || 'i-heroicons-user-group'" 
+                      class="w-4 h-4" 
+                      :style="{ color: colorHexMap[role.color || 'blue'] }" />
                   </div>
                   <div>
                     <div class="text-sm font-medium text-gray-900 dark:text-white">{{ role.name }}</div>
@@ -194,6 +197,40 @@
         </div>
 
         <div class="space-y-2">
+          <UFormGroup label="Role Color">
+            <template #description>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">Choose a color theme for this role</p>
+            </template>
+            <div class="space-y-4">
+              <!-- Selected color preview -->
+              <div v-if="newRole.color"
+                class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-neutral-900 rounded-lg border">
+                <div class="w-6 h-6 rounded-full border-2 border-gray-300" 
+                  :style="{ backgroundColor: colorHexMap[newRole.color] }"></div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white capitalize">Selected: {{ newRole.color }}</span>
+              </div>
+
+              <!-- Color selection grid -->
+              <div
+                class="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2 p-4 bg-gray-50 dark:bg-neutral-900 rounded-lg border">
+                <button v-for="color in availableColors" :key="color" type="button"
+                  @click="newRole.color = color"
+                  class="w-8 h-8 rounded-full border-2 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                  :style="{ backgroundColor: colorHexMap[color] }"
+                  :class="[
+                    newRole.color === color
+                      ? 'ring-2 ring-offset-2 ring-gray-400 scale-110 border-white dark:border-gray-900'
+                      : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                  ]" 
+                  :title="color">
+                  <span class="sr-only">{{ color }}</span>
+                </button>
+              </div>
+            </div>
+          </UFormGroup>
+        </div>
+
+        <div class="space-y-2">
           <UFormGroup label="Permissions">
             <template #description>
               <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Select the permissions this role should have.
@@ -238,6 +275,7 @@ interface Role {
   name: string
   description: string
   icon?: string
+  color?: string
   permissionFlags: PermissionFlags
   memberCount?: number
   createdAt: number
@@ -274,6 +312,7 @@ const newRole = ref({
   name: '',
   description: '',
   icon: 'i-heroicons-user-group',
+  color: 'blue',
   permissionFlags: {
     admin: false,
     editOrganization: false,
@@ -287,6 +326,21 @@ const newRole = ref({
     viewReviews: false,
   } as PermissionFlags
 })
+
+// Available colors for role selection (from Nuxt UI)
+const availableColors = ref([
+  'orange', 'red', 'amber', 'yellow', 'lime', 'green', 
+  'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 
+  'violet', 'purple', 'fuchsia', 'pink', 'rose'
+])
+
+// Color hex map for proper display (500 shades)
+const colorHexMap: Record<string, string> = {
+  orange: '#f97316', red: '#ef4444', amber: '#f59e0b', yellow: '#eab308', 
+  lime: '#84cc16', green: '#22c55e', emerald: '#10b981', teal: '#14b8a6', 
+  cyan: '#06b6d4', sky: '#0ea5e9', blue: '#3b82f6', indigo: '#6366f1', 
+  violet: '#8b5cf6', purple: '#a855f7', fuchsia: '#d946ef', pink: '#ec4899', rose: '#f43f5e'
+}
 
 // Available icons for role selection
 const availableIcons = ref([
@@ -377,6 +431,7 @@ const resetForm = () => {
     name: '',
     description: '',
     icon: 'i-heroicons-user-group',
+    color: 'blue',
     permissionFlags: {
       admin: false,
       editOrganization: false,
@@ -426,6 +481,7 @@ const fetchRoles = async () => {
       name: role.name,
       description: role.description || '',
       icon: role.icon || 'i-heroicons-user-group',
+      color: role.color || 'blue',
       permissionFlags: role.permissionFlags || {},
       memberCount: 0, // This would need to come from API if available
       createdAt: role.createdAt || Date.now() / 1000
@@ -447,6 +503,7 @@ const createRole = async () => {
       name: newRole.value.name,
       description: newRole.value.description,
       icon: newRole.value.icon,
+      color: newRole.value.color,
       permissionFlags: newRole.value.permissionFlags,
       organizationId: props.organizationId
     }
