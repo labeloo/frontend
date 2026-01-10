@@ -1,11 +1,11 @@
 <template>
-  <div class="space-y-6">
+  <div v-if="isMounted" :key="colorModeKey" class="space-y-6">
     <div class="flex justify-between items-center mb-6">
       <h2 class="text-2xl font-bold text-gray-900 dark:text-white">My Organizations</h2>
       <UModal 
       fullscreen 
       >
-        <UButton label="Create Organization" color="primary" class="cursor-pointer" />
+        <UButton label="Create Organization" color="primary" class="cursor-pointer font-bold" />
         <template #content>
           <OrganizationCreateOrg />
         </template>
@@ -88,6 +88,16 @@ interface ApiResponse {
 const organizations = ref<Organization[]>([]);
 const loading = ref(true);
 const toast = useToast();
+const colorMode = useColorMode()
+
+// Ensure component is mounted before rendering
+const isMounted = ref(false)
+const colorModeKey = ref(0)
+
+// Watch for color mode changes and force re-render
+watch(() => colorMode.value, () => {
+    colorModeKey.value++
+})
 
 const formatDate = (timestamp: number): string => {
   if (!timestamp) return 'N/A';
@@ -103,6 +113,7 @@ const handleImageError = (event: Event) => {
 }
 
 onMounted(async () => {
+  isMounted.value = true
   fetchOrganizations();
 });
 

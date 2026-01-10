@@ -1,4 +1,5 @@
-<template>    <header class="bg-primary dark:bg-primary-500 shadow">
+<template>   
+ <header v-if="isMounted" :key="colorModeKey" class="bg-primary dark:bg-primary-500 shadow">
         <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">            <NuxtLink :to="{name: 'homepage'}">
                 <h1 class="text-3xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
             </NuxtLink>
@@ -54,6 +55,20 @@ definePageMeta({
 
 const { logout } = useAuth()
 const router = useRouter()
+const colorMode = useColorMode()
+
+// Ensure component is mounted before rendering
+const isMounted = ref(false)
+const colorModeKey = ref(0)
+
+// Watch for color mode changes and force re-render
+watch(() => colorMode.value, () => {
+    colorModeKey.value++
+})
+
+onMounted(() => {
+    isMounted.value = true
+})
 
 // Use auto-refresh notifications (polls every 30 seconds)
 const { pendingCount, hasNotifications } = useReviewNotificationsAutoRefresh(30000)
