@@ -1,0 +1,12 @@
+<svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- North line -->
+  <line x1="12" y1="2" x2="12" y2="8" stroke="#4285f4" stroke-width="1.5"/>
+  <!-- South line -->
+  <line x1="12" y1="16" x2="12" y2="22" stroke="#4285f4" stroke-width="1.5"/>
+  <!-- West line -->
+  <line x1="2" y1="12" x2="8" y2="12" stroke="#4285f4" stroke-width="1.5"/>
+  <!-- East line -->
+  <line x1="16" y1="12" x2="22" y2="12" stroke="#4285f4" stroke-width="1.5"/>
+  <!-- Center dot -->
+  <circle cx="12" cy="12" r="1.5" fill="#4285f4"/>
+</svg>

@@ -1,7 +1,11 @@
 <template>
   <div class="w-full h-full flex items-center justify-center">
     <ClientOnly>
-      <div ref="stageContainer" class="relative border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
+      <div 
+        ref="stageContainer" 
+        class="relative border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg"
+        :style="{ cursor: cursorStyle }"
+      >
         <!-- Performance Indicator -->
         <div 
           v-if="isPerformanceMode" 
@@ -403,6 +407,7 @@ import { useLineConfig } from '~/composables/useLineConfig';
 import { useFreehandConfig } from '~/composables/useFreehandConfig';
 import { useAnnotationDragHandlers } from '~/composables/useAnnotationDragHandlers';
 import { useAnnotationTransformHandlers } from '~/composables/useAnnotationTransformHandlers';
+import { useAnnotationCursor } from '~/composables/useAnnotationCursor';
 import { slidingBufferOptimizer, PerformancePresets } from '~/utils/slidingBufferOptimization';
 import { polygonPerformanceMonitor } from '~/utils/polygonPerformanceMonitor';
 import { workerManager } from '~/utils/polygonWorkerManager';
@@ -1605,6 +1610,12 @@ const {
 
 // Use annotation transform handlers composable
 const { handleRectangleTransformEnd } = useAnnotationTransformHandlers()
+
+// Use cursor management composable for tool-based visual feedback
+// Note: Dragging/grabbing states handled separately at canvas level
+const { cursorStyle } = useAnnotationCursor(
+  computed(() => props.currentTool)
+)
 
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
   // Since all annotations are now in canvas coordinates, use them directly
