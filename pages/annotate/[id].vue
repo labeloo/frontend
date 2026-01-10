@@ -4,16 +4,11 @@
     <div class="w-80 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 overflow-y-auto">
       <div class="p-6 border-b border-gray-200 dark:border-gray-700">
         <!-- Logo Banner -->
-        <div class="mb-4 flex justify-center">
-          <div class="logo-wrapper px-4 py-2 rounded-xl" style="
-      background-color: rgba(42, 58, 79, 0.6); /* soft geçişli zemin */
-      border: 1px solid rgba(255, 255, 255, 0.1); /* hafif outline */
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); /* gölge */
-      backdrop-filter: blur(4px); /* saydamlık varsa */
-    ">
-            <img src="assets/images/labeloo-main-logo.png" alt="Labeloo Logo" class="h-16 object-contain"
-              style="filter: drop-shadow(0 0 2px rgba(255, 255, 255, 0.4));" />
-          </div>
+        <div class="mb-6 flex justify-center">
+            <img src="assets/images/labeloo-main-logo.png" alt="Labeloo Logo" class="object-contain dark:hidden"
+               />
+            <img src="assets/images/main-logo-white.png" alt="Labeloo Logo" class="object-contain hidden dark:block"
+               />
         </div>
 
         <div class="flex items-center justify-between">
@@ -462,19 +457,6 @@
                 <UIcon name="i-heroicons-x-mark" class="w-4 h-4 inline mr-1" />
                 Cancel (Esc)
               </button>
-            </div>
-          </div>
-
-          <!-- Placeholder for other data types -->
-          <div v-else class="flex-1 flex items-center justify-center">
-            <div class="text-center">
-              <UIcon name="i-heroicons-document" class="w-16 h-16 text-gray-400 mx-auto mb-4" />
-              <p class="text-gray-600 dark:text-gray-400">
-                Data type: {{ parseDataType(taskData.dataType) }}
-              </p>
-              <p class="text-sm text-gray-500 dark:text-gray-500 mt-2">
-                Annotation interface for this data type will be implemented here.
-              </p>
             </div>
           </div>
         </div>

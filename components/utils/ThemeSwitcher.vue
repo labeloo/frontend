@@ -68,7 +68,7 @@ const toggleDark = () => {
 </script>
 
 <template>
-  <div class="p-4 border rounded-xl bg-white dark:bg-gray-900 shadow-xl w-72 h-[80vh] overflow-y-auto">
+  <div class="p-4 border rounded-xl bg-white dark:bg-neutral-900 shadow-xl w-72 h-[80vh] overflow-y-auto">
     
     <!-- Header -->
     <div class="flex items-center justify-between mb-4 sticky top-0 bg-white dark:bg-gray-900 z-10 py-2">

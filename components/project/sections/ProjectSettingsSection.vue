@@ -61,14 +61,14 @@
           </div>
         </div>
         
-        <div v-if="projectData.description" class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
+        <div v-if="projectData.description" class="mt-4 p-4 bg-gray-50 dark:bg-neutral-800 rounded-lg">
           <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Description:</p>
           <p class="text-gray-900 dark:text-white">{{ projectData.description }}</p>
         </div>
       </UCard>
 
       <!-- General Settings -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
+      <div class="bg-white dark:bg-neutral-800 rounded-lg shadow">
         <div class="p-6">
           <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">General Information</h3>
           
@@ -243,20 +243,31 @@
       <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
         <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Project Statistics</h3>
         
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">15</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
+        <!-- Loading State -->
+        <div v-if="statsLoading" class="flex justify-center items-center py-8">
+          <USpinner size="md" />
+          <span class="ml-3 text-gray-600 dark:text-gray-400">Loading statistics...</span>
+        </div>
+        
+        <!-- Statistics Grid -->
+        <div v-else class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="text-center p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+            <p class="text-2xl font-bold text-blue-900 dark:text-blue-100">{{ projectStats.totalUsers }}</p>
+            <p class="text-sm text-blue-600 dark:text-blue-400 mt-1">Total Members</p>
           </div>
           
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">45</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Tasks</p>
+          <div class="text-center p-4 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-200 dark:border-purple-800">
+            <div class="flex items-center justify-center gap-2">
+              <p class="text-2xl font-bold text-purple-900 dark:text-purple-100">{{ projectStats.completedTasks }}</p>
+              <p class="text-lg text-purple-600 dark:text-purple-400">/</p>
+              <p class="text-lg font-semibold text-purple-700 dark:text-purple-300">{{ projectStats.totalTasks }}</p>
+            </div>
+            <p class="text-sm text-purple-600 dark:text-purple-400 mt-1">Completed Tasks</p>
           </div>
           
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">71%</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Completion Rate</p>
+          <div class="text-center p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
+            <p class="text-2xl font-bold text-green-900 dark:text-green-100">{{ projectStats.completionRate }}%</p>
+            <p class="text-sm text-green-600 dark:text-green-400 mt-1">Completion Rate</p>
           </div>
         </div>
       </div>
@@ -280,7 +291,7 @@
       </div>
 
       <!-- Danger Zone -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
+      <div class="bg-white dark:bg-neutral-800 rounded-lg shadow border border-red-200 dark:border-red-800">
         <div class="p-6">
           <h3 class="text-lg font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
           
@@ -364,6 +375,15 @@ const loading = ref(true)
 const error = ref<string | null>(null)
 const projectData = ref<ProjectData | null>(null)
 const canEditProject = ref(false)
+
+// Statistics state
+const projectStats = ref({
+  totalUsers: 0,
+  totalTasks: 0,
+  completedTasks: 0,
+  completionRate: 0
+})
+const statsLoading = ref(false)
 
 // Form state
 const formData = ref({
@@ -461,6 +481,76 @@ const fetchPermissions = async () => {
   } catch (err) {
     console.error('Error fetching permissions:', err)
     canEditProject.value = false
+  }
+}
+
+/**
+ * Fetch project statistics
+ */
+const fetchProjectStats = async () => {
+  try {
+    statsLoading.value = true
+    
+    if (!token.value) return
+
+    // Fetch task statistics
+    const taskStatsResponse = await $fetch<{ 
+      data: { 
+        total: number
+        unassigned: number
+        annotating: number
+        completed: number
+        in_review?: number
+        changes_needed?: number
+      } 
+    }>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/stats/${props.projectId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token.value}`
+        }
+      }
+    )
+
+    // Fetch project members count (using the same endpoint as ProjectUsersSection)
+    const membersResponse = await $fetch<{ 
+      data: Array<{
+        id: number
+        email: string
+        isActive: boolean
+        role: string
+        createdAt: number
+      }>
+    }>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/projectRelations/users`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token.value}`,
+          'projectId': String(props.projectId)
+        }
+      }
+    )
+
+    const taskStats = taskStatsResponse.data
+    const totalTasks = taskStats.total
+    const completedTasks = taskStats.completed
+    const completionRate = totalTasks > 0 
+      ? Math.round((completedTasks / totalTasks) * 100) 
+      : 0
+
+    projectStats.value = {
+      totalUsers: membersResponse.data.length,
+      totalTasks,
+      completedTasks,
+      completionRate
+    }
+  } catch (err) {
+    console.error('Error fetching project statistics:', err)
+    // Keep default values on error
+  } finally {
+    statsLoading.value = false
   }
 }
 
@@ -605,6 +695,7 @@ const saveGeneralSettings = async () => {
 onMounted(() => {
   fetchProjectData()
   fetchPermissions()
+  fetchProjectStats()
 })
 
 // Warn user before leaving with unsaved changes

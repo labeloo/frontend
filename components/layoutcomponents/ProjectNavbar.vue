@@ -28,7 +28,7 @@
                         Annotate
                     </button>
 
-                    <button @click="handleNavClick('tasks')" :class="[
+                    <!-- <button @click="handleNavClick('tasks')" :class="[
                         'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
                         activeSection === 'tasks'
                             ? 'bg-primary text-black'
@@ -36,7 +36,7 @@
                     ]">
                         <UIcon name="i-heroicons-clipboard-document-list" class="w-4 h-4 mr-3" />
                         Tasks
-                    </button>
+                    </button> -->
 
                     <!-- Reviews Tab with Badge -->
                     <button @click="handleReviewsClick" :class="[
@@ -109,15 +109,15 @@
             <div class="p-4 border-t border-gray-200 dark:border-gray-700">
                 <div class="flex flex-col gap-2">
                     <UtilsColorModeButton class="hover:cursor-pointer" />
-                    <UButton color="neutral" variant="ghost" block class="hover:cursor-pointer"
+                    <UButton color="primary" variant="ghost" block class="hover:cursor-pointer"
                         @click="handleBackToOrg">
                         <UIcon name="i-heroicons-arrow-left" class="w-4 h-4 mr-2" />
                         Back to Organization
                     </UButton>
-                    <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
+                    <!-- <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
                         <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
                         Logout
-                    </UButton>
+                    </UButton> -->
                 </div>
             </div>
         </div>

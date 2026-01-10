@@ -88,7 +88,7 @@
           <UCard 
             v-for="project in recentProjectsList" 
             :key="project.id"
-            class="hover:shadow-md transition-shadow duration-200 cursor-pointer"
+            class="hover:shadow-md transition-shadow duration-200 cursor-pointer border-2 border-primary"
             @click="viewProject(project.id)"
           >
             <div class="space-y-3">
