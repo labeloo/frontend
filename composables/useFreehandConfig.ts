@@ -1,3 +1,5 @@
+import { getClassColor } from '~/utils/classColorPalette'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -18,7 +20,8 @@ export const useFreehandConfig = () => {
     hoveredIndex: number | null,
     displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
     zoomLevel: number = 1.0,
-    interactionEnabled: boolean = true
+    interactionEnabled: boolean = true,
+    classes: string[] = []
   ) => {
     // Validate freehand annotation requirements
     if (annotation.type !== 'freehand' || !annotation.points || annotation.points.length === 0) {
@@ -35,9 +38,15 @@ export const useFreehandConfig = () => {
     const isHovered = hoveredIndex === index
     const isInteracting = isSelected || isHovered
 
+    // Get class-based color or fallback to default
+    const classColor = getClassColor(annotation.className, classes)
+    
+    // Use class color as base, with selected/hovered states taking priority
+    const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+
     return {
       points: displayPoints,
-      stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+      stroke: strokeColor,
       strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
       fill: 'transparent',
       closed: false,

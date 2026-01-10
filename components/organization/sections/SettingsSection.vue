@@ -468,7 +468,7 @@
                           <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
                             Configure {{ type.name }}
                           </h3>
-                          <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[type.id] = false" />
+                          <UButton color="neutral" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[type.id] = false" />
                         </div>
                       </template>
 
@@ -499,7 +499,7 @@
 
                       <template #footer>
                         <div class="flex justify-end space-x-3">
-                          <UButton color="gray" variant="ghost" @click="modalStates[type.id] = false">Cancel</UButton>
+                          <UButton color="neutral" variant="ghost" @click="modalStates[type.id] = false">Cancel</UButton>
                           <UButton
                             color="tertiary"
                             variant="ghost"
@@ -543,7 +543,7 @@
                   
                   <UModal v-model="modalStates[conn.backendId]">
                     <UButton
-                      color="gray"
+                      color="neutral"
                       variant="ghost"
                       icon="i-heroicons-pencil-square"
                       size="sm"
@@ -556,7 +556,7 @@
                             <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
                               Configure {{ conn.backendTypeName }}
                             </h3>
-                            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[conn.backendId] = false" />
+                            <UButton color="neutral" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[conn.backendId] = false" />
                           </div>
                         </template>
 
@@ -587,7 +587,7 @@
 
                         <template #footer>
                           <div class="flex justify-end space-x-3">
-                            <UButton color="gray" variant="ghost" @click="modalStates[conn.backendId] = false">Cancel</UButton>
+                            <UButton color="neutral" variant="ghost" @click="modalStates[conn.backendId] = false">Cancel</UButton>
                             <UButton
                               color="tertiary"
                               variant="ghost"

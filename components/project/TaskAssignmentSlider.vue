@@ -13,7 +13,7 @@
   Requires authentication via JWT token
 -->
 <template>
-  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
+  <div class="bg-white dark:bg-neutral-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
     <div class="flex items-center justify-between mb-4">
       <div>
         <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">

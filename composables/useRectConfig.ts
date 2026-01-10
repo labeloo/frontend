@@ -1,3 +1,5 @@
+import { getClassColor, withOpacity } from '~/utils/classColorPalette'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -32,6 +34,7 @@ export function useRectConfig() {
    * @param hoveredIndex - Index of the currently hovered annotation
    * @param displayTransform - Function to convert original coordinates to display coordinates
    * @param sizeTransform - Function to convert original size to display size
+   * @param classes - Array of class names for color mapping (optional)
    * @returns Konva rectangle configuration object or empty object if invalid
    */
   const createRectangleConfig = (
@@ -40,7 +43,8 @@ export function useRectConfig() {
     selectedIndex: number | null,
     hoveredIndex: number | null,
     displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
-    sizeTransform: (size: { width: number; height: number }) => { width: number; height: number }
+    sizeTransform: (size: { width: number; height: number }) => { width: number; height: number },
+    classes: string[] = []
   ): RectConfig | Record<string, never> => {
     // Validate required properties
     if (!annotation.startPoint || annotation.width === undefined || annotation.height === undefined) {
@@ -55,15 +59,24 @@ export function useRectConfig() {
     const isSelected = selectedIndex === index
     const isHovered = hoveredIndex === index
 
+    // Get class-based color or fallback to default
+    const classColor = getClassColor(annotation.className, classes)
+    
+    // Use class color as base, with selected/hovered states taking priority
+    const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+    const fillColor = isSelected 
+      ? 'rgba(66, 133, 244, 0.1)' 
+      : (isHovered ? 'rgba(52, 168, 83, 0.05)' : withOpacity(classColor, 0.05))
+
     // Return Konva configuration with conditional styling
     return {
       x: displayStart.x,
       y: displayStart.y,
       width: displaySize.width,
       height: displaySize.height,
-      stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+      stroke: strokeColor,
       strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
-      fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+      fill: fillColor,
       draggable: true,
       listening: true,
       perfectDrawEnabled: false // Better performance

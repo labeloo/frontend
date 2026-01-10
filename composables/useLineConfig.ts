@@ -1,3 +1,5 @@
+import { getClassColor } from '~/utils/classColorPalette'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -29,6 +31,7 @@ export function useLineConfig() {
    * @param selectedIndex - Index of the currently selected annotation
    * @param hoveredIndex - Index of the currently hovered annotation
    * @param displayTransform - Function to convert original coordinates to display coordinates
+   * @param classes - Array of class names for color mapping (optional)
    * @returns Konva line configuration object or empty object if invalid
    */
   const createLineConfig = (
@@ -36,7 +39,8 @@ export function useLineConfig() {
     index: number,
     selectedIndex: number | null,
     hoveredIndex: number | null,
-    displayTransform: (point: { x: number; y: number }) => { x: number; y: number }
+    displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
+    classes: string[] = []
   ): LineConfig | Record<string, never> => {
     // Validate required properties
     if (!annotation.startPoint || !annotation.endPoint) {
@@ -54,10 +58,16 @@ export function useLineConfig() {
     const isSelected = selectedIndex === index
     const isHovered = hoveredIndex === index
 
+    // Get class-based color or fallback to default
+    const classColor = getClassColor(annotation.className, classes)
+    
+    // Use class color as base, with selected/hovered states taking priority
+    const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+
     // Return Konva configuration with conditional styling
     return {
       points: points,
-      stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+      stroke: strokeColor,
       strokeWidth: isSelected ? 4 : (isHovered ? 3 : 2),
       hitStrokeWidth: 20, // Increase hit area for easier selection
       draggable: true,

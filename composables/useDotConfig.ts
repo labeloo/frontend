@@ -1,3 +1,5 @@
+import { getClassColor } from '~/utils/classColorPalette'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -31,6 +33,7 @@ export function useDotConfig() {
    * @param hoveredIndex - Index of the currently hovered annotation
    * @param displayTransform - Function to convert original coordinates to display coordinates
    * @param imageScale - The current scale factor for the image
+   * @param classes - Array of class names for color mapping (optional)
    * @returns Konva circle configuration object for dot or empty object if invalid
    */
   const createDotConfig = (
@@ -39,7 +42,8 @@ export function useDotConfig() {
     selectedIndex: number | null,
     hoveredIndex: number | null,
     displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
-    imageScale: number
+    imageScale: number,
+    classes: string[] = []
   ): DotConfig | Record<string, never> => {
     // Validate required properties
     if (!annotation.center || annotation.radius === undefined) {
@@ -56,15 +60,22 @@ export function useDotConfig() {
     const isSelected = selectedIndex === index
     const isHovered = hoveredIndex === index
 
+    // Get class-based color or fallback to default red for dots
+    const classColor = getClassColor(annotation.className, classes)
+    const defaultDotColor = annotation.className ? classColor : '#ff4444'
+    
+    // Use class color as base, with selected/hovered states taking priority
+    const color = isSelected ? '#4285f4' : (isHovered ? '#34a853' : defaultDotColor)
+
     // Return Konva configuration with dot-specific styling
     // Dots are typically filled circles with a solid appearance
     return {
       x: displayCenter.x,
       y: displayCenter.y,
       radius: displayRadius,
-      stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#ff4444'),
+      stroke: color,
       strokeWidth: isSelected ? 2 : (isHovered ? 1.5 : 1),
-      fill: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#ff4444'),
+      fill: color,
       draggable: true,
       listening: true,
       perfectDrawEnabled: false // Better performance

@@ -409,6 +409,7 @@ import { workerManager } from '~/utils/polygonWorkerManager';
 import { createHitboxPolygon, calculateOptimalTolerance } from '~/utils/polygonHitboxOptimization';
 import { batchedDragHandlers, type DragBatchSystem } from '~/utils/dragPerformanceOptimization';
 import { performanceBudgetManager, type SceneComplexity, type PerformanceLevel } from '~/utils/performanceBudgetSystem';
+import { getClassColor, withOpacity } from '~/utils/classColorPalette';
 import type { CanvasAnnotation } from './types'
 
 interface Props {
@@ -1615,14 +1616,23 @@ const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
+  // Get class-based color or fallback to default
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  
+  // Use class color as base, with selected/hovered states taking priority
+  const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+  const fillColor = isSelected 
+    ? 'rgba(66, 133, 244, 0.1)' 
+    : (isHovered ? 'rgba(52, 168, 83, 0.05)' : withOpacity(classColor, 0.05))
+
   const config = {
     x: annotation.startPoint.x,
     y: annotation.startPoint.y,
     width: annotation.width,
     height: annotation.height,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: strokeColor,
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: fillColor,
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
@@ -1673,11 +1683,20 @@ const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
     hitboxPoints = createSimplifiedHitbox(flatPoints, stageScale.value)
   }
 
+  // Get class-based color or fallback to default
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  
+  // Use class color as base, with selected/hovered states taking priority
+  const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+  const fillColor = isSelected 
+    ? 'rgba(66, 133, 244, 0.1)' 
+    : (isHovered ? 'rgba(52, 168, 83, 0.05)' : withOpacity(classColor, 0.05))
+
   const config = {
     points: displayPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: strokeColor,
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: fillColor,
     closed: true,
     draggable: true,
     listening: true, // Always keep listening enabled for interaction
@@ -1723,9 +1742,15 @@ const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
+  // Get class-based color or fallback to default
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  
+  // Use class color as base, with selected/hovered states taking priority
+  const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+
   const config = {
     points: [annotation.startPoint.x, annotation.startPoint.y, annotation.endPoint.x, annotation.endPoint.y],
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: strokeColor,
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
     lineCap: 'round',
     draggable: true,
@@ -1758,13 +1783,22 @@ const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
   const isHovered = hoveredAnnotationIndex.value === index
   const uiScale = getUIScale()
 
+  // Get class-based color or fallback to default
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  
+  // Use class color as base, with selected/hovered states taking priority
+  const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+  const fillColor = isSelected 
+    ? 'rgba(66, 133, 244, 0.1)' 
+    : (isHovered ? 'rgba(52, 168, 83, 0.05)' : withOpacity(classColor, 0.05))
+
   const config = {
     x: annotation.center.x,
     y: annotation.center.y,
     radius: annotation.radius,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: strokeColor,
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: fillColor,
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
@@ -1792,7 +1826,8 @@ const getDotConfig = (annotation: CanvasAnnotation, index: number) => {
     selectedAnnotationIndex.value,
     hoveredAnnotationIndex.value,
     canvasToCanvas, // Since annotations are in canvas coordinates
-    1 // imageScale is 1 since we're already in canvas coordinates
+    1, // imageScale is 1 since we're already in canvas coordinates
+    props.classes || []
   )
 }
 
@@ -1836,8 +1871,8 @@ const getLabelConfig = (annotation: CanvasAnnotation, index: number) => {
     fontSize: 12 * uiScale, // Normal font size
     fontFamily: 'Arial, sans-serif',
     fontStyle: 'normal', // Normal weight instead of bold
-    // Dark text for better readability on light background
-    fill: isSelected ? '#ffffff' : '#333333',
+    // White text for better contrast on colored backgrounds
+    fill: '#ffffff',
     // No stroke for cleaner appearance
     stroke: '',
     strokeWidth: 0,
@@ -1865,15 +1900,21 @@ const getLabelBackgroundConfig = (annotation: CanvasAnnotation, index: number) =
   const textWidth = Math.max(text.length * avgCharWidth, fontSize * 2) // Minimum width
   const textHeight = fontSize * 1.1 // Line height
   
+  // Get class-based color for the label background
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  const backgroundColor = isSelected 
+    ? 'rgba(66, 133, 244, 0.9)' 
+    : withOpacity(classColor, 0.9)
+  
   return {
     x: labelConfig.x - padding,
     y: labelConfig.y - padding,
     width: textWidth + (padding * 2),
     height: textHeight + (padding * 2),
-    // Clean, simple background - light for readability
-    fill: isSelected ? 'rgba(66, 133, 244, 0.9)' : 'rgba(255, 255, 255, 0.9)',
-    // Simple border
-    stroke: isSelected ? '#4285f4' : '#cccccc',
+    // Use class-based background color
+    fill: backgroundColor,
+    // Border color matches the annotation stroke
+    stroke: isSelected ? '#4285f4' : classColor,
     strokeWidth: 1 * uiScale,
     cornerRadius: 3 * uiScale, // Small rounded corners
     // Subtle shadow for depth
@@ -1902,9 +1943,15 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
     flatPoints.push(point.x, point.y)
   }
 
+  // Get class-based color or fallback to default
+  const classColor = getClassColor(annotation.className, props.classes || [])
+  
+  // Use class color as base, with selected/hovered states taking priority
+  const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+
   const config = {
     points: flatPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: strokeColor,
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
     fill: 'transparent',
     closed: false,

@@ -1,3 +1,5 @@
+import { getClassColor, withOpacity } from '~/utils/classColorPalette'
+
 interface CanvasAnnotation {
   type: 'rectangle' | 'polygon' | 'dot' | 'line' | 'circle' | 'freehand'
   startPoint?: { x: number; y: number }
@@ -31,6 +33,7 @@ export function useCircleConfig() {
    * @param hoveredIndex - Index of the currently hovered annotation
    * @param displayTransform - Function to convert original coordinates to display coordinates
    * @param imageScale - The current scale factor for the image
+   * @param classes - Array of class names for color mapping (optional)
    * @returns Konva circle configuration object or empty object if invalid
    */
   const createCircleConfig = (
@@ -39,7 +42,8 @@ export function useCircleConfig() {
     selectedIndex: number | null,
     hoveredIndex: number | null,
     displayTransform: (point: { x: number; y: number }) => { x: number; y: number },
-    imageScale: number
+    imageScale: number,
+    classes: string[] = []
   ): CircleConfig | Record<string, never> => {
     // Validate required properties
     if (!annotation.center || annotation.radius === undefined) {
@@ -56,14 +60,23 @@ export function useCircleConfig() {
     const isSelected = selectedIndex === index
     const isHovered = hoveredIndex === index
 
+    // Get class-based color or fallback to default
+    const classColor = getClassColor(annotation.className, classes)
+    
+    // Use class color as base, with selected/hovered states taking priority
+    const strokeColor = isSelected ? '#4285f4' : (isHovered ? '#34a853' : classColor)
+    const fillColor = isSelected 
+      ? 'rgba(66, 133, 244, 0.1)' 
+      : (isHovered ? 'rgba(52, 168, 83, 0.05)' : withOpacity(classColor, 0.05))
+
     // Return Konva configuration with conditional styling
     return {
       x: displayCenter.x,
       y: displayCenter.y,
       radius: displayRadius,
-      stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+      stroke: strokeColor,
       strokeWidth: isSelected ? 3 : (isHovered ? 2.5 : 2),
-      fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+      fill: fillColor,
       draggable: true,
       listening: true,
       perfectDrawEnabled: false // Better performance

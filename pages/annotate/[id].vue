@@ -361,6 +361,17 @@
             </UBadge>
           </div>
           <div class="flex items-center space-x-4">
+            <!-- Customize Shortcuts Button -->
+            <UButton 
+              color="secondary"  
+              size="sm" 
+              @click="showCustomizeShortcuts = true"
+              title="Customize keyboard shortcuts"
+              class="cursor-pointer"
+            >
+              <UIcon name="i-heroicons-scissors" class="w-4 h-4 mr-2" />
+              Shortcuts
+            </UButton>
             <UButton color="success" variant="subtle" size="sm" @click="loadData" class="cursor-pointer">
               <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
               Refresh
@@ -368,7 +379,7 @@
             <!-- Show Save button only in annotate or fix mode -->
             <UButton 
               v-if="pageMode === 'annotate' || pageMode === 'fix'"
-              color="secondary" 
+              color="primary" 
               size="lg" 
               @click="saveAnnotation" 
               :loading="savingAnnotation"
@@ -492,12 +503,19 @@
       @success="handleCanvasReviewSuccess"
       @close="canvasReviewState.closeReviewPopup"
     />
+
+    <!-- Customize Shortcuts Modal -->
+    <CustomShortcuts
+      v-model="showCustomizeShortcuts"
+      @shortcuts-updated="onShortcutsUpdated"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import KonvaAnnotationCanvas from '~/components/annotation/KonvaAnnotationCanvas.vue'
 import AnnotationToolbar from '~/components/annotation/AnnotationToolbar.vue'
+import CustomShortcuts from '~/components/annotation/CustomShortcuts.vue'
 import AnnotationSubmitConfirmModal from '~/components/review/AnnotationSubmitConfirmModal.vue'
 import AnnotationReviewPopup from '~/components/review/AnnotationReviewPopup.vue'
 import ReviewStatusBadge from '~/components/review/ReviewStatusBadge.vue'
@@ -506,7 +524,10 @@ import ReviewList from '~/components/review/ReviewList.vue'
 import ReviewForm from '~/components/review/ReviewForm.vue'
 import { useImageUrl } from '~/composables/useImageUrl'
 import { useProjectReviewSettings } from '~/composables/useProjectReviewSettings'
+import { useShortcuts } from '~/composables/useShortcuts'
+import type { ShortcutAction } from '~/types/shortcuts'
 import type { ReviewStatus, ReviewMode, ProjectReviewSettings, TaskStatus } from '~/types/reviews'
+
 
 const { getTaskImageUrl } = useImageUrl()
 
@@ -615,6 +636,20 @@ const reviewListKey = ref(0) // Used to force refresh ReviewList component
 
 // Canvas review composable
 const canvasReviewState = useCanvasReview()
+
+// Shortcuts composable
+const shortcutsEnabled = ref(true)
+const {
+  shortcuts: shortcutsList,
+  initialize: initializeShortcuts,
+  registerHandler: registerShortcutHandler,
+  rebindAllShortcuts,
+  enableShortcuts,
+  disableShortcuts,
+} = useShortcuts({ scope: 'canvas', enabled: shortcutsEnabled })
+
+// Customize shortcuts modal state
+const showCustomizeShortcuts = ref(false)
 
 // Page mode from query param
 const pageMode = computed<AnnotateMode>(() => {
@@ -1270,43 +1305,152 @@ definePageMeta({
   layout: false
 })
 
-// Keyboard event handler
-const handleKeyDown = (event: KeyboardEvent) => {
+// Class selector keyboard handler (separate from main shortcuts)
+const handleClassSelectorKeyDown = (event: KeyboardEvent) => {
+  // Only handle when class selector is open
+  if (!showClassSelector.value || !projectData.value?.labelConfig?.classes) {
+    return
+  }
+  
   if (event.key === 'Escape') {
-    if (showClassSelector.value) {
-      cancelClassSelection()
-    } else {
-      cancelAnnotation()
+    cancelClassSelection()
+    event.preventDefault()
+    return
+  }
+  
+  // Handle number keys for class selection (1-9)
+  const numKey = parseInt(event.key)
+  if (numKey >= 1 && numKey <= projectData.value.labelConfig.classes.length && numKey <= 9) {
+    const className = projectData.value.labelConfig.classes[numKey - 1]
+    if (className) {
+      selectAnnotationClass(className)
+      event.preventDefault()
     }
-  } else if (showClassSelector.value && projectData.value?.labelConfig?.classes) {
-    // Handle number keys for class selection (1-9)
-    const numKey = parseInt(event.key)
-    if (numKey >= 1 && numKey <= projectData.value.labelConfig.classes.length && numKey <= 9) {
-      const className = projectData.value.labelConfig.classes[numKey - 1]
-      if (className) {
-        selectAnnotationClass(className)
-        event.preventDefault()
-      }
-    }
-    // Handle Enter key for last selected class
-    else if (event.key === 'Enter' && lastSelectedClass.value) {
-      // Check if the last selected class is still available in current classes
-      if (projectData.value.labelConfig.classes.includes(lastSelectedClass.value)) {
-        selectAnnotationClass(lastSelectedClass.value)
-        event.preventDefault()
-      }
+  }
+  // Handle Enter key for last selected class
+  else if (event.key === 'Enter' && lastSelectedClass.value) {
+    // Check if the last selected class is still available in current classes
+    if (projectData.value.labelConfig.classes.includes(lastSelectedClass.value)) {
+      selectAnnotationClass(lastSelectedClass.value)
+      event.preventDefault()
     }
   }
 }
 
+// Handler for when shortcuts are updated in the CustomShortcuts modal
+const onShortcutsUpdated = () => {
+  rebindAllShortcuts()
+}
+
+// Register all shortcut handlers
+const registerAllShortcutHandlers = () => {
+  // Tool selection shortcuts
+  registerShortcutHandler('TOOL_SELECT', () => selectTool('select'))
+  registerShortcutHandler('TOOL_RECTANGLE', () => selectTool('rectangle'))
+  registerShortcutHandler('TOOL_POLYGON', () => selectTool('polygon'))
+  registerShortcutHandler('TOOL_DOT', () => selectTool('dot'))
+  registerShortcutHandler('TOOL_LINE', () => selectTool('line'))
+  registerShortcutHandler('TOOL_CIRCLE', () => selectTool('circle'))
+  registerShortcutHandler('TOOL_MAGIC', () => selectTool('magic'))
+  registerShortcutHandler('TOOL_FREEHAND', () => selectTool('freehand'))
+
+  // Annotation action shortcuts
+  registerShortcutHandler('SAVE_ANNOTATION', () => {
+    if (canvasAnnotations.value.length > 0) {
+      saveAnnotation()
+    }
+  })
+  registerShortcutHandler('COMPLETE_ANNOTATION', () => {
+    if (isAnnotating.value) {
+      completeAnnotation()
+    }
+  })
+  registerShortcutHandler('CANCEL_ANNOTATION', () => {
+    if (isAnnotating.value) {
+      cancelAnnotation()
+    }
+  })
+  registerShortcutHandler('DELETE_SELECTED', () => {
+    if (selectedAnnotationIndex.value !== null) {
+      deleteSelectedAnnotation()
+    }
+  })
+  registerShortcutHandler('DUPLICATE_SELECTED', () => {
+    if (selectedAnnotationIndex.value !== null) {
+      duplicateSelectedAnnotation()
+    }
+  })
+  registerShortcutHandler('CLEAR_ALL', () => {
+    if (canvasAnnotations.value.length > 0) {
+      clearAllAnnotations()
+    }
+  })
+
+  // Navigation shortcuts
+  registerShortcutHandler('NEXT_TASK', () => {
+    if (taskData.value?.nextTaskId) {
+      saveAndNext()
+    }
+  })
+  registerShortcutHandler('REFRESH_PAGE', () => {
+    loadData()
+  })
+
+  // Edit shortcuts
+  registerShortcutHandler('UNDO', () => {
+    if (annotationHistory.value.length > 0 && historyIndex.value > 0) {
+      undo()
+    }
+  })
+  registerShortcutHandler('REDO', () => {
+    if (annotationHistory.value.length > 0 && historyIndex.value < annotationHistory.value.length - 1) {
+      redo()
+    }
+  })
+
+  // View control shortcuts
+  registerShortcutHandler('ZOOM_IN', () => zoomIn())
+  registerShortcutHandler('ZOOM_OUT', () => zoomOut())
+  registerShortcutHandler('RESET_ZOOM', () => resetZoom())
+  registerShortcutHandler('FIT_TO_SCREEN', () => fitToScreen())
+}
+
 // Lifecycle
-onMounted(() => {
+onMounted(async () => {
   loadData()
-  window.addEventListener('keydown', handleKeyDown)
+  
+  // Initialize keyboard shortcuts
+  registerAllShortcutHandlers()
+  await initializeShortcuts()
+  
+  // Add class selector key handler
+  window.addEventListener('keydown', handleClassSelectorKeyDown)
+  
+  // Initialize history on component mount
+  annotationHistory.value = [[]]
+  historyIndex.value = 0
 })
 
 onUnmounted(() => {
-  window.removeEventListener('keydown', handleKeyDown)
+  window.removeEventListener('keydown', handleClassSelectorKeyDown)
+})
+
+// Disable shortcuts when class selector is open
+watch(showClassSelector, (isOpen) => {
+  if (isOpen) {
+    shortcutsEnabled.value = false
+  } else {
+    shortcutsEnabled.value = true
+  }
+})
+
+// Disable shortcuts when customize modal is open
+watch(showCustomizeShortcuts, (isOpen) => {
+  if (isOpen) {
+    disableShortcuts()
+  } else {
+    enableShortcuts()
+  }
 })
 
 // ❌ DELETE your current saveAnnotation method.
@@ -1622,11 +1766,4 @@ watch(canvasAnnotations, (newAnnotations) => {
     addToHistory()
   }
 }, { deep: true })
-
-// Initialize history on component mount
-onMounted(() => {
-  // Initialize with empty state
-  annotationHistory.value = [[]]
-  historyIndex.value = 0
-})
 </script>
