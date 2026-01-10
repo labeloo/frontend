@@ -601,7 +601,7 @@ function goToOrganizationPage() {
               <OrganizationRolesTable :orgId="orgId" :refresh-key="rolesRefreshKey" />
                 <div class="flex flex-col gap-6 mt-6">
                 <!-- Create role modal -->
-                <UModal v-model="showRolesModal" @after:leave="refreshTabsAfterModalClose">
+                <UModal v-model="showRolesModal" @after:leave="refreshTabsAfterModalClose" :ui="{ wrapper: 'sm:max-w-4xl' }">
                   <UButton 
                     label="Create a New Role" 
                     color="primary" 
@@ -610,7 +610,8 @@ function goToOrganizationPage() {
                     icon="lucide:plus-circle"
                   ></UButton>
                   <template #content>
-                    <div class="p-6">
+                    <div class="p-6 overflow-y-auto max-h-[75vh]">
+                      <h2 class="text-2xl font-bold text-gray-900 dark:text-white mb-6">Create New Role</h2>
                       <OrganizationCreateRoles :orgId="orgId" @role-created="handleRoleCreated" />
                     </div>
                   </template>

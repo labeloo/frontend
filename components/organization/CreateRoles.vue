@@ -42,9 +42,25 @@ const roleState = reactive({
   name: '',
   description: '',
   icon: 'i-heroicons-user-group',
+  color: 'blue',
   permissionFlags: permissionFlags.value, // Reference the reactive object
   organizationId: props.orgId
 });
+
+// Available colors for role selection (from Nuxt UI)
+const availableColors = ref([
+  'orange', 'red', 'amber', 'yellow', 'lime', 'green', 
+  'emerald', 'teal', 'cyan', 'sky', 'blue', 'indigo', 
+  'violet', 'purple', 'fuchsia', 'pink', 'rose'
+])
+
+// Color hex map for proper display (500 shades)
+const colorHexMap: Record<string, string> = {
+  orange: '#f97316', red: '#ef4444', amber: '#f59e0b', yellow: '#eab308', 
+  lime: '#84cc16', green: '#22c55e', emerald: '#10b981', teal: '#14b8a6', 
+  cyan: '#06b6d4', sky: '#0ea5e9', blue: '#3b82f6', indigo: '#6366f1', 
+  violet: '#8b5cf6', purple: '#a855f7', fuchsia: '#d946ef', pink: '#ec4899', rose: '#f43f5e'
+}
 
 // Available icons for role selection
 const availableIcons = ref([
@@ -149,7 +165,7 @@ const enabledFlagsCount = computed(() => {
                     :key="icon.value"
                     type="button"
                     @click="roleState.icon = icon.value"
-                    class="p-3 rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    class="aspect-square rounded-lg border-2 transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary/50 flex items-center justify-center"
                     :class="[
                         roleState.icon === icon.value 
                             ? 'border-primary bg-primary/10 text-primary' 
@@ -157,7 +173,38 @@ const enabledFlagsCount = computed(() => {
                     ]"
                     :title="icon.label"
                 >
-                    <UIcon :name="icon.value" class="w-5 h-5" />
+                    <UIcon :name="icon.value" class="w-6 h-6" />
+                </button>
+            </div>
+        </div>
+    </UFormField>
+    
+    <UFormField label="Role Color" name="color" hint="Choose a color theme for this role">
+        <div class="space-y-4">
+            <!-- Selected color preview -->
+            <div v-if="roleState.color" class="flex items-center gap-3 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <div class="w-6 h-6 rounded-full border-2 border-gray-300" 
+                    :style="{ backgroundColor: colorHexMap[roleState.color] }"></div>
+                <span class="text-sm font-medium text-gray-900 dark:text-white capitalize">Selected: {{ roleState.color }}</span>
+            </div>
+            
+            <!-- Color selection grid -->
+            <div class="grid grid-cols-8 gap-2 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+                <button
+                    v-for="color in availableColors"
+                    :key="color"
+                    type="button"
+                    @click="roleState.color = color"
+                    class="w-8 h-8 rounded-full border-2 transition-all duration-200 hover:scale-110 focus:outline-none focus:ring-2 focus:ring-offset-2"
+                    :style="{ backgroundColor: colorHexMap[color] }"
+                    :class="[
+                        roleState.color === color
+                            ? 'ring-2 ring-offset-2 ring-gray-400 scale-110 border-white dark:border-gray-900'
+                            : 'border-gray-300 dark:border-gray-600 hover:border-gray-400'
+                    ]"
+                    :title="color"
+                >
+                    <span class="sr-only">{{ color }}</span>
                 </button>
             </div>
         </div>

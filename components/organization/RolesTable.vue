@@ -8,13 +8,14 @@
 
 // ----- Imports -----
 import PermissionFlagsModal from './PermissionFlagsModal.vue';
-import { watch } from 'vue';
+import { watch, onMounted } from 'vue';
 
 // ----- Types -----
 interface Role {
     name: string;
     description: string;
     icon?: string;
+    color?: string;
     permissionFlags: Record<string, boolean>;
     // Using Record to handle additional API fields
     [key: string]: string | boolean | Record<string, boolean> | undefined;
@@ -31,6 +32,14 @@ const rolesData = ref<Role[]>([]);
 const isModalOpen = ref(false);
 const selectedRole = ref<Role | null>(null);
 
+// Color hex map for proper display (500 shades)
+const colorHexMap: Record<string, string> = {
+  orange: '#f97316', red: '#ef4444', amber: '#f59e0b', yellow: '#eab308', 
+  lime: '#84cc16', green: '#22c55e', emerald: '#10b981', teal: '#14b8a6', 
+  cyan: '#06b6d4', sky: '#0ea5e9', blue: '#3b82f6', indigo: '#6366f1', 
+  violet: '#8b5cf6', purple: '#a855f7', fuchsia: '#d946ef', pink: '#ec4899', rose: '#f43f5e'
+}
+
 // ----- Authentication -----
 const token = useCookie('auth_token');
 if (!token.value) {
@@ -39,23 +48,23 @@ if (!token.value) {
 
 // ----- Data Fetching -----
 const fetchRoles = async () => {
-    // Clear existing data first
-    rolesData.value = [];
-    
-    const result = await useFetch<{ data: Role[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
-        method: 'GET',        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token.value}`,
-            "orgId": String(props.orgId)
-        },
-        // Use unique cache key per organization to prevent cache conflicts
-        key: `roles-${props.orgId}`,
-        // Disable server-side caching for this specific request
-        server: false
-    });
+    try {
+        const result = await $fetch<{ data: Role[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token.value}`,
+                "orgId": String(props.orgId)
+            }
+        });
 
-    if (result.data.value?.data) {
-        rolesData.value = result.data.value.data;
+        if (result?.data) {
+            rolesData.value = result.data;
+            console.log('Roles fetched:', rolesData.value);
+        }
+    } catch (error) {
+        console.error('Error fetching roles:', error);
+        rolesData.value = [];
     }
 };
 
@@ -85,13 +94,16 @@ watch(() => props.orgId, (newOrgId, oldOrgId) => {
 }, { immediate: false });
 
 // Watch for manual refresh trigger
-watch(() => props.refreshKey, () => {
+watch(() => props.refreshKey, (newKey) => {
+    console.log('Refresh key changed, refetching roles:', newKey);
     fetchRoles();
 });
 
 // ----- Lifecycle -----
 // Load roles data when component is mounted
-await fetchRoles();
+onMounted(() => {
+    fetchRoles();
+});
 </script>
 
 <template>
@@ -120,8 +132,11 @@ await fetchRoles();
                     <tr v-for="role in rolesData" :key="role.name" class="hover:bg-gray-50 dark:hover:bg-gray-800">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
                             <div class="flex items-center">
-                                <div class="p-2 bg-primary/10 rounded-lg mr-3">
-                                    <UIcon :name="role.icon || 'i-heroicons-user-group'" class="w-4 h-4 text-primary" />
+                                <div class="p-2 rounded-lg mr-3" 
+                                    :style="{ backgroundColor: colorHexMap[role.color || 'blue'] + '20' }">
+                                    <UIcon :name="role.icon || 'i-heroicons-user-group'" 
+                                        class="w-4 h-4" 
+                                        :style="{ color: colorHexMap[role.color || 'blue'] }" />
                                 </div>
                                 <div>
                                     <div class="font-medium">{{ role.name }}</div>
