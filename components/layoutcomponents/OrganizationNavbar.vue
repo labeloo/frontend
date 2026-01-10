@@ -86,9 +86,9 @@
             <div class="p-4 border-t bg-white dark:bg-neutral-800 border-gray-200 dark:border-gray-700">
                 <div class="flex flex-col gap-2 ">
                     <UtilsColorModeButton class="hover:cursor-pointer" />
-                    <UButton color="primary" block class="hover:cursor-pointer" @click="handleLogout">
+                    <UButton color="primary" block class="hover:cursor-pointer" @click="navigateToHomepage">
                         <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
-                        Logout
+                        Back to Organizations
                     </UButton>
                 </div>
             </div>
@@ -97,8 +97,6 @@
 </template>
 
 <script setup lang="ts">
-import { useAuth } from '@/composables/useAuth'
-
 // Define middleware as a navigation guard
 definePageMeta({
     middleware: [async () => {
@@ -109,8 +107,12 @@ definePageMeta({
     }]
 })
 
-const { logout } = useAuth()
-const route = useRoute()
+const router = useRouter()
+
+// Navigate back to organizations list
+const navigateToHomepage = () => {
+    router.push({ name: 'homepage' })
+}
 
 // Emit events for component navigation
 const emit = defineEmits<{
@@ -119,10 +121,6 @@ const emit = defineEmits<{
 
 // Use the global state for section management
 const activeSection = useState('currentSection', () => 'overview')
-
-const handleLogout = () => {
-    logout()
-}
 
 // Handle navigation clicks
 const handleNavClick = (section: string) => {
