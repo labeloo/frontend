@@ -428,7 +428,8 @@
               :classes="projectData?.labelConfig?.classes || []" :canvas-width="800" :canvas-height="600"
               @update:annotations="canvasAnnotations = $event" @update:is-annotating="isAnnotating = $event"
               @annotation-completed="onAnnotationCompleted" @annotation-updated="onAnnotationUpdated"
-              @annotation-deleted="onAnnotationDeleted" @show-class-selector="onShowClassSelector" />
+              @annotation-deleted="onAnnotationDeleted" @show-class-selector="onShowClassSelector"
+              @selection-changed="selectedAnnotationIndex = $event" />
           </div>
           <!-- Class Selection Popup -->
           <div v-if="showClassSelector && projectData?.labelConfig?.classes?.length" data-class-selector
@@ -1165,31 +1166,68 @@ const cancelAnnotation = () => {
 
 // Enhanced toolbar methods
 const zoomIn = () => {
-  if (konvaCanvas.value && konvaCanvas.value.getImageScale) {
-    const currentScale = konvaCanvas.value.getImageScale()
-    const newScale = Math.min(currentScale * 1.2, 3)
-    // Implement zoom functionality in KonvaAnnotationCanvas
-    console.log('Zoom in to:', newScale)
+  if (!konvaCanvas.value) return
+  
+  const currentStageScale = konvaCanvas.value.getStageScale()
+  const newScale = Math.min(currentStageScale * 1.2, 5)
+  
+  const stagePos = konvaCanvas.value.getStagePosition()
+  const stageCanvasSize = konvaCanvas.value.getStageSize()
+  
+  const centerX = stageCanvasSize.width / 2
+  const centerY = stageCanvasSize.height / 2
+  
+  const newPos = {
+    x: centerX - (centerX - stagePos.x) * (newScale / currentStageScale),
+    y: centerY - (centerY - stagePos.y) * (newScale / currentStageScale)
   }
+  
+  konvaCanvas.value.updateStageTransform(newScale, newPos)
 }
 
 const zoomOut = () => {
-  if (konvaCanvas.value && konvaCanvas.value.getImageScale) {
-    const currentScale = konvaCanvas.value.getImageScale()
-    const newScale = Math.max(currentScale / 1.2, 0.1)
-    // Implement zoom functionality in KonvaAnnotationCanvas
-    console.log('Zoom out to:', newScale)
+  if (!konvaCanvas.value) return
+  
+  const currentStageScale = konvaCanvas.value.getStageScale()
+  const newScale = Math.max(currentStageScale / 1.2, 0.1)
+  
+  const stagePos = konvaCanvas.value.getStagePosition()
+  const stageCanvasSize = konvaCanvas.value.getStageSize()
+  
+  const centerX = stageCanvasSize.width / 2
+  const centerY = stageCanvasSize.height / 2
+  
+  const newPos = {
+    x: centerX - (centerX - stagePos.x) * (newScale / currentStageScale),
+    y: centerY - (centerY - stagePos.y) * (newScale / currentStageScale)
   }
+  
+  konvaCanvas.value.updateStageTransform(newScale, newPos)
 }
 
 const resetZoom = () => {
-  // Reset zoom to original scale
-  console.log('Reset zoom')
+  if (!konvaCanvas.value) return
+  
+  konvaCanvas.value.updateStageTransform(1, { x: 0, y: 0 })
 }
 
 const fitToScreen = () => {
-  // Fit image to screen
-  console.log('Fit to screen')
+  if (!konvaCanvas.value) return
+  
+  const originalSize = konvaCanvas.value.getOriginalImageSize()
+  const displaySize = konvaCanvas.value.getDisplayImageSize()
+  const stageCanvasSize = konvaCanvas.value.getStageSize()
+  
+  if (!originalSize || !displaySize || originalSize.width === 0 || displaySize.width === 0) return
+  
+  const scaleX = stageCanvasSize.width / displaySize.width
+  const scaleY = stageCanvasSize.height / displaySize.height
+  const scale = Math.min(scaleX, scaleY, 1)
+  
+  const offsetX = (stageCanvasSize.width - displaySize.width * scale) / 2
+  const offsetY = (stageCanvasSize.height - displaySize.height * scale) / 2
+  
+  konvaCanvas.value.updateStageTransform(scale, { x: offsetX, y: offsetY })
 }
 
 const addToHistory = () => {
@@ -1197,6 +1235,11 @@ const addToHistory = () => {
   annotationHistory.value = annotationHistory.value.slice(0, historyIndex.value + 1)
   annotationHistory.value.push(currentState)
   historyIndex.value = annotationHistory.value.length - 1
+  
+  if (annotationHistory.value.length > 50) {
+    annotationHistory.value.shift()
+    historyIndex.value = Math.max(0, historyIndex.value - 1)
+  }
 }
 
 const undo = () => {
@@ -1224,24 +1267,41 @@ const deleteSelectedAnnotation = () => {
 const duplicateSelectedAnnotation = () => {
   if (selectedAnnotationIndex.value !== null) {
     const annotation = canvasAnnotations.value[selectedAnnotationIndex.value]
-    if (annotation) {
-      addToHistory()
-      const duplicated = JSON.parse(JSON.stringify(annotation))
-      // Offset the duplicated annotation
-      if (duplicated.startPoint) {
-        duplicated.startPoint.x += 20
-        duplicated.startPoint.y += 20
-      } else if (duplicated.center) {
-        duplicated.center.x += 20
-        duplicated.center.y += 20
-      } else if (duplicated.points) {
-        duplicated.points = duplicated.points.map((p: { x: number; y: number }) => ({
-          x: p.x + 20,
-          y: p.y + 20
-        }))
+    if (!annotation) return
+    
+    addToHistory()
+    
+    const duplicated = JSON.parse(JSON.stringify(annotation))
+    const offset = 20
+    
+    if (duplicated.type === 'rectangle' && duplicated.startPoint && duplicated.endPoint) {
+      duplicated.startPoint.x += offset
+      duplicated.startPoint.y += offset
+      duplicated.endPoint.x += offset
+      duplicated.endPoint.y += offset
+      if (duplicated.width !== undefined && duplicated.height !== undefined) {
+        duplicated.width = duplicated.endPoint.x - duplicated.startPoint.x
+        duplicated.height = duplicated.endPoint.y - duplicated.startPoint.y
       }
-      canvasAnnotations.value.push(duplicated)
+    } else if (duplicated.type === 'circle' && duplicated.center) {
+      duplicated.center.x += offset
+      duplicated.center.y += offset
+    } else if (duplicated.type === 'dot' && duplicated.center) {
+      duplicated.center.x += offset
+      duplicated.center.y += offset
+    } else if (duplicated.type === 'line' && duplicated.startPoint && duplicated.endPoint) {
+      duplicated.startPoint.x += offset
+      duplicated.startPoint.y += offset
+      duplicated.endPoint.x += offset
+      duplicated.endPoint.y += offset
+    } else if ((duplicated.type === 'polygon' || duplicated.type === 'freehand') && duplicated.points) {
+      duplicated.points = duplicated.points.map((p: { x: number; y: number }) => ({
+        x: p.x + offset,
+        y: p.y + offset
+      }))
     }
+    
+    canvasAnnotations.value.push(duplicated)
   }
 }
 
@@ -1441,6 +1501,27 @@ onMounted(async () => {
 onUnmounted(() => {
   window.removeEventListener('keydown', handleClassSelectorKeyDown)
 })
+
+// Watch for annotation changes to automatically add to history
+let historyDebounceTimer: ReturnType<typeof setTimeout> | null = null
+watch(
+  () => canvasAnnotations.value.length,
+  (newLength, oldLength) => {
+    if (oldLength === 0 && newLength === 0) return
+    
+    if (historyDebounceTimer) {
+      clearTimeout(historyDebounceTimer)
+    }
+    
+    historyDebounceTimer = setTimeout(() => {
+      if (historyIndex.value === -1 || 
+          JSON.stringify(canvasAnnotations.value) !== JSON.stringify(annotationHistory.value[historyIndex.value])) {
+        addToHistory()
+      }
+    }, 300)
+  },
+  { deep: false }
+)
 
 // Disable shortcuts when class selector is open
 watch(showClassSelector, (isOpen) => {

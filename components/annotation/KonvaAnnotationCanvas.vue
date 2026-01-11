@@ -434,6 +434,7 @@ interface Emits {
   (e: 'annotation-updated', annotation: CanvasAnnotation, index: number): void
   (e: 'annotation-deleted', index: number): void
   (e: 'show-class-selector', annotation: CanvasAnnotation, position: { x: number; y: number }): void
+  (e: 'selection-changed', index: number | null): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -1619,6 +1620,7 @@ const clearAllAnnotations = () => {
   pendingAnnotation.value = null
   
   selectedAnnotationIndex.value = null
+  emit('selection-changed', null)
   hoveredAnnotationIndex.value = null
   
   if (transformerInstance) {
@@ -2128,6 +2130,7 @@ const handleStageMouseDown = (e: any) => {
     const clickedOnEmpty = e.target === stageNode
     if (clickedOnEmpty) {
       selectedAnnotationIndex.value = null
+      emit('selection-changed', null)
       showAnnotationTools.value = false
       updateTransformer()
     }
@@ -2655,6 +2658,7 @@ const handleStageKeyDown = (e: any) => {
       cancelCurrentAnnotation()
     } else if (selectedAnnotationIndex.value !== null) {
       selectedAnnotationIndex.value = null
+      emit('selection-changed', null)
       showAnnotationTools.value = false
       updateTransformer()
     }
@@ -3053,6 +3057,7 @@ const handleDragEnd = (index: number, event: any) => {
 
 const handleAnnotationClick = (index: number, event: any) => {
   selectedAnnotationIndex.value = index
+  emit('selection-changed', index)
 }
 
 const handleAnnotationMouseOver = (index: number) => {
@@ -3274,6 +3279,41 @@ const handleMagicClick = (e: any) => {
   }
 }
 
+// Zoom control methods
+const setStageScale = (scale: number) => {
+  const clampedScale = Math.max(minScale.value, Math.min(maxScale.value, scale))
+  stageScale.value = clampedScale
+  
+  if (stage.value) {
+    const stageNode = stage.value.getNode()
+    stageNode.scale({ x: clampedScale, y: clampedScale })
+    stageNode.batchDraw()
+  }
+}
+
+const setStagePosition = (position: { x: number; y: number }) => {
+  stagePosition.value = position
+  
+  if (stage.value) {
+    const stageNode = stage.value.getNode()
+    stageNode.position(position)
+    stageNode.batchDraw()
+  }
+}
+
+const updateStageTransform = (scale: number, position: { x: number; y: number }) => {
+  const clampedScale = Math.max(minScale.value, Math.min(maxScale.value, scale))
+  stageScale.value = clampedScale
+  stagePosition.value = position
+  
+  if (stage.value) {
+    const stageNode = stage.value.getNode()
+    stageNode.scale({ x: clampedScale, y: clampedScale })
+    stageNode.position(position)
+    stageNode.batchDraw()
+  }
+}
+
 // Expose methods to parent
 defineExpose({
   completeCurrentAnnotation,
@@ -3287,11 +3327,16 @@ defineExpose({
   getImageOffset: () => imageOffset.value,
   getOriginalImageSize: () => originalImageSize.value,
   getDisplayImageSize: () => displayImageSize.value,
+  getStageSize: () => stageSize.value,
+  getSelectedAnnotationIndex: () => selectedAnnotationIndex.value,
   isPointInBounds: isPointInImageBounds,
   convertToOriginal: canvasToOriginal,
   convertToDisplay: originalToCanvas,
   getStageScale: () => stageScale.value,
   getStagePosition: () => stagePosition.value,
+  setStageScale,
+  setStagePosition,
+  updateStageTransform,
   getPerformanceMode: () => isPerformanceMode.value,
   setPerformanceMode: (enabled: boolean) => {
     if (enabled) {
