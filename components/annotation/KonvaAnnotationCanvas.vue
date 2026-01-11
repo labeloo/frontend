@@ -2672,9 +2672,122 @@ const handleContextMenu = (e: any) => {
   }
 }
 
-// Placeholder annotation event handlers
+// Handle transform end for all annotation types (resizing/scaling)
 const handleTransformEnd = (index: number, event: any) => {
-  // Transform handling
+  const annotation = props.annotations[index]
+  if (!annotation) return
+  
+  const node = event.target
+  
+  console.log('🎯 Transform end for', annotation.type, 'at index:', index)
+  
+  let updatedAnnotation: CanvasAnnotation = { ...annotation }
+  
+  // Handle different annotation types
+  if (annotation.type === 'rectangle') {
+    // Get the new size accounting for scale
+    const newWidth = node.width() * node.scaleX()
+    const newHeight = node.height() * node.scaleY()
+    
+    // Get the new position
+    const newX = node.x()
+    const newY = node.y()
+    
+    // Ensure minimum size constraints
+    const constrainedWidth = Math.max(5, newWidth)
+    const constrainedHeight = Math.max(5, newHeight)
+    
+    // Update the annotation with the new values
+    updatedAnnotation.startPoint = { x: newX, y: newY }
+    updatedAnnotation.width = constrainedWidth
+    updatedAnnotation.height = constrainedHeight
+    
+    // Reset the node's scale to 1 after transform
+    node.scaleX(1)
+    node.scaleY(1)
+    
+    console.log('🎯 Rectangle transformed - new size:', constrainedWidth, 'x', constrainedHeight)
+    
+  } else if (annotation.type === 'circle') {
+    // For circles, scale changes the radius
+    const newRadius = annotation.radius! * Math.max(node.scaleX(), node.scaleY())
+    
+    // Get the new center position
+    const newX = node.x()
+    const newY = node.y()
+    
+    // Ensure minimum radius constraint
+    const constrainedRadius = Math.max(5, newRadius)
+    
+    // Update the annotation
+    updatedAnnotation.center = { x: newX, y: newY }
+    updatedAnnotation.radius = constrainedRadius
+    
+    // Reset the node's scale to 1 after transform
+    node.scaleX(1)
+    node.scaleY(1)
+    
+    console.log('🎯 Circle transformed - new radius:', constrainedRadius)
+    
+  } else if (annotation.type === 'dot') {
+    // Dots can be scaled similarly to circles
+    const originalRadius = 6 // Default dot radius
+    const newRadius = originalRadius * Math.max(node.scaleX(), node.scaleY())
+    
+    // Get the new center position
+    const newX = node.x()
+    const newY = node.y()
+    
+    // Update the annotation
+    updatedAnnotation.center = { x: newX, y: newY }
+    // Dots don't typically store radius, but we can scale them if needed
+    
+    // Reset the node's scale to 1 after transform
+    node.scaleX(1)
+    node.scaleY(1)
+    
+    console.log('🎯 Dot transformed')
+    
+  } else if (annotation.type === 'line') {
+    // For lines, scaling affects the endpoints
+    const scaleX = node.scaleX()
+    const scaleY = node.scaleY()
+    const points = node.points()
+    
+    if (points && points.length >= 4) {
+      const newStartX = node.x() + points[0] * scaleX
+      const newStartY = node.y() + points[1] * scaleY
+      const newEndX = node.x() + points[2] * scaleX
+      const newEndY = node.y() + points[3] * scaleY
+      
+      updatedAnnotation.startPoint = { x: newStartX, y: newStartY }
+      updatedAnnotation.endPoint = { x: newEndX, y: newEndY }
+      
+      // Reset position and scale
+      node.x(0)
+      node.y(0)
+      node.scaleX(1)
+      node.scaleY(1)
+      
+      console.log('🎯 Line transformed')
+    }
+  }
+  
+  // Update the annotations array
+  const newAnnotations = [...props.annotations]
+  newAnnotations[index] = updatedAnnotation
+  
+  emit('update:annotations', newAnnotations)
+  emit('annotation-updated', updatedAnnotation, index)
+  
+  // Force a recomputation of annotation configs
+  nextTick(() => {
+    if (staticLayer.value) {
+      staticLayer.value.getNode().batchDraw()
+    }
+    // Update transformer to reflect new size
+    updateTransformer()
+  })
 }
 
 const handleDragStart = (index: number, event: any) => {
@@ -3083,12 +3196,15 @@ const updateTransformer = () => {
         console.log(`🎯 Transformer hidden for ${annotation.type} - use vertex dots for editing`)
       } else {
         // For other annotation types: show transformer for scaling/rotating
-        const cacheKey = `${annotation.type}-${selectedAnnotationIndex.value}`
+        // Map annotation type to ref key (rectangle -> rect, others use full name)
+        const refKey = annotation.type === 'rectangle' ? 'rect' : annotation.type
+        const cacheKey = `${refKey}-${selectedAnnotationIndex.value}`
         const node = annotationRefs.value[cacheKey]
         if (node) {
           transformerInstance.nodes([node])
-          console.log(`🎯 Transformer attached to ${annotation.type}`)
+          console.log(`🎯 Transformer attached to ${annotation.type} (ref: ${cacheKey})`)
         } else {
+          console.warn(`🎯 No node found for ${annotation.type} with key: ${cacheKey}`)
           transformerInstance.nodes([])
         }
       }
