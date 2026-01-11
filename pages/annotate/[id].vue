@@ -1246,20 +1246,27 @@ const duplicateSelectedAnnotation = () => {
 }
 
 const clearAllAnnotations = () => {
-  if (canvasAnnotations.value.length > 0) {
+  if (konvaCanvas.value && konvaCanvas.value.clearAllAnnotations) {
+    konvaCanvas.value.clearAllAnnotations()
+    
     addToHistory()
-    canvasAnnotations.value = []
-  }
+    pendingAnnotation.value = null
+    showClassSelector.value = false
+    selectedAnnotationIndex.value = null
+  } else {
+    if (canvasAnnotations.value.length > 0) {
+      addToHistory()
+      canvasAnnotations.value = []
+    }
 
-  // Also clear any pending annotations and reset canvas state
-  if (konvaCanvas.value) {
-    konvaCanvas.value.cancelCurrentAnnotation()
-  }
+    if (konvaCanvas.value) {
+      konvaCanvas.value.cancelCurrentAnnotation()
+    }
 
-  // Clear any pending annotation state
-  pendingAnnotation.value = null
-  showClassSelector.value = false
-  selectedAnnotationIndex.value = null
+    pendingAnnotation.value = null
+    showClassSelector.value = false
+    selectedAnnotationIndex.value = null
+  }
 }
 
 const exportAnnotations = () => {

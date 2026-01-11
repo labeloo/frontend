@@ -149,7 +149,6 @@
           size="sm"
           icon="i-heroicons-trash"
           title="Clear All Annotations"
-          :disabled="annotationCount === 0"
         >
           Clear All
         </UButton>

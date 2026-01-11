@@ -450,6 +450,7 @@ const stageContainer = ref<HTMLElement | null>(null)
 const imageLayer = ref<any>(null)
 const staticLayer = ref<any>(null)
 const activeLayer = ref<any>(null)
+const magicLayer = ref<any>(null)
 
 
 
@@ -1563,6 +1564,96 @@ const clearMagicSession = () => {
   }
   
   console.log('🔄 Magic session cleared')
+}
+
+/**
+ * Comprehensive Clear All Functionality
+ * Resets ALL annotation-related state at the UI level (no API calls)
+ * 
+ * What it clears:
+ * - All user-created annotations (rectangles, polygons, circles, dots, lines, freehand)
+ * - Magic layer dots and SAM2-generated annotations
+ * - Any in-progress drawing state
+ * - Pending annotations awaiting class selection
+ * - Selected/hovered annotation state
+ * - Vertex editing state
+ * - Transformer attachments
+ * - Temporary drawing nodes on activeLayer
+ * - Preview nodes for vertex insertion
+ * 
+ * What it preserves:
+ * - Tool selection
+ * - Zoom/pan state
+ * - Theme
+ * - Task context
+ * - Shortcuts
+ * - Global settings
+ */
+const clearAllAnnotations = () => {
+  magicPoints.value = []
+  
+  cleanupNonReactiveDrawing()
+  isDrawingNonReactive.value = false
+  
+  startPointImperative = null
+  currentPathImperative = []
+  mousePositionImperative = null
+  currentShapeNode = null
+  pathNode = null
+  ghostLineNode = null
+  vertexGroup = null
+  
+  if (currentVertexEdit) {
+    if (currentVertexEdit.temporaryClone) {
+      currentVertexEdit.temporaryClone.destroy()
+    }
+    if (currentVertexEdit.visualAnchor) {
+      currentVertexEdit.visualAnchor.destroy()
+    }
+    currentVertexEdit = null
+  }
+  isEditingVertex.value = false
+  
+  destroyPreviewVertex()
+  
+  pendingAnnotation.value = null
+  
+  selectedAnnotationIndex.value = null
+  hoveredAnnotationIndex.value = null
+  
+  if (transformerInstance) {
+    transformerInstance.nodes([])
+    transformerInstance.getLayer()?.batchDraw()
+  }
+  
+  isDraggingAnnotationNonReactive = false
+  isDraggingAnnotation.value = false
+  potentialDragStart = false
+  
+  annotationRefs.value = {}
+  
+  showAnnotationTools.value = false
+  annotationToolsPosition.value = null
+  
+  emit('update:annotations', [])
+  emit('update:isAnnotating', false)
+  
+  if (process.client) {
+    nextTick(() => {
+      if (magicLayer.value) {
+        magicLayer.value.getNode().batchDraw()
+      }
+      if (staticLayer.value) {
+        staticLayer.value.getNode().batchDraw()
+      }
+      if (activeLayer.value) {
+        activeLayer.value.getNode().batchDraw()
+      }
+      if (imageLayer.value) {
+        imageLayer.value.getNode().batchDraw()
+      }
+    })
+  }
 }
 
 // Helper function to calculate the center point of a magic annotation for positioning class selector
@@ -3190,6 +3281,7 @@ defineExpose({
   finishDrawing,
   finalizeAnnotation, // Part 1: Expose the Finalizer
   clearMagicSession,
+  clearAllAnnotations, // Comprehensive clear all functionality
   resetAnnotationState,
   getImageScale: () => imageScale.value,
   getImageOffset: () => imageOffset.value,
