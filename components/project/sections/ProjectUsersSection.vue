@@ -327,6 +327,15 @@
       </template>
       
       <div class="space-y-4">
+        <!-- Security notice -->
+        <UAlert
+          color="info"
+          variant="subtle"
+          icon="i-heroicons-information-circle"
+          title="Security Notice"
+          description="You cannot remove yourself from the project. To leave the project, another admin must remove you or transfer ownership."
+        />
+        
         <UInput
           v-model="removeUserSearchQuery"
           icon="i-heroicons-magnifying-glass"
@@ -340,19 +349,22 @@
             <div 
               v-for="user in removeUserFilteredUsers" 
               :key="user.id"
-              class="px-4 py-3 flex items-center justify-between cursor-pointer transition-colors"
+              class="px-4 py-3 flex items-center justify-between transition-colors"
               :class="[
-                usersToRemove.includes(user.id) 
-                  ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30' 
-                  : 'hover:bg-gray-50 dark:hover:bg-gray-700'
+                user.id === currentUserId
+                  ? 'bg-gray-100 dark:bg-gray-800 opacity-60 cursor-not-allowed'
+                  : usersToRemove.includes(user.id) 
+                    ? 'bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 cursor-pointer' 
+                    : 'hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer'
               ]"
-              @click="toggleUserForRemoval(user.id)"
+              @click="user.id !== currentUserId ? toggleUserForRemoval(user.id) : null"
             >
               <div class="flex items-center space-x-3 flex-1">
                 <UCheckbox 
                   :model-value="usersToRemove.includes(user.id)"
                   @click.stop
-                  @update:model-value="toggleUserForRemoval(user.id)"
+                  @update:model-value="user.id !== currentUserId ? toggleUserForRemoval(user.id) : null"
+                  :disabled="user.id === currentUserId"
                 />
                 <UAvatar
                   :icon="getUserAvatarConfig(user.role).icon"
@@ -362,7 +374,17 @@
                   :class="getUserAvatarConfig(user.role).ringClass"
                 />
                 <div class="flex-1 min-w-0">
-                  <div class="font-medium text-gray-900 dark:text-white text-sm truncate">{{ user.email }}</div>
+                  <div class="flex items-center gap-2">
+                    <span class="font-medium text-gray-900 dark:text-white text-sm truncate">{{ user.email }}</span>
+                    <UBadge 
+                      v-if="user.id === currentUserId"
+                      color="primary"
+                      variant="subtle"
+                      size="xs"
+                    >
+                      You
+                    </UBadge>
+                  </div>
                   <div class="text-xs text-gray-500 dark:text-gray-400">{{ user.role }}</div>
                 </div>
               </div>
@@ -512,6 +534,12 @@ const userSearchTable = ref()
 const token = useCookie('auth_token')
 const toast = useToast()
 
+// Get current user ID from JWT token
+const currentUserId = computed(() => {
+  if (!token.value) return null
+  return getUserIdFromToken(token.value)
+})
+
 // Role options for filter
 const roleFilterOptions = computed(() => {
   const uniqueRolesInProject = [...new Set(users.value.map(u => u.role))]
@@ -598,6 +626,11 @@ const removeUserFilteredUsers = computed(() => {
     user.email.toLowerCase().includes(query)
   )
 })
+
+// Check if a user can be removed (not the current user)
+const canRemoveUser = (userId: number): boolean => {
+  return userId !== currentUserId.value
+}
 
 // Methods
 const fetchUsers = async () => {
@@ -819,6 +852,16 @@ const addUsersToProject = async () => {
 
 // Toggle user for removal
 const toggleUserForRemoval = (userId: number) => {
+  // Prevent removing the current user
+  if (userId === currentUserId.value) {
+    toast.add({
+      title: 'Cannot Remove Yourself',
+      description: 'You cannot remove yourself from the project',
+      color: 'warning'
+    })
+    return
+  }
+  
   const index = usersToRemove.value.indexOf(userId)
   if (index === -1) {
     usersToRemove.value.push(userId)
@@ -896,11 +939,23 @@ const updateSelectedUserRoles = async () => {
 const removeSelectedUsers = async () => {
   if (usersToRemove.value.length === 0) return
 
+  // Filter out current user ID as a safety measure
+  const userIdsToRemove = usersToRemove.value.filter(userId => userId !== currentUserId.value)
+  
+  if (userIdsToRemove.length === 0) {
+    toast.add({
+      title: 'No Users to Remove',
+      description: 'You cannot remove yourself from the project',
+      color: 'warning'
+    })
+    return
+  }
+
   removingUser.value = true
   let successCount = 0
   let errorCount = 0
 
-  for (const userId of usersToRemove.value) {
+  for (const userId of userIdsToRemove) {
     try {
       await $fetch(
         `${import.meta.env.NUXT_PUBLIC_API_URL}/api/projectRelations/removeUser`,
