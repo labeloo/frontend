@@ -1666,9 +1666,38 @@ const saveAndNext = async () => {
     // Save annotation only if there are annotations to save
     if (canvasAnnotations.value.length > 0) {
       await saveAnnotation()
+      
+      // After saving, we need to complete the annotation through the workflow
+      // Fetch the latest annotation we just saved
+      await fetchAnnotations()
+      
+      if (annotations.value.length > 0 && taskData.value) {
+        const latestAnnotation = annotations.value[0] // Most recent annotation
+        
+        if (latestAnnotation) {
+          // Start the submission flow (which handles save -> complete -> workflow)
+          // Use skipConfirmation since we're in "Next" flow
+          const result = await startSubmissionFlow(
+            latestAnnotation.id,
+            taskData.value.projectId,
+            parseInt(taskId),
+            {
+              navigateOnSuccess: `/annotate/${taskData.value.nextTaskId}`,
+              skipConfirmation: true // Skip the confirmation modal for "Next" flow
+            }
+          )
+          
+          // If submission was successful, navigation is handled by the flow
+          if (result) {
+            // Clear canvas annotations
+            canvasAnnotations.value = []
+            return
+          }
+        }
+      }
     }
 
-    // Navigate to the next task
+    // If no annotations to save, just navigate to the next task
     const router = useRouter()
     router.push(`/annotate/${taskData.value.nextTaskId}`)
 

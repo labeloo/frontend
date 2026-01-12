@@ -78,10 +78,10 @@
                 class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Created
               </th>
-              <th
+              <!-- <th
                 class="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
                 Actions
-              </th>
+              </th> -->
             </tr>
           </thead>
           <tbody class="bg-white dark:bg-neutral-800 divide-y divide-gray-200 dark:divide-gray-700" @click.stop>
@@ -119,11 +119,11 @@
               <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400" @click.stop>
                 {{ formatDate(role.createdAt) }}
               </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <!-- <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                 <UDropdown :items="getRoleActions(role)" @click.stop>
                   <UButton color="secondary" variant="ghost" icon="i-heroicons-ellipsis-horizontal" @click.stop />
                 </UDropdown>
-              </td>
+              </td> -->
             </tr>
           </tbody>
         </table>

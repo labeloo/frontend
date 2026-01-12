@@ -30,7 +30,8 @@
         </div>
       </div>
       
-      <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
+      <!-- In Review - only visible to users with review permissions -->
+      <div v-if="hasReviewPermission || hasViewReviewsPermission" class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
         <div class="flex items-center">
           <UIcon name="i-heroicons-clock" class="w-8 h-8 text-yellow-600 mr-3" />
           <div>
@@ -40,7 +41,8 @@
         </div>
       </div>
 
-      <div class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
+      <!-- Changes Needed - only visible to users with review permissions -->
+      <div v-if="hasReviewPermission || hasViewReviewsPermission" class="bg-orange-50 dark:bg-orange-900/20 p-4 rounded-lg">
         <div class="flex items-center">
           <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-orange-600 mr-3" />
           <div>
@@ -148,7 +150,7 @@
 
 <script setup lang="ts">
 import type { TaskWithReview, TaskStatistics } from '~/types/tasks'
-import { useTaskReviewFilters } from '~/composables/useTaskReviewFilters'
+import { useTaskReviewFilters, type FilterOptionItem } from '~/composables/useTaskReviewFilters'
 
 interface Props {
   projectId: string
@@ -160,6 +162,11 @@ const toast = useToast()
 
 // Current user (from auth)
 const currentUserId = ref<number | undefined>(undefined)
+
+// User permissions for this project
+const userPermissions = ref<string[]>([])
+const hasReviewPermission = computed(() => userPermissions.value.includes('reviewAnnotations'))
+const hasViewReviewsPermission = computed(() => userPermissions.value.includes('viewReviews'))
 
 // Pagination
 const currentPage = ref(1)
@@ -177,7 +184,7 @@ const tasks = ref<TaskWithReview[]>([])
 const {
   selectedFilter,
   selectedSort,
-  filterOptions,
+  filterOptions: allFilterOptions,
   sortOptions,
   processedTasks,
   getFilterOptionsWithCounts,
@@ -185,13 +192,39 @@ const {
   hasActiveFilters
 } = useTaskReviewFilters<TaskWithReview>()
 
+// Filter options based on user permissions
+// Only show review-related options (in_review, changes_needed, needs_my_review) if user has appropriate permissions
+const filterOptions = computed<FilterOptionItem[]>(() => {
+  return allFilterOptions.filter(option => {
+    // Always show basic options
+    if (['all', 'unassigned', 'annotating', 'completed'].includes(option.value)) {
+      return true
+    }
+    // Show review-related options only if user has review or view reviews permission
+    if (['in_review', 'changes_needed', 'needs_my_review'].includes(option.value)) {
+      return hasReviewPermission.value || hasViewReviewsPermission.value
+    }
+    return true
+  })
+})
+
 // Computed: filtered and sorted tasks
 const filteredTasks = computed(() => processedTasks(tasks.value))
 
-// Computed: filter options with counts
-const filterOptionsWithCounts = computed(() => 
-  getFilterOptionsWithCounts(tasks.value)
-)
+// Computed: filter options with counts (using permission-filtered options)
+const filterOptionsWithCounts = computed(() => {
+  const allWithCounts = getFilterOptionsWithCounts(tasks.value)
+  // Filter based on permissions
+  return allWithCounts.filter(option => {
+    if (['all', 'unassigned', 'annotating', 'completed'].includes(option.value)) {
+      return true
+    }
+    if (['in_review', 'changes_needed', 'needs_my_review'].includes(option.value)) {
+      return hasReviewPermission.value || hasViewReviewsPermission.value
+    }
+    return true
+  })
+})
 
 // Computed: task statistics
 const taskStats = computed<TaskStatistics>(() => ({
@@ -207,6 +240,17 @@ const taskStats = computed<TaskStatistics>(() => ({
   ).length
 }))
 
+// Backend response type for grouped tasks
+interface GroupedTasksResponse {
+  data: {
+    unassigned: TaskWithReview[]
+    annotating: TaskWithReview[]
+    in_review: TaskWithReview[]
+    changes_needed: TaskWithReview[]
+    completed: TaskWithReview[]
+  }
+}
+
 // Fetch tasks
 async function fetchTasks(): Promise<void> {
   isLoading.value = true
@@ -214,21 +258,28 @@ async function fetchTasks(): Promise<void> {
     const authToken = useCookie('auth_token')
     const config = useRuntimeConfig()
     
-    const response = await $fetch<{ tasks: TaskWithReview[], total: number }>(
-      `${config.public.apiUrl}/api/projects/${props.projectId}/tasks`,
+    // Fetch from the correct backend endpoint (tasks grouped by status)
+    const response = await $fetch<GroupedTasksResponse>(
+      `${config.public.apiUrl}/api/tasks/project/${props.projectId}`,
       {
         headers: {
           Authorization: `Bearer ${authToken.value}`
-        },
-        query: {
-          page: currentPage.value,
-          pageSize: pageSize.value
         }
       }
     )
     
-    tasks.value = response.tasks
-    totalTasks.value = response.total
+    // Flatten the grouped tasks into a single array
+    const groupedData = response.data
+    const allTasks: TaskWithReview[] = [
+      ...(groupedData.unassigned || []),
+      ...(groupedData.annotating || []),
+      ...(groupedData.in_review || []),
+      ...(groupedData.changes_needed || []),
+      ...(groupedData.completed || [])
+    ]
+    
+    tasks.value = allTasks
+    totalTasks.value = allTasks.length
   } catch (error) {
     console.error('Failed to fetch tasks:', error)
     toast.add({
@@ -271,13 +322,38 @@ function handleFixIssues(task: TaskWithReview): void {
   router.push(`/annotate/${task.id}?mode=fix`)
 }
 
+// Fetch user permissions for this project
+async function fetchUserPermissions(): Promise<void> {
+  try {
+    const authToken = useCookie('auth_token')
+    const config = useRuntimeConfig()
+    
+    const response = await $fetch<{ data: { permissions: string[] } }>(
+      `${config.public.apiUrl}/api/projects/${props.projectId}/permissions`,
+      {
+        headers: {
+          Authorization: `Bearer ${authToken.value}`
+        }
+      }
+    )
+    
+    userPermissions.value = response.data?.permissions || []
+  } catch (error) {
+    console.error('Failed to fetch user permissions:', error)
+    // Default to empty permissions on error
+    userPermissions.value = []
+  }
+}
+
 // Watch for page changes
 watch(currentPage, () => {
   fetchTasks()
 })
 
 // Initial fetch
-onMounted(() => {
-  fetchTasks()
+onMounted(async () => {
+  // Fetch permissions first, then tasks
+  await fetchUserPermissions()
+  await fetchTasks()
 })
 </script>
