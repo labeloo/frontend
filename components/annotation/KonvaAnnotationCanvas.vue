@@ -1,11 +1,11 @@
 <template>
   <div class="w-full h-full flex items-center justify-center">
     <ClientOnly>
-      <div ref="stageContainer" class="relative border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg">
+      <div ref="stageContainer" class="relative border border-stock-400 rounded-none ">
         <!-- Performance Indicator -->
         <div 
           v-if="isPerformanceMode" 
-          class="absolute top-2 right-2 bg-yellow-500 text-white px-2 py-1 rounded text-xs font-bold z-10 pointer-events-none"
+          class="absolute top-2 right-2 bg-ink-o text-stock-50 px-2 py-1 rounded text-xs font-bold z-10 pointer-events-none"
         >
           PERFORMANCE MODE
         </div>
@@ -13,7 +13,7 @@
         <!-- Sliding Buffer Status -->
     <div 
       v-if="props.currentTool === 'freehand' && isDrawingNonReactive" 
-      class="absolute top-2 left-2 bg-blue-500 text-white px-2 py-1 rounded text-xs font-mono z-10 pointer-events-none"
+      class="absolute top-2 left-2 bg-reflex-600 text-stock-50 px-2 py-1 rounded text-xs font-mono z-10 pointer-events-none"
     >
       Buffer: {{ getBufferStatus() }}
     </div>
@@ -35,41 +35,23 @@
     >
     <!-- Background layer for image -->
     <v-layer ref="imageLayer">
-      <!-- Debug info -->
-      <v-text 
-        v-if="!imageObj" 
-        :config="{ 
-          text: 'No image object - Loading...', 
-          x: 10, 
-          y: 10, 
-          fontSize: 16, 
-          fill: 'red' 
-        }" 
-      />
-      <v-text 
-        v-if="imageObj && originalImageSize.width === 0" 
-        :config="{ 
-          text: 'Image object exists but no size', 
-          x: 10, 
-          y: 30, 
-          fontSize: 16, 
-          fill: 'orange' 
-        }" 
-      />
-      <v-text 
-        v-if="imageObj && originalImageSize.width > 0" 
-        :config="{ 
-          text: `Image loaded: ${originalImageSize.width}x${originalImageSize.height}`, 
-          x: 10, 
-          y: 50, 
-          fontSize: 16, 
-          fill: 'green' 
-        }" 
-      />
+      <!-- Loading is said once, in the page's own language, not painted onto
+           the plate in coloured debug text. -->
       <v-image
         v-if="imageObj"
         :config="imageConfig"
       />
+
+      <!-- Registration crosses at the plate's corners. Drawn on the canvas
+           rather than over it, so they zoom and pan with the image the way
+           printed marks stay with the sheet. -->
+      <template v-if="imageObj && originalImageSize.width > 0">
+        <v-line
+          v-for="(seg, i) in registrationMarks"
+          :key="`reg-${i}`"
+          :config="seg"
+        />
+      </template>
     </v-layer>
     
     <!-- Static layer for completed annotations (NEVER redraws during real-time drawing) -->
@@ -102,38 +84,33 @@
           @click="handleAnnotationClick(index, $event)"
           @mouseover="handleAnnotationMouseOver(index)"
           @mouseout="handleAnnotationMouseOut(index)"
-          @mousemove="handlePolygonMouseMove(index, $event)"
-          @mousedown="handlePolygonMouseDown(index, $event)"
         />
         
-        <!-- Pretty vertex dots for selected polygon (hybrid: full for small, paginated+smart-insert for large) -->
+        <!--
+          Insert handles first so real vertices sit on top of them: where a
+          corner and an edge midpoint land close together, the corner must win
+          the click.
+        -->
         <template v-if="annotation.type === 'polygon' && selectedAnnotationIndex === index && annotation.points">
-          <!-- Simple polygon: show all vertices (interactive) -->
-          <template v-if="annotation.points.length < allVerticesThreshold">
-            <v-circle
-              v-for="(point, pointIndex) in annotation.points"
-              :key="`vertex-${index}-${pointIndex}`"
-              :config="getVertexDotConfig(point, pointIndex, annotation.points.length, true, index)"
-              @dragstart="handleVertexDragStart(index, pointIndex, $event)"
-              @dragmove="handleVertexDragMove(index, pointIndex, $event)"
-              @dragend="handleVertexDragEnd(index, pointIndex, $event)"
-            />
-          </template>
-
-          <!-- Complex polygon: paginated vertices + smart "preview on hover" insertion -->
-          <template v-else>
-            <v-circle
-              v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
-              :key="`vertex-${index}-${originalIndex}`"
-              :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
-              @dragstart="handleVertexDragStart(index, originalIndex, $event)"
-              @dragmove="handleVertexDragMove(index, originalIndex, $event)"
-              @dragend="handleVertexDragEnd(index, originalIndex, $event)"
-            />
-            <!-- preview vertex is handled on activeLayer via mousemove/mousedown on the polygon line -->
-          </template>
+          <v-circle
+            v-for="mid in midpointHandles(annotation.points)"
+            :key="`mid-${index}-${mid.insertIndex}`"
+            :config="getMidpointDotConfig(mid.point, index)"
+            @click="handleMidpointClick(index, mid, $event)"
+            @dragstart="handleMidpointDragStart(index, mid, $event)"
+            @dragmove="handleVertexDragMove(index, mid.insertIndex, $event)"
+            @dragend="handleVertexDragEnd(index, mid.insertIndex, $event)"
+          />
+          <v-circle
+            v-for="{ point, originalIndex } in vertexHandles(annotation.points)"
+            :key="`vertex-${index}-${originalIndex}`"
+            :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
+            @dragstart="handleVertexDragStart(index, originalIndex, $event)"
+            @dragmove="handleVertexDragMove(index, originalIndex, $event)"
+            @dragend="handleVertexDragEnd(index, originalIndex, $event)"
+          />
         </template>
-        
+
         <!-- Dot annotations -->
         <v-circle
           v-if="annotation.type === 'dot'"
@@ -193,7 +170,7 @@
         <!-- Pretty vertex dots for selected freehand (with pagination for performance) -->
         <template v-if="annotation.type === 'freehand' && selectedAnnotationIndex === index && annotation.points">
           <v-circle
-            v-for="{ point, originalIndex } in getVisibleVertices(annotation.points)"
+            v-for="{ point, originalIndex } in vertexHandles(annotation.points)"
             :key="`freehand-vertex-${index}-${originalIndex}`"
             :config="getVertexDotConfig(point, originalIndex, annotation.points.length, true, index)"
             @dragstart="handleVertexDragStart(index, originalIndex, $event)"
@@ -216,19 +193,15 @@
     
     <!-- Magic Stick Layer -->
     <v-layer ref="magicLayer" :config="{ visible: props.currentTool === 'magic' }">
-      <!-- Transparent overlay to capture all magic clicks, including over annotations -->
-      <v-rect
-        :config="{
-          x: 0,
-          y: 0,
-          width: stageSize.width,
-          height: stageSize.height,
-          fill: 'transparent',
-          listening: true
-        }"
-        @mousedown="handleMagicClick"
-        @contextmenu="handleMagicClick"
-      />
+      <!--
+        Transparent hit blocker so clicks land on the magic tool instead of on the
+        annotations underneath. It carries no handler of its own: the event bubbles
+        to the stage, which is the single place magic clicks are handled.
+      -->
+      <v-rect :config="magicOverlayConfig" />
+
+      <!-- Live mask preview under the cursor -->
+      <v-line v-if="magicPreviewPoints.length >= 6" :config="magicPreviewConfig" />
       
       <v-group 
         v-for="(point, index) in magicPoints" 
@@ -297,7 +270,7 @@
   <!-- Annotation Tools Overlay -->
   <div 
     v-if="showAnnotationTools && annotationToolsPosition"
-    class="absolute bg-white dark:bg-gray-800 rounded-lg shadow-lg p-2 flex space-x-2 z-10 transition-opacity duration-200 border border-gray-200 dark:border-gray-600"
+    class="absolute bg-stock-100 rounded-none  p-2 flex space-x-2 z-10 transition-opacity duration-200 border border-stock-400"
     :style="{
       left: `${annotationToolsPosition.x}px`,
       top: `${annotationToolsPosition.y}px`,
@@ -305,63 +278,39 @@
   >
     <button
       @click="editAnnotation"
-      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-blue-500 transition-colors"
+      class="p-2 rounded-full hover:bg-stock-200 text-reflex-600 transition-colors"
       title="Edit"
     >
       <UIcon name="i-heroicons-pencil" class="w-5 h-5" />
     </button>
     <button
       @click="deleteAnnotation"
-      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-red-500 transition-colors"
+      class="p-2 rounded-full hover:bg-stock-200 text-correct-500 transition-colors"
       title="Delete"
     >
       <UIcon name="i-heroicons-trash" class="w-5 h-5" />
     </button>
     <button
       @click="duplicateAnnotation"
-      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 text-green-500 transition-colors"
+      class="p-2 rounded-full hover:bg-stock-200 text-ink-g transition-colors"
       title="Duplicate"
     >
       <UIcon name="i-heroicons-document-duplicate" class="w-5 h-5" />
     </button>
-    <!-- Show All Vertices toggle for complex polygons/freehand -->
-    <button
-      v-if="shouldShowVertexToggle"
-      @click="toggleShowAllVertices"
-      class="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-      :class="showAllVertices ? 'text-orange-500' : 'text-gray-500'"
-      :title="showAllVertices ? 'Hide Some Vertices' : 'Show All Vertices'"
-    >
-      <UIcon name="i-heroicons-eye" v-if="showAllVertices" class="w-5 h-5" />
-      <UIcon name="i-heroicons-eye-slash" v-else class="w-5 h-5" />
-    </button>
   </div>
   
-  <!-- Performance Mode Indicator -->
-  <div 
-    v-if="isPerformanceMode"
-    class="absolute top-4 right-4 bg-orange-500 text-white px-3 py-1 rounded-full text-sm font-medium z-20 flex items-center space-x-2"
+  <!--
+    Degraded rendering is worth telling the annotator, because shapes are being
+    simplified under their hands. It is one quiet line of furniture, not a
+    coloured pill: the plate is the thing being looked at.
+  -->
+  <div
+    v-if="isPerformanceMode || currentPerformanceLevel !== 'optimal'"
+    class="furniture pointer-events-none absolute left-3 top-3 z-20 border border-stock-100/40 bg-stage-900/70 px-2 py-1 text-stock-100"
   >
-    <div class="w-2 h-2 bg-white rounded-full animate-pulse"></div>
-    <span>Performance Mode</span>
+    Simplified · {{ sceneComplexity.totalAnnotations }} marks
   </div>
-  
-  <!-- Performance Budget Indicator -->
-  <div 
-    v-if="currentPerformanceLevel !== 'optimal' && !isPerformanceMode"
-    class="absolute top-4 left-4 px-3 py-1 rounded-full text-xs font-medium z-20 flex items-center space-x-2 transition-all duration-300"
-    :class="{
-      'bg-green-500 text-white': currentPerformanceLevel === 'good',
-      'bg-yellow-500 text-white': currentPerformanceLevel === 'reduced', 
-      'bg-red-500 text-white': currentPerformanceLevel === 'minimal'
-    }"
-  >
-    <div class="w-1.5 h-1.5 bg-white rounded-full"></div>
-    <span>{{ currentPerformanceLevel.toUpperCase() }}</span>
-    <span class="text-xs opacity-75">({{ sceneComplexity.totalAnnotations }} items)</span>
-  </div>
-  
- 
+
 </div>
 </ClientOnly>
 
@@ -410,6 +359,7 @@ import { createHitboxPolygon, calculateOptimalTolerance } from '~/utils/polygonH
 import { batchedDragHandlers, type DragBatchSystem } from '~/utils/dragPerformanceOptimization';
 import { performanceBudgetManager, type SceneComplexity, type PerformanceLevel } from '~/utils/performanceBudgetSystem';
 import type { CanvasAnnotation } from './types'
+import { inkForClass, inkWash, UNASSIGNED_INK } from '~/utils/inks'
 
 interface Props {
   imageUrl: string
@@ -419,6 +369,14 @@ interface Props {
   classes?: string[]
   canvasWidth?: number
   canvasHeight?: number
+  /** Broker endpoint for this organization's SAM 2 backend, e.g.
+   *  `${apiUrl}/api/assist/sam2`. The service's real URL and key stay on the
+   *  server; the canvas only ever talks to the broker. */
+  assistUrl?: string
+  /** The caller's JWT, so the broker can authenticate the proxied call. */
+  authToken?: string
+  /** Which organization's backend to use; the broker verifies membership. */
+  orgId?: number | string
 }
 
 interface Emits {
@@ -428,12 +386,19 @@ interface Emits {
   (e: 'annotation-updated', annotation: CanvasAnnotation, index: number): void
   (e: 'annotation-deleted', index: number): void
   (e: 'show-class-selector', annotation: CanvasAnnotation, position: { x: number; y: number }): void
+  (e: 'magic-error', message: string): void
+  /** The service did not answer at all. Retrying only re-opens the browser's
+   *  local-network prompt, so the screen should stop offering assist. */
+  (e: 'magic-unreachable', message: string): void
 }
 
 const props = withDefaults(defineProps<Props>(), {
   canvasWidth: 800,
   canvasHeight: 600,
-  classes: () => []
+  classes: () => [],
+  assistUrl: '',
+  authToken: '',
+  orgId: ''
 })
 
 const emit = defineEmits<Emits>()
@@ -507,7 +472,6 @@ const initializeTransformer = () => {
   })
   
   activeLayer.value.getNode().add(transformerInstance)
-  console.log('🎯 Transformer instance initialized on activeLayer')
 }
 
 // Helper function to check if a point is near the first vertex (for polygon completion)
@@ -557,7 +521,6 @@ const cleanupNonReactiveDrawing = () => {
     activeLayer.value.getNode().batchDraw()
   }
   
-  console.log('🧹 Cleaned up all non-reactive drawing state')
 }
 
 // Bridge function between imperative drawing and Vue's reactive state
@@ -739,7 +702,6 @@ const finishDrawing = () => {
   
   // 3. Ask the parent to show the class selector or finalize immediately
   if (props.classes && props.classes.length > 0) {
-    console.log('🎯 finishDrawing: Showing class selector')
     if (stage.value) {
       const stageNode = stage.value.getNode()
       const pointer = stageNode.getPointerPosition()
@@ -748,17 +710,13 @@ const finishDrawing = () => {
       emit('show-class-selector', newAnnotation, { x: 0, y: 0 })
     }
   } else {
-    console.log('🎯 finishDrawing: No classes, finalizing immediately')
     // If no classes to choose from, finalize immediately with empty className
     finalizeAnnotation('')
   }
-  
-  console.log('✅ finishDrawing completed for tool:', tool, 'annotation:', newAnnotation.type)
 }
 
 // Imperative annotation functions (replaces useAnnotationLifecycle composable)
 const completeAnnotation = (annotation: CanvasAnnotation) => {
-  console.log('🚨 completeAnnotation called - THIS SHOULD NOT BE USED!')
   const newAnnotations = [...props.annotations, annotation]
   emit('update:annotations', newAnnotations)
   emit('annotation-completed', annotation)
@@ -767,7 +725,6 @@ const completeAnnotation = (annotation: CanvasAnnotation) => {
 
 // Part 1: Create the finalizeAnnotation Method
 const finalizeAnnotation = (className: string) => {
-  console.log('🎯 finalizeAnnotation called with className:', className)
   if (!pendingAnnotation.value) {
     console.warn('finalizeAnnotation called but no pending annotation exists')
     return
@@ -783,9 +740,6 @@ const finalizeAnnotation = (className: string) => {
   if (annotation.type === 'dot') {
     cleanupNonReactiveDrawing()
   }
-  
-  console.log('🎯 About to emit update:annotations with:', [...props.annotations, annotation].length, 'annotations')
-  
   // d. Push the completed annotation to the main props.annotations array via an emit
   const newAnnotations = [...props.annotations, annotation]
   emit('update:annotations', newAnnotations)
@@ -801,8 +755,6 @@ const finalizeAnnotation = (className: string) => {
       staticLayer.value.getNode().batchDraw()
     }
   })
-  
-  console.log('✅ Annotation finalized with className:', className)
 }
 
 const resetAnnotationState = () => {
@@ -825,8 +777,6 @@ const resetAnnotationState = () => {
   
   // Emit that we're no longer annotating to hide the cancel button
   emit('update:isAnnotating', false)
-  
-  console.log('🔄 Reset all annotation state')
 }
 
 const completeCurrentAnnotation = () => {
@@ -886,13 +836,6 @@ let cacheUpdateTimer: number | null = null
 const showAnnotationTools = ref(false)
 const annotationToolsPosition = ref<{ x: number; y: number } | null>(null)
 
-// Vertex pagination state for performance optimization
-const showAllVertices = ref(false)
-const vertexPaginationThreshold = 20 // Show every Nth vertex when points > threshold
-const vertexStepSize = ref(5) // Show every 5th vertex by default
-// Hybrid editing threshold: show all vertices for small polygons under this size
-const allVerticesThreshold = 30
-
 // Vertex editing state for three-phase editing system
 const isEditingVertex = ref(false)
 let currentVertexEdit: {
@@ -904,9 +847,6 @@ let currentVertexEdit: {
   visualAnchor?: any // Visual dot for the vertex being edited
 } | null = null
 
-// Preview insert vertex for complex polygons (activeLayer)
-let previewVertexNode: any = null
-let previewInsertIndex: number | null = null
 
 // Helper: find closest point on polyline (returns projected point and segment index)
 const getClosestPointOnPolyline = (points: { x: number; y: number }[], target: { x: number; y: number }) => {
@@ -942,129 +882,8 @@ const getClosestPointOnPolyline = (points: { x: number; y: number }[], target: {
   return { point: closestPoint, insertIndex }
 }
 
-const destroyPreviewVertex = () => {
-  if (previewVertexNode) {
-    try {
-      previewVertexNode.destroy()
-    } catch (e) {
-      // ignore
-    }
-    previewVertexNode = null
-    previewInsertIndex = null
-    if (activeLayer.value) activeLayer.value.getNode().batchDraw()
-  }
-}
 
-// Mouse move handler on polygon for complex shapes - show preview vertex
-const handlePolygonMouseMove = (annotationIndex: number, event: any) => {
-  // Only active for selected complex polygons
-  if (selectedAnnotationIndex.value !== annotationIndex) return
-  const annotation = props.annotations[annotationIndex]
-  if (!annotation || !annotation.points) return
-  if (annotation.points.length < allVerticesThreshold) return
 
-  const stageNode = event.target.getStage()
-  const canvasPos = getCanvasPointerPosition(stageNode)
-  if (!canvasPos) return
-
-  const { point, insertIndex } = getClosestPointOnPolyline(annotation.points, canvasPos)
-  previewInsertIndex = insertIndex
-
-  // Create or move previewVertex on activeLayer
-  if (process.client && activeLayer.value) {
-    const Konva = (window as any).Konva
-    if (!Konva) return
-
-    if (!previewVertexNode) {
-      previewVertexNode = new Konva.Circle({
-        x: point.x,
-        y: point.y,
-        radius: 5 * getUIScale(),
-        fill: 'rgba(255,170,68,0.9)',
-        stroke: '#ff8800',
-        strokeWidth: 1,
-        listening: false,
-        perfectDrawEnabled: false
-      })
-      activeLayer.value.getNode().add(previewVertexNode)
-    } else {
-      previewVertexNode.x(point.x)
-      previewVertexNode.y(point.y)
-    }
-
-    activeLayer.value.getNode().batchDraw()
-  }
-
-  event.evt?.stopPropagation()
-}
-
-// Mouse down handler on polygon - insert new vertex and begin editing it
-const handlePolygonMouseDown = async (annotationIndex: number, event: any) => {
-  if (selectedAnnotationIndex.value !== annotationIndex) return
-  const annotation = props.annotations[annotationIndex]
-  if (!annotation || !annotation.points) return
-  if (annotation.points.length < allVerticesThreshold) return
-  if (previewInsertIndex === null) return
-
-  // Forcefully cancel the native drag to prevent "sticking" behavior
-  // This stops Konva from thinking we are dragging the entire polygon
-  if (event) {
-    event.cancelBubble = true
-    const target = event.target
-    
-    if (target) {
-      // 1. Stop any active drag immediately
-      if (typeof target.isDragging === 'function' && target.isDragging()) {
-        target.stopDrag()
-      }
-      
-      // 2. Circuit Breaker: Temporarily disable draggable to prevent race conditions
-      // This ensures the drag engine cannot re-engage during the critical transition
-      const wasDraggable = target.draggable()
-      if (wasDraggable) {
-        target.draggable(false)
-        // Re-enable after a short delay to allow the event storm to settle
-        setTimeout(() => {
-          if (target && !target.isDestroyed()) {
-            target.draggable(true)
-          }
-        }, 100)
-      }
-
-      // 3. Synthetic Release: Force the internal state machine to complete
-      if (target.fire) {
-        target.fire('mouseup')
-        // Also fire dragend to be safe, as some internal states rely on it
-        target.fire('dragend')
-      }
-    }
-    
-    if (event.evt) {
-      event.evt.preventDefault()
-    }
-  }
-
-  const stageNode = event.target.getStage()
-  const canvasPos = getCanvasPointerPosition(stageNode)
-  if (!canvasPos) return
-
-  // Insert new point after previewInsertIndex
-  const insertAt = previewInsertIndex + 1
-  const newPoints = [...annotation.points.slice(0, insertAt), { x: canvasPos.x, y: canvasPos.y }, ...annotation.points.slice(insertAt)]
-
-  // Clean up preview
-  destroyPreviewVertex()
-
-  // Start vertex editing for the newly inserted vertex immediately (Visuals First)
-  // We pass the new points imperatively so we don't need to wait for Vue reactivity
-  const syntheticEvent = { 
-    evt: { stopPropagation: () => {} }, 
-    target: { getStage: () => stageNode } 
-  }
-  handleVertexDragStart(annotationIndex, insertAt, syntheticEvent, newPoints, true)
-
-  event.evt?.stopPropagation()
-}
 
 // Computed properties
 const stageConfig = computed(() => ({
@@ -1107,16 +926,6 @@ const complexPolygonCount = computed(() => {
   ).length
 })
 
-// Computed property to determine if vertex toggle should be shown
-const shouldShowVertexToggle = computed(() => {
-  if (selectedAnnotationIndex.value === null) return false
-  
-  const annotation = props.annotations[selectedAnnotationIndex.value]
-  return annotation && 
-         (annotation.type === 'polygon' || annotation.type === 'freehand') &&
-         annotation.points &&
-         annotation.points.length > vertexPaginationThreshold
-})
 
 // Scene complexity calculation for performance budget system
 const sceneComplexity = computed((): SceneComplexity => {
@@ -1286,65 +1095,194 @@ const createHitboxFunction = (hitboxPoints: number[]) => {
 }
 
 // Vertex dot pagination helpers
-const getVisibleVertices = (points: { x: number; y: number }[]) => {
+const MIN_HANDLE_GAP_PX = 11   // closer than this, two handles are one blob
+const MAX_HANDLES = 400        // backstop; never reached at a workable zoom
+const MIN_MIDPOINT_EDGE_PX = 26
+
+/**
+ * Which vertices get a handle.
+ *
+ * This used to be "every 5th point", which answers the wrong question. Measured
+ * on a real SAM 2 mask: 147 corners, 31 handles. 116 corners - 79% of the shape
+ * - had nothing to grab. Worse, a point you inserted lost its handle the instant
+ * you let go unless its index happened to land on a multiple of five, so it
+ * stayed in the outline and became untouchable.
+ *
+ * An index has nothing to do with what a person can see or hit. Two things do:
+ * whether the vertex is on screen, and whether it is far enough from its
+ * neighbour to be a separate target. So cull to the viewport, then thin by
+ * SCREEN distance. Zooming in reveals more handles, which is exactly what
+ * someone who zoomed to 375% on one corner is asking for.
+ */
+const vertexHandles = (points: { x: number; y: number }[]) => {
   if (!points || points.length === 0) return []
-  
-  // Always show first and last vertices for polygons
-  if (points.length <= vertexPaginationThreshold || showAllVertices.value) {
-    return points.map((point, index) => ({ point, originalIndex: index }))
+  const scale = stageScale.value || 1
+  const pad = 48 / scale
+  const left = -stagePosition.value.x / scale - pad
+  const top = -stagePosition.value.y / scale - pad
+  const right = (-stagePosition.value.x + stageSize.value.width) / scale + pad
+  const bottom = (-stagePosition.value.y + stageSize.value.height) / scale + pad
+  const minGap = MIN_HANDLE_GAP_PX / scale
+
+  const out: { point: { x: number; y: number }; originalIndex: number }[] = []
+  let last: { x: number; y: number } | null = null
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]!
+    if (p.x < left || p.x > right || p.y < top || p.y > bottom) {
+      // Off screen. Reset the spacing run so the next visible vertex is always
+      // kept - a handle must never be dropped for crowding a neighbour the
+      // operator cannot even see.
+      last = null
+      continue
+    }
+    if (last && Math.hypot(p.x - last.x, p.y - last.y) < minGap) continue
+    out.push({ point: p, originalIndex: i })
+    last = p
+    if (out.length >= MAX_HANDLES) break
   }
-  
-  const visibleVertices: { point: { x: number; y: number }; originalIndex: number }[] = []
-  
-  // Always include first vertex
-  visibleVertices.push({ point: points[0]!, originalIndex: 0 })
-  
-  // Include every Nth vertex in the middle
-  for (let i = vertexStepSize.value; i < points.length - 1; i += vertexStepSize.value) {
-    visibleVertices.push({ point: points[i]!, originalIndex: i })
-  }
-  
-  // Always include last vertex (if it's different from first)
-  const lastIndex = points.length - 1
-  if (lastIndex > 0 && lastIndex !== 0) {
-    visibleVertices.push({ point: points[lastIndex]!, originalIndex: lastIndex })
-  }
-  
-  return visibleVertices
+  return out
 }
 
-const getVertexDotConfig = (point: { x: number; y: number }, originalIndex: number, totalPoints: number, isVisible: boolean, annotationIndex: number) => {
+/**
+ * A hollow handle on the middle of each edge: click or drag it and a real
+ * vertex appears there.
+ *
+ * The old way to add a point was to press on the polygon's own outline, which
+ * collides with dragging the whole shape. The code fought that with a "circuit
+ * breaker" - disable dragging, fire synthetic mouseup and dragend, re-enable on
+ * a 100ms timer - and still had no drag to commit on, so a plain click left
+ * nothing behind. A separate target has no conflict to break.
+ *
+ * Only offered between genuinely adjacent vertices: where thinning or the
+ * viewport edge skipped points, a midpoint would sit on a stretch that already
+ * has corners and splice in at the wrong index.
+ */
+const midpointHandles = (points: { x: number; y: number }[]) => {
+  const kept = vertexHandles(points)
+  if (kept.length < 2) return []
+  const scale = stageScale.value || 1
+  const out: { point: { x: number; y: number }; insertIndex: number }[] = []
+  for (let k = 0; k < kept.length - 1; k++) {
+    const a = kept[k]!, b = kept[k + 1]!
+    if (b.originalIndex !== a.originalIndex + 1) continue
+    const dx = b.point.x - a.point.x
+    const dy = b.point.y - a.point.y
+    if (Math.hypot(dx, dy) * scale < MIN_MIDPOINT_EDGE_PX) continue
+    out.push({ point: { x: a.point.x + dx / 2, y: a.point.y + dy / 2 }, insertIndex: b.originalIndex })
+  }
+  return out
+}
+
+/**
+ * A vertex handle: paper disc, ink ring, in the annotation's own colour.
+ *
+ * Was #4285f4 with a drop shadow, plus #ff4444 / #44ff44 for first and last.
+ * That is another product's palette wearing this one's clothes, and the
+ * first/last colour coding told the operator nothing they could act on.
+ */
+const getVertexDotConfig = (
+  point: { x: number; y: number },
+  originalIndex: number,
+  totalPoints: number,
+  isVisible: boolean,
+  annotationIndex: number
+) => {
   if (!isVisible) return null
-  
-  // Since annotation coordinates are now in canvas space, use identity conversion
   const canvasPoint = canvasToCanvas(point)
-  const isFirst = originalIndex === 0
-  const isLast = originalIndex === totalPoints - 1
   const uiScale = getUIScale()
-  
-  // Enhanced visual feedback for paginated vertices
-  const isPaginated = totalPoints > vertexPaginationThreshold && !showAllVertices.value
-  
+  const annotation = props.annotations[annotationIndex]
+  const ink = annotation ? inkFor(annotation) : UNASSIGNED_INK
   return {
     x: canvasPoint.x,
     y: canvasPoint.y,
-    radius: isPaginated ? (isFirst || isLast ? 6 : 4) * uiScale : 5 * uiScale,
-    fill: isFirst ? '#ff4444' : (isLast ? '#44ff44' : (isPaginated ? '#ffaa44' : '#ffffff')),
-    stroke: '#4285f4',
-    strokeWidth: isPaginated ? (isFirst || isLast ? 3 : 2) * uiScale : 2 * uiScale,
-    listening: true, // Enable interaction
-    draggable: true, // Enable dragging
-    shadowColor: 'rgba(0,0,0,0.4)',
-    shadowBlur: isPaginated ? 2 * uiScale : 3 * uiScale,
-    shadowOffsetY: 1 * uiScale,
-    shadowOffsetX: 1 * uiScale,
+    radius: 5 * uiScale,
+    fill: '#FAF8F2',
+    stroke: ink,
+    strokeWidth: 2 * uiScale,
+    // The drawn circle stays small so it does not bury the shape; the hit area
+    // is a finger-sized ring around it, because a 5px target is a target you
+    // miss.
+    hitStrokeWidth: 18 * uiScale,
+    listening: true,
+    draggable: true,
     strokeScaleEnabled: false,
-    perfectDrawEnabled: true,
-    // Add metadata for event handlers
+    perfectDrawEnabled: false,
     name: `vertex-${annotationIndex}-${originalIndex}`,
     vertexIndex: originalIndex,
     annotationIndex: annotationIndex
   }
+}
+
+/** The insert handle: same ink, hollow, deliberately quieter than a real vertex. */
+const getMidpointDotConfig = (point: { x: number; y: number }, annotationIndex: number) => {
+  const canvasPoint = canvasToCanvas(point)
+  const uiScale = getUIScale()
+  const annotation = props.annotations[annotationIndex]
+  const ink = annotation ? inkFor(annotation) : UNASSIGNED_INK
+  return {
+    x: canvasPoint.x,
+    y: canvasPoint.y,
+    radius: 3.5 * uiScale,
+    fill: 'transparent',
+    stroke: ink,
+    strokeWidth: 1.5 * uiScale,
+    opacity: 0.6,
+    hitStrokeWidth: 16 * uiScale,
+    listening: true,
+    draggable: true,
+    strokeScaleEnabled: false,
+    perfectDrawEnabled: false,
+    name: `midpoint-${annotationIndex}`
+  }
+}
+
+/** Splice a vertex in and commit it. */
+const insertVertex = (annotationIndex: number, insertIndex: number, point: { x: number; y: number }) => {
+  const annotation = props.annotations[annotationIndex]
+  if (!annotation || !annotation.points) return null
+  const newPoints = [
+    ...annotation.points.slice(0, insertIndex),
+    { x: point.x, y: point.y },
+    ...annotation.points.slice(insertIndex)
+  ]
+  const updated: CanvasAnnotation = { ...annotation, points: newPoints }
+  const all = [...props.annotations]
+  all[annotationIndex] = updated
+  emit('update:annotations', all)
+  emit('annotation-updated', updated, annotationIndex)
+  return newPoints
+}
+
+/** Click an insert handle: the vertex simply appears, no drag required. */
+const handleMidpointClick = (
+  annotationIndex: number,
+  mid: { point: { x: number; y: number }; insertIndex: number },
+  event: any
+) => {
+  event.cancelBubble = true
+  event.evt?.stopPropagation()
+  // A drag already inserted this one on dragstart; the click that closes that
+  // drag must not insert a second.
+  if (isEditingVertex.value) return
+  insertVertex(annotationIndex, mid.insertIndex, mid.point)
+}
+
+/** Drag an insert handle: the vertex appears and follows the cursor in one go. */
+const handleMidpointDragStart = (
+  annotationIndex: number,
+  mid: { point: { x: number; y: number }; insertIndex: number },
+  event: any
+) => {
+  const annotation = props.annotations[annotationIndex]
+  if (!annotation || !annotation.points) return
+  const newPoints = [
+    ...annotation.points.slice(0, mid.insertIndex),
+    { x: mid.point.x, y: mid.point.y },
+    ...annotation.points.slice(mid.insertIndex)
+  ]
+  // Hand the not-yet-committed list to the existing three-phase editor, which
+  // commits it on dragend together with wherever it was dragged to.
+  handleVertexDragStart(annotationIndex, mid.insertIndex, event, newPoints, true)
 }
 
 // Helper function to convert pointer position to canvas coordinates
@@ -1374,178 +1312,259 @@ const isPointInImageBounds = (stagePoint: { x: number; y: number }) => {
 const magicPoints = ref<{x: number, y: number, polar: boolean}[]>([])
 let magicHoverTimer: any = null
 
-// Placeholder for API calls
-const fetchMagicHover = async (x: number, y: number) => {
-  console.log('Magic Hover Request:', x, y)
-  // TODO: Implement API call
-  // const response = await fetch('/api/sam2/hover', {
-  //   method: 'POST',
-  //   body: JSON.stringify({ x, y })
-  // })
-  // const result = await response.json()
-  
-  // Show preview (e.g. temporary polygon on activeLayer)
-  // renderPreviewPolygon(result.points)
-}
+// ── Magic stick ──────────────────────────────────────────────────────────────
+//
+// The service is addressed per organization through Backend Connections, so the
+// base URL arrives as a prop; there is no hardcoded host.
+//
+// The expensive half of SAM 2 is the image encoder, and it does not depend on
+// where you click. So the image is embedded ONCE per sheet and every click after
+// that sends only coordinates against the returned key. The version this
+// replaced re-uploaded the whole image on every click, which is why the tool
+// felt broken: each refinement paid the encoder again.
 
-const fetchMagicClick = async (x: number, y: number, polar: boolean) => {
-  console.log('Magic Click Request:', x, y, polar)
-  
-  try {
-    // Prepare the form data
-    const formData = new FormData()
-    
-    // Get the current image as a blob
-    if (!imageObj.value || !props.imageUrl) {
-      console.error('No image loaded or imageUrl missing')
-      return
-    }
-    
-    // Fetch the original image directly to avoid CORS issues
-    let imageBlob: Blob
-    try {
-      // Try to fetch the image from the original URL
-      const imageResponse = await fetch(props.imageUrl, {
-        mode: 'cors', // Enable CORS
-        credentials: 'same-origin'
-      })
-      
-      if (!imageResponse.ok) {
-        throw new Error(`Failed to fetch image: ${imageResponse.status}`)
-      }
-      
-      imageBlob = await imageResponse.blob()
-    } catch (fetchError) {
-      console.warn('Failed to fetch original image, trying canvas approach with crossOrigin:', fetchError)
-      
-      // Fallback: Try to re-create the image with proper CORS headers
-      const img = new Image()
-      img.crossOrigin = 'anonymous' // Enable CORS
-      
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => resolve()
-        img.onerror = () => reject(new Error('Failed to load image with CORS'))
-        img.src = props.imageUrl
-      })
-      
-      // Create canvas with the CORS-enabled image
-      const canvas = document.createElement('canvas')
-      canvas.width = img.width
-      canvas.height = img.height
-      const ctx = canvas.getContext('2d')
-      if (!ctx) {
-        throw new Error('Could not get canvas context')
-      }
-      
-      ctx.drawImage(img, 0, 0)
-      
-      // Convert canvas to blob
-      imageBlob = await new Promise<Blob>((resolve, reject) => {
-        canvas.toBlob((blob) => {
-          if (blob) resolve(blob)
-          else reject(new Error('Failed to convert canvas to blob'))
-        }, 'image/png')
-      })
-    }
-    
-    // Append form data
-    formData.append('image_file', imageBlob, 'image.png')
-    formData.append('label', '1')
-    formData.append('multimask_output', 'false')
-    
-    // Create clicks array with current accumulated magic points
-    const clicks = magicPoints.value.map(point => ({
-      x: Math.round((point.x - imageOffset.value.x) / imageScale.value),
-      y: Math.round((point.y - imageOffset.value.y) / imageScale.value),
-      label: point.polar ? 1 : 0
-    }))
-    
-    formData.append('clicks', JSON.stringify(clicks))
-    
-    // Make the API call
-    const response = await fetch('http://localhost:8000/clicked', {
-      method: 'POST',
-      body: formData
-    })
-    
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`)
-    }
-    
-    const result = await response.json()
-    console.log('Magic Click Response:', result)
-    
-    // Process annotations from response
-    if (result.annotations && Array.isArray(result.annotations)) {
-      // Remove any previous magic-generated annotations before adding new ones
-      const newAnnotations = props.annotations.filter(ann => 
-        !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
-      )
-      
-      let latestMagicAnnotation: CanvasAnnotation | null = null
-      
-      for (const apiAnnotation of result.annotations) {
-        if (apiAnnotation.type === 'polygon' && apiAnnotation.points) {
-          // Convert API coordinates to canvas coordinates
-          const canvasPoints = apiAnnotation.points.map((p: any) => ({
-            x: p.x * imageScale.value + imageOffset.value.x,
-            y: p.y * imageScale.value + imageOffset.value.y
-          }))
-          
-          const newAnnotation: CanvasAnnotation = {
-            type: 'polygon',
-            points: canvasPoints,
-            className: `magic-generated-${Date.now()}` // Unique identifier for magic annotations
-          }
-          
-          newAnnotations.push(newAnnotation)
-          latestMagicAnnotation = newAnnotation
-          console.log(`Created magic annotation with ${canvasPoints.length} points, score: ${apiAnnotation.score}`)
-        }
-      }
-      
-      // Update annotations
-      emit('update:annotations', newAnnotations)
-      
-      // Show class selector for the latest magic annotation if classes are available
-      if (latestMagicAnnotation && props.classes && props.classes.length > 0) {
-        const centerPoint = getMagicAnnotationCenter(latestMagicAnnotation)
-        console.log('🎯 SAM2: Showing class selector for magic annotation')
-        emit('show-class-selector', latestMagicAnnotation, centerPoint)
-      }
-      
-      // Don't clear magic points - keep them for accumulating multiple clicks
-      // magicPoints.value = []
-    }
-    
-  } catch (error) {
-    console.error('Magic Click API Error:', error)
-    // Optionally show user-friendly error message
-  }
-}
+const magicPreviewPoints = ref<number[]>([])
+const magicBusy = ref(false)
+/** Marks the polygon this magic session owns, so refinement clicks replace it
+ *  instead of stacking a new shape on top of the last one. */
+const magicSessionClassName = ref<string | null>(null)
+let magicSessionCounter = 0
+/** Only the newest request may write; a slow one must never overwrite a fast one. */
+let magicRequestSeq = 0
+let magicHoverSeq = 0
+/** The service's handle on this sheet's embedding. Null until the first upload. */
+let magicCachedImageKey: string | null = null
 
-// Watch for tool changes to clear magic points
-watch(() => props.currentTool, (newTool) => {
-  if (newTool !== 'magic') {
-    // Clear magic points and remove magic annotations when switching away from magic tool
-    magicPoints.value = []
-    
-    // Remove any magic-generated annotations when leaving magic mode
-    const newAnnotations = props.annotations.filter(ann => 
-      !ann.className || (!ann.className.includes('auto-generated') && !ann.className.includes('magic-'))
-    )
-    
-    if (newAnnotations.length !== props.annotations.length) {
-      emit('update:annotations', newAnnotations)
-    }
-    
-    if (magicHoverTimer) clearTimeout(magicHoverTimer)
-  }
+const magicServiceUrl = computed(() => (props.assistUrl || '').replace(/\/+$/, ''))
+
+const magicHeaders = (extra: Record<string, string> = {}) => ({
+  ...(props.authToken ? { Authorization: `Bearer ${props.authToken}` } : {}),
+  ...(props.orgId !== '' && props.orgId != null ? { orgId: String(props.orgId) } : {}),
+  ...extra
 })
 
-// Function to manually clear magic session (can be called from parent component)
+const magicOverlayConfig = computed(() => ({
+  // The stage is panned and zoomed, so a rect pinned at (0,0) slides off screen
+  // as soon as the operator moves. Expressed in canvas coordinates it stays over
+  // the viewport at any transform.
+  x: -stagePosition.value.x / stageScale.value,
+  y: -stagePosition.value.y / stageScale.value,
+  width: stageSize.value.width / stageScale.value,
+  height: stageSize.value.height / stageScale.value,
+  fill: 'transparent',
+  listening: true
+}))
+
+const magicPreviewConfig = computed(() => ({
+  points: magicPreviewPoints.value,
+  stroke: UNASSIGNED_INK,
+  strokeWidth: 1.5 * getUIScale(),
+  dash: [5 * getUIScale(), 4 * getUIScale()],
+  closed: true,
+  listening: false,
+  perfectDrawEnabled: false,
+  strokeScaleEnabled: false
+}))
+
+/** The image bytes to segment, preferring a direct fetch over a canvas re-encode. */
+const getMagicImageBlob = async (): Promise<Blob> => {
+  try {
+    const response = await fetch(props.imageUrl, { mode: 'cors', credentials: 'same-origin' })
+    if (!response.ok) throw new Error(`HTTP ${response.status}`)
+    return await response.blob()
+  } catch {
+    // Fall back to re-encoding the decoded image. Needs CORS headers on the
+    // image response, otherwise the canvas is tainted and toBlob throws.
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => resolve()
+      img.onerror = () => reject(new Error('Failed to load image with CORS'))
+      img.src = props.imageUrl
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width = img.naturalWidth
+    canvas.height = img.naturalHeight
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Could not get a 2d canvas context')
+    ctx.drawImage(img, 0, 0)
+    return await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob(b => (b ? resolve(b) : reject(new Error('Canvas export failed'))), 'image/png')
+    })
+  }
+}
+
+/** Accumulated clicks in ORIGINAL image pixels - the space the service expects. */
+const magicClickPayload = () =>
+  magicPoints.value.map(point => {
+    const original = canvasToOriginal(point)
+    return { x: Math.round(original.x), y: Math.round(original.y), label: point.polar ? 1 : 0 }
+  })
+
+/** Ask for a mask, using the cached-embedding fast path when possible. */
+const requestMagicMask = async (clicks: { x: number; y: number; label: number }[]) => {
+  const base = magicServiceUrl.value
+  if (!base) throw new Error('No SAM 2 connection for this organization')
+
+  if (magicCachedImageKey) {
+    const response = await fetch(`${base}/predict`, {
+      method: 'POST',
+      headers: magicHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ image_key: magicCachedImageKey, clicks, multimask_output: false })
+    })
+    if (response.ok) return await response.json()
+    // 409 means the service evicted this sheet from its cache. Fall through and
+    // send the image again rather than surfacing an error the operator cannot act on.
+    if (response.status !== 409) throw new Error(await response.text())
+    magicCachedImageKey = null
+  }
+
+  const form = new FormData()
+  form.append('image_file', await getMagicImageBlob(), 'sheet.png')
+  form.append('clicks', JSON.stringify(clicks))
+  form.append('multimask_output', 'false')
+  const response = await fetch(`${base}/clicked`, { method: 'POST', headers: magicHeaders(), body: form })
+  if (!response.ok) throw new Error(await response.text())
+  const result = await response.json()
+  if (result.image_key) magicCachedImageKey = result.image_key
+  return result
+}
+
+/** Upload the sheet once so the first click is as cheap as the rest. */
+const warmMagicImage = async () => {
+  const base = magicServiceUrl.value
+  if (!base || magicCachedImageKey || !props.imageUrl) return
+  try {
+    const form = new FormData()
+    form.append('image_file', await getMagicImageBlob(), 'sheet.png')
+    const response = await fetch(`${base}/embed`, { method: 'POST', headers: magicHeaders(), body: form })
+    if (!response.ok) return
+    const result = await response.json()
+    if (result.image_key) magicCachedImageKey = result.image_key
+  } catch {
+    // Warming is an optimisation. A failure here costs one slow click, not a
+    // broken tool, so it stays silent.
+  }
+}
+
+/** Turn the service's polygons into this session's single annotation. */
+const applyMagicResult = (annotationsFromService: any[]) => {
+  const polygons = (annotationsFromService || []).filter(a => (a?.points?.length || 0) >= 3)
+  if (!polygons.length) return
+
+  if (!magicSessionClassName.value) {
+    magicSessionCounter += 1
+    magicSessionClassName.value = `magic-generated-${magicSessionCounter}`
+  }
+  const sessionClass = magicSessionClassName.value
+
+  // Largest first: the service can return fragments, and the operator pointed at
+  // the object, not at its specks.
+  const best = polygons.slice().sort((a, b) => (b.points.length - a.points.length))[0]
+  const canvasPoints = best.points.map((pt: any) => originalToCanvas(pt))
+
+  const annotation: CanvasAnnotation = {
+    type: 'polygon',
+    points: canvasPoints,
+    className: sessionClass
+  }
+
+  // Replace this session's previous shape rather than stacking on it.
+  const kept = props.annotations.filter(a => a.className !== sessionClass)
+  const next = [...kept, annotation]
+  emit('update:annotations', next)
+
+  if (props.classes && props.classes.length > 0) {
+    emit('show-class-selector', annotation, getMagicAnnotationCenter(annotation))
+  }
+}
+
+/**
+ * Turn a failure into something the operator can act on.
+ *
+ * A browser reports an unreachable host as the bare string "Failed to fetch",
+ * which names neither the problem nor the fix. The service is addressed per
+ * organization, so the address itself is the useful part of the message: on a
+ * deployment where nobody is running SAM 2, that line is the whole explanation.
+ */
+const isUnreachable = (err: any) =>
+  err instanceof TypeError || /failed to fetch|networkerror|load failed/i.test(err?.message || String(err))
+
+const magicFailureMessage = (err: any) => {
+  const raw = err?.message || String(err)
+  if (!isUnreachable(err)) return raw
+  const where = magicServiceUrl.value || 'no address'
+  return `The SAM 2 service at ${where} did not answer, so the magic stick cannot segment. ` +
+    'Start it, or point this organization at a reachable one under Organization → Settings → Connections. ' +
+    'The drawing tools still work.'
+}
+
+/** A click landed: ask for the mask the accumulated points describe. */
+const runMagicInference = async () => {
+  const clicks = magicClickPayload()
+  if (!clicks.length) return
+  const seq = ++magicRequestSeq
+  magicBusy.value = true
+  try {
+    const result = await requestMagicMask(clicks)
+    if (seq !== magicRequestSeq) return // a newer click already answered
+    applyMagicResult(result.annotations)
+  } catch (err: any) {
+    if (seq !== magicRequestSeq) return
+    const message = magicFailureMessage(err)
+    emit(isUnreachable(err) ? 'magic-unreachable' : 'magic-error', message)
+  } finally {
+    if (seq === magicRequestSeq) magicBusy.value = false
+  }
+}
+
+/** Hover preview. Only runs once the embedding is cached, so moving the mouse
+ *  can never trigger an upload. */
+const previewMagicAt = async (canvasPoint: { x: number; y: number }) => {
+  if (!magicCachedImageKey || magicBusy.value || magicPoints.value.length) return
+  const base = magicServiceUrl.value
+  if (!base) return
+  const original = canvasToOriginal(canvasPoint)
+  const seq = ++magicHoverSeq
+  try {
+    const response = await fetch(`${base}/predict`, {
+      method: 'POST',
+      headers: magicHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({
+        image_key: magicCachedImageKey,
+        clicks: [{ x: Math.round(original.x), y: Math.round(original.y), label: 1 }],
+        multimask_output: false
+      })
+    })
+    if (!response.ok || seq !== magicHoverSeq) return
+    const result = await response.json()
+    const best = (result.annotations || []).filter((a: any) => (a?.points?.length || 0) >= 3)
+      .sort((a: any, b: any) => b.points.length - a.points.length)[0]
+    if (!best || seq !== magicHoverSeq) { magicPreviewPoints.value = []; return }
+    const flat: number[] = []
+    for (const pt of best.points) {
+      const c = originalToCanvas(pt)
+      flat.push(c.x, c.y)
+    }
+    magicPreviewPoints.value = flat
+  } catch {
+    if (seq === magicHoverSeq) magicPreviewPoints.value = []
+  }
+}
+
+/** Close the session but KEEP its polygon - the caller has given it a class. */
+const endMagicSession = () => {
+  magicPoints.value = []
+  magicPreviewPoints.value = []
+  magicSessionClassName.value = null
+  magicRequestSeq += 1
+  magicHoverSeq += 1
+}
+
 const clearMagicSession = () => {
   magicPoints.value = []
+  magicPreviewPoints.value = []
+  magicSessionClassName.value = null
   
   // Remove any magic-generated annotations
   const newAnnotations = props.annotations.filter(ann => 
@@ -1556,7 +1575,6 @@ const clearMagicSession = () => {
     emit('update:annotations', newAnnotations)
   }
   
-  console.log('🔄 Magic session cleared')
 }
 
 // Helper function to calculate the center point of a magic annotation for positioning class selector
@@ -1605,6 +1623,46 @@ const {
 // Use annotation transform handlers composable
 const { handleRectangleTransformEnd } = useAnnotationTransformHandlers()
 
+/**
+ * A shape is drawn in its class's ink. The colour carries the classification,
+ * not the interaction state - selection and hover are already told by stroke
+ * weight and the fill wash, and a shape that changes hue when you point at it
+ * is a shape whose colour means nothing.
+ */
+const inkFor = (annotation: CanvasAnnotation) => inkForClass(annotation?.className, props.classes || [])
+
+/**
+ * Registration brackets at the plate's corners, in canvas space so they zoom
+ * and pan with the image the way printed marks stay with the sheet.
+ */
+const registrationMarks = computed(() => {
+  if (!imageObj.value || !displayImageSize.value.width) return []
+  const { x, y } = imageOffset.value
+  const w = displayImageSize.value.width
+  const h = displayImageSize.value.height
+  const ui = getUIScale()
+  const arm = 16 * ui
+  const inset = 12 * ui
+  const base = {
+    stroke: '#141414',
+    strokeWidth: 1 * ui,
+    opacity: 0.5,
+    listening: false,
+    perfectDrawEnabled: false,
+    strokeScaleEnabled: false
+  }
+  const corners = [
+    { cx: x + inset, cy: y + inset, sx: 1, sy: 1 },
+    { cx: x + w - inset, cy: y + inset, sx: -1, sy: 1 },
+    { cx: x + inset, cy: y + h - inset, sx: 1, sy: -1 },
+    { cx: x + w - inset, cy: y + h - inset, sx: -1, sy: -1 }
+  ]
+  return corners.flatMap(c => [
+    { ...base, points: [c.cx, c.cy, c.cx + arm * c.sx, c.cy] },
+    { ...base, points: [c.cx, c.cy, c.cx, c.cy + arm * c.sy] }
+  ])
+})
+
 const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
   // Since all annotations are now in canvas coordinates, use them directly
   if (!annotation.startPoint || annotation.width === undefined || annotation.height === undefined) {
@@ -1620,9 +1678,9 @@ const getRectConfig = (annotation: CanvasAnnotation, index: number) => {
     y: annotation.startPoint.y,
     width: annotation.width,
     height: annotation.height,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: inkFor(annotation),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: isSelected ? inkWash(inkFor(annotation), 0.12) : (isHovered ? inkWash(inkFor(annotation), 0.06) : 'transparent'),
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
@@ -1675,9 +1733,9 @@ const getPolygonConfig = (annotation: CanvasAnnotation, index: number) => {
 
   const config = {
     points: displayPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: inkFor(annotation),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: isSelected ? inkWash(inkFor(annotation), 0.12) : (isHovered ? inkWash(inkFor(annotation), 0.06) : 'transparent'),
     closed: true,
     draggable: true,
     listening: true, // Always keep listening enabled for interaction
@@ -1725,7 +1783,7 @@ const getLineConfig = (annotation: CanvasAnnotation, index: number) => {
 
   const config = {
     points: [annotation.startPoint.x, annotation.startPoint.y, annotation.endPoint.x, annotation.endPoint.y],
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: inkFor(annotation),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
     lineCap: 'round',
     draggable: true,
@@ -1762,9 +1820,9 @@ const getCircleConfig = (annotation: CanvasAnnotation, index: number) => {
     x: annotation.center.x,
     y: annotation.center.y,
     radius: annotation.radius,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: inkFor(annotation),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)),
-    fill: isSelected ? 'rgba(66, 133, 244, 0.1)' : (isHovered ? 'rgba(52, 168, 83, 0.05)' : 'transparent'),
+    fill: isSelected ? inkWash(inkFor(annotation), 0.12) : (isHovered ? inkWash(inkFor(annotation), 0.06) : 'transparent'),
     draggable: true,
     listening: true,
     perfectDrawEnabled: false
@@ -1904,7 +1962,7 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
 
   const config = {
     points: flatPoints,
-    stroke: isSelected ? '#4285f4' : (isHovered ? '#34a853' : '#00c851'),
+    stroke: inkFor(annotation),
     strokeWidth: (isSelected ? 3 : (isHovered ? 2.5 : 2)) * uiScale,
     fill: 'transparent',
     closed: false,
@@ -1939,6 +1997,17 @@ const getFreehandConfig = (annotation: CanvasAnnotation, index: number) => {
 
 // PART 1: UNIFIED EVENT HANDLERS - All tools use imperative model
 const handleStageMouseDown = (e: any) => {
+  // Magic Stick runs before the gatekeeper below, which aborts as soon as the
+  // event target is a shape rather than the stage. The magic layer's overlay rect
+  // IS such a shape, and so is any annotation the user clicks over - so leaving
+  // this until after the gatekeeper would silently swallow most magic clicks.
+  // This is the only place magic clicks are handled; the overlay carries no
+  // handler of its own, since both would then fire for a single click.
+  if (props.currentTool === 'magic') {
+    handleMagicClick(e)
+    return
+  }
+
   // 1. Global Gatekeeper: Prevent accidental drawing when interacting with existing annotations
   // If we are hovering over an annotation, or editing a vertex, or clicking on a shape (not stage), abort drawing
   const isHoveringAnnotation = hoveredAnnotationIndex.value !== null
@@ -1949,7 +2018,6 @@ const handleStageMouseDown = (e: any) => {
   const isSelectTool = props.currentTool === 'select'
   
   if ((isHoveringAnnotation || isEditing || isClickingShape) && !isSelectTool) {
-    console.log('🛡️ Gatekeeper: Interaction blocked to prevent accidental drawing')
     return
   }
 
@@ -1987,8 +2055,6 @@ const handleStageMouseDown = (e: any) => {
   
   // CRITICAL FIX: If we clicked on an annotation (not the stage), don't start drawing
   if (isAnnotationElement) {
-    console.log('🎯 Clicked on annotation element:', e.target.getClassName(), 'preventing new shape creation')
-    
     // Set a flag to indicate we might be starting a drag operation
     potentialDragStart = true
     
@@ -2002,41 +2068,8 @@ const handleStageMouseDown = (e: any) => {
     return
   }
 
-  // Magic Stick Click Logic
-  if (props.currentTool === 'magic') {
-    const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
-    const mouseCanvasPos = mouseTransform.point(pointer)
-    
-    // Get image-relative coordinates
-    const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
-    const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
-    
-    // Check bounds
-    if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
-        imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
-      
-      const isLeftClick = e.evt.button === 0
-      const isRightClick = e.evt.button === 2
-      
-      if (isLeftClick || isRightClick) {
-        const polar = isLeftClick
-        
-        // Add visual feedback point
-        magicPoints.value.push({
-          x: mouseCanvasPos.x,
-          y: mouseCanvasPos.y,
-          polar
-        })
-        
-        fetchMagicClick(imageRelativeX, imageRelativeY, polar)
-      }
-    }
-    return
-  }
-  
   // Don't start drawing if we're potentially about to start dragging
   if (potentialDragStart) {
-    console.log('🎯 Potential drag in progress, preventing new shape creation')
     return
   }
   
@@ -2102,12 +2135,10 @@ const handleStageMouseDown = (e: any) => {
         activeLayer.value.getNode().batchDraw()
         
         emit('update:isAnnotating', true)
-        console.log('🎯 Started polygon with unified imperative approach')
       } else {
        
         // Check if click is near the first vertex to complete polygon
         if (currentPathImperative.length >= 3 && isNearFirstVertex(canvasPos)) {
-          console.log('🎯 Clicked near first vertex, completing polygon')
           finishDrawing()
           return
         }
@@ -2132,8 +2163,6 @@ const handleStageMouseDown = (e: any) => {
           
           vertexGroup.add(newVertex)
           activeLayer.value.getNode().batchDraw()
-          
-          console.log(`🎯 Added point to polygon: ${currentPathImperative.length} vertices`)
         }
       }
       return
@@ -2161,7 +2190,6 @@ const handleStageMouseDown = (e: any) => {
       currentPathImperative = [canvasPos]
       
       emit('update:isAnnotating', true)
-      console.log('🎯 Starting freehand with unified imperative approach')
       return
     }
     
@@ -2182,7 +2210,6 @@ const handleStageMouseDown = (e: any) => {
       activeLayer.value.getNode().batchDraw()
       
       emit('update:isAnnotating', true)
-      console.log('🎯 Starting rectangle with unified imperative approach')
       return
     }
     
@@ -2202,7 +2229,6 @@ const handleStageMouseDown = (e: any) => {
       activeLayer.value.getNode().batchDraw()
       
       emit('update:isAnnotating', true)
-      console.log('🎯 Starting circle with unified imperative approach')
       return
     }
     
@@ -2220,7 +2246,6 @@ const handleStageMouseDown = (e: any) => {
       activeLayer.value.getNode().batchDraw()
       
       emit('update:isAnnotating', true)
-      console.log('🎯 Starting line with unified imperative approach')
       return
     }
     
@@ -2247,8 +2272,6 @@ const handleStageMouseDown = (e: any) => {
       
       // Complete the annotation immediately since dots are single-click
       finishDrawing()
-      
-      console.log('🎯 Created dot annotation with unified imperative approach')
       return
     }
   }
@@ -2264,21 +2287,20 @@ const handleStageMouseMove = (e: any) => {
   const mouseCanvasPos = mouseTransform.point(pointer)
   mousePositionImperative = mouseCanvasPos
 
-  // Magic Stick Hover Logic
+  // Magic Stick: preview the mask the cursor would select. Debounced, and only
+  // once the service has this image cached, so it never re-uploads on mouse move.
   if (props.currentTool === 'magic') {
     if (magicHoverTimer) clearTimeout(magicHoverTimer)
-    
+    const hoverPoint = { x: mouseCanvasPos.x, y: mouseCanvasPos.y }
     magicHoverTimer = setTimeout(() => {
-      // Get image-relative coordinates
-      const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
-      const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
-      
-      // Check bounds
-      if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
-          imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
-        fetchMagicHover(imageRelativeX, imageRelativeY)
+      const original = canvasToOriginal(hoverPoint)
+      if (original.x >= 0 && original.x <= originalImageSize.value.width &&
+          original.y >= 0 && original.y <= originalImageSize.value.height) {
+        previewMagicAt(hoverPoint)
+      } else {
+        magicPreviewPoints.value = []
       }
-    }, 500)
+    }, 180)
   }
 
   // Handle "Soft Clay" drag for new vertices (Visuals First)
@@ -2449,7 +2471,6 @@ const handleStageWheel = (e: any) => {
     }, 300)
   }
   
-  console.log(`🔍 Zoom: ${clampedScale.toFixed(2)}x at (${newPos.x.toFixed(0)}, ${newPos.y.toFixed(0)})`)
 }
 
 const handleStageDragStart = (e: any) => {
@@ -2462,7 +2483,6 @@ const handleStageDragStart = (e: any) => {
     
     if (shouldEnterPerformanceMode && !isPerformanceMode.value) {
       polygonLayerVisible.value = false
-      console.log('🎯 Entered performance mode during stage drag')
     }
   }
 }
@@ -2492,8 +2512,6 @@ const handleStageDragEnd = (e: any) => {
       }
       dragDebounceTimer = null
     }, 200)
-    
-    console.log('🎯 Stage drag ended, position updated')
   }
 }
 
@@ -2563,8 +2581,6 @@ const handleDragStart = (index: number, event: any) => {
     props.annotations.length, 
     avgPointCount
   )
-  
-  console.log('🎯 Started dragging annotation', index)
 }
 
 const handleDragMove = (index: number, event: any) => {
@@ -2594,8 +2610,6 @@ const handleDragMove = (index: number, event: any) => {
 
 // Three-phase vertex editing system
 const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, event: any, overridePoints?: {x: number, y: number}[], isNewVertex = false) => {
-  console.log('🎯 Starting vertex drag:', annotationIndex, vertexIndex)
-  
   // Prevent annotation-level dragging while editing vertices
   isDraggingAnnotationNonReactive = true
   isDraggingAnnotation.value = true
@@ -2679,8 +2693,6 @@ const handleVertexDragStart = (annotationIndex: number, vertexIndex: number, eve
   
   // Prevent other drag handlers from interfering
   event.evt?.stopPropagation()
-  
-  console.log('🎯 Vertex drag started, temporary clone created')
 }
 
 const handleVertexDragMove = (annotationIndex: number, vertexIndex: number, event: any) => {
@@ -2721,8 +2733,6 @@ const handleVertexDragMove = (annotationIndex: number, vertexIndex: number, even
 }
 
 const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event: any) => {
-  console.log('🎯 Ending vertex drag:', annotationIndex, vertexIndex)
-  
   // Phase 3: Update permanent annotation data and restore original polygon
   if (!currentVertexEdit || !isEditingVertex.value) return
   
@@ -2751,8 +2761,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
       
       emit('update:annotations', newAnnotations)
       emit('annotation-updated', updatedAnnotation, annotationIndex)
-      
-      console.log('🎯 Updated annotation with new vertex position')
     }
     
     // Clean up temporary clone
@@ -2768,7 +2776,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
   if (currentVertexEdit.originalPolygon) {
     // Safety Check: Ensure original polygon isn't stuck in a drag state
     if (currentVertexEdit.originalPolygon.isDragging && currentVertexEdit.originalPolygon.isDragging()) {
-      console.log('🛡️ Safety: Force stopping ghost drag on original polygon')
       currentVertexEdit.originalPolygon.stopDrag()
     }
 
@@ -2782,7 +2789,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
   if (stage.value) {
     const stageNode = stage.value.getNode()
     if (stageNode.isDragging()) {
-      console.log('🛡️ Safety: Force stopping ghost drag on stage')
       stageNode.stopDrag()
     }
   }
@@ -2813,8 +2819,6 @@ const handleVertexDragEnd = (annotationIndex: number, vertexIndex: number, event
   
   // Prevent event bubbling
   event.evt?.stopPropagation()
-  
-  console.log('🎯 Vertex editing completed successfully')
 }
 
 const handleDragEnd = (index: number, event: any) => {
@@ -2832,7 +2836,6 @@ const handleDragEnd = (index: number, event: any) => {
   // Since annotations are stored in canvas coordinates, we can work with node positions directly
   const annotation = props.annotations[index]
   if (!annotation) {
-    console.warn('🎯 No annotation found at index', index)
     return
   }
   
@@ -2886,9 +2889,6 @@ const handleDragEnd = (index: number, event: any) => {
   // Update the annotations array
   const newAnnotations = [...props.annotations]
   newAnnotations[index] = updatedAnnotation
-  
-  console.log('🎯 Drag end - Updated annotation:', updatedAnnotation.type, 'at index:', index)
-  
   emit('update:annotations', newAnnotations)
   emit('annotation-updated', updatedAnnotation, index)
   
@@ -2898,8 +2898,6 @@ const handleDragEnd = (index: number, event: any) => {
       staticLayer.value.getNode().batchDraw()
     }
   })
-  
-  console.log('🎯 Finished dragging annotation', index)
 }
 
 const handleAnnotationClick = (index: number, event: any) => {
@@ -2926,14 +2924,12 @@ const updateTransformer = () => {
         // For polygon and freehand: hide transformer to avoid conflicting with vertex editing
         // Users should rely solely on vertex manipulation for precision editing
         transformerInstance.nodes([])
-        console.log(`🎯 Transformer hidden for ${annotation.type} - use vertex dots for editing`)
       } else {
         // For other annotation types: show transformer for scaling/rotating
         const cacheKey = `${annotation.type}-${selectedAnnotationIndex.value}`
         const node = annotationRefs.value[cacheKey]
         if (node) {
           transformerInstance.nodes([node])
-          console.log(`🎯 Transformer attached to ${annotation.type}`)
         } else {
           transformerInstance.nodes([])
         }
@@ -2962,19 +2958,6 @@ const duplicateAnnotation = () => {
   // Duplicate functionality
 }
 
-const toggleShowAllVertices = () => {
-  showAllVertices.value = !showAllVertices.value
-  
-  // Force redraw of vertex dots
-  nextTick(() => {
-    if (staticLayer.value) {
-      staticLayer.value.getNode().batchDraw()
-    }
-  })
-  
-  console.log(`🎯 Vertex display mode: ${showAllVertices.value ? 'All vertices' : 'Paginated vertices'}`)
-}
-
 const getBufferStatus = () => {
   return `${currentPathImperative.length} pts`
 }
@@ -2994,20 +2977,21 @@ const exitPerformanceMode = () => {
 
 // Watchers - REFACTORED: Removed deep watchers for maximum performance
 watch(() => props.annotations, (newAnnotations, oldAnnotations) => {
-  console.log('🎯 ANNOTATIONS CHANGED!')
-  console.log('🎯 Old count:', oldAnnotations?.length || 0)
-  console.log('🎯 New count:', newAnnotations?.length || 0)
-  console.log('🎯 New annotations:', newAnnotations)
-  
   if (newAnnotations && oldAnnotations && newAnnotations.length !== oldAnnotations.length) {
-    console.log('🔥 ANNOTATION COUNT CHANGED! This might be the source of duplication')
   }
 }, { immediate: false })
 
 watch(() => props.imageUrl, async (newUrl) => {
+  // A new sheet means the service's embedding for the old one is worthless.
+  magicCachedImageKey = null
+  magicPreviewPoints.value = []
   if (newUrl) {
     try {
       await loadImage(newUrl)
+      // Embed now, in the background, so the operator's FIRST click is as cheap
+      // as every one after it. This is the whole difference between the magic
+      // stick feeling instant and feeling broken.
+      void warmMagicImage()
     } catch (error) {
       console.error('Failed to load image:', error)
     }
@@ -3025,15 +3009,12 @@ watch(() => props.currentTool, (newTool, oldTool) => {
   if (isDrawingNonReactive.value && (oldTool === 'polygon' || oldTool === 'freehand')) {
     const flatPoints = currentShapeNode?.points() || (pathNode?.points() || [])
     if (flatPoints && flatPoints.length >= 4) {
-      console.log(`🎯 Auto-finishing ${oldTool} drawing due to tool change`)
       finishDrawing()
     } else {
-      console.log(`🧹 Cleaning up incomplete ${oldTool} drawing due to tool change`)
       cleanupNonReactiveDrawing()
     }
   } else if (isDrawingNonReactive.value) {
     // For other tools, always cleanup to prevent state leakage
-    console.log(`🧹 Cleaning up ${oldTool} drawing due to tool change to ${newTool}`)
     cleanupNonReactiveDrawing()
   }
   
@@ -3044,13 +3025,9 @@ watch(() => props.currentTool, (newTool, oldTool) => {
 // Lifecycle
 onMounted(async () => {
   slidingBufferOptimizer.updateConfig(PerformancePresets.BALANCED)
-  console.log('🎯 Sliding buffer optimizer initialized with BALANCED preset')
-  
   try {
     await workerManager.initialize()
-    console.log('🔧 Polygon simplification worker ready')
   } catch (error) {
-    console.warn('🔧 Could not initialize polygon worker, using fallback:', error)
   }
   
   if (props.imageUrl) {
@@ -3085,44 +3062,35 @@ onUnmounted(() => {
 })
 
 // Magic click handler for the magic layer overlay
+/**
+ * The single place a magic-stick click is handled. Reached by bubbling from the
+ * magic layer's overlay rect up to the stage - there is deliberately no second
+ * handler on the overlay itself, because both would fire for one click.
+ */
 const handleMagicClick = (e: any) => {
-  // Prevent the default context menu
-  if (e.evt) {
-    e.evt.preventDefault()
-  }
-  
-  const stageNode = e.target.getStage()
-  const pointer = stageNode.getPointerPosition()
-  
+  if (props.currentTool !== 'magic') return
+  if (e?.evt) e.evt.preventDefault()
+
+  const stageNode = e.target?.getStage?.()
+  const pointer = stageNode?.getPointerPosition?.()
   if (!pointer) return
-  
-  const mouseTransform = stageNode.getAbsoluteTransform().copy().invert()
-  const mouseCanvasPos = mouseTransform.point(pointer)
-  
-  // Get image-relative coordinates
-  const imageRelativeX = (mouseCanvasPos.x - imageOffset.value.x) / imageScale.value
-  const imageRelativeY = (mouseCanvasPos.y - imageOffset.value.y) / imageScale.value
-  
-  // Check bounds
-  if (imageRelativeX >= 0 && imageRelativeX <= originalImageSize.value.width &&
-      imageRelativeY >= 0 && imageRelativeY <= originalImageSize.value.height) {
-    
-    const isLeftClick = e.evt.button === 0
-    const isRightClick = e.evt.button === 2
-    
-    if (isLeftClick || isRightClick) {
-      const polar = isLeftClick
-      
-      // Add visual feedback point
-      magicPoints.value.push({
-        x: mouseCanvasPos.x,
-        y: mouseCanvasPos.y,
-        polar
-      })
-      
-      fetchMagicClick(imageRelativeX, imageRelativeY, polar)
-    }
+
+  const canvasPoint = stageNode.getAbsoluteTransform().copy().invert().point(pointer)
+  const original = canvasToOriginal(canvasPoint)
+  if (
+    original.x < 0 || original.x > originalImageSize.value.width ||
+    original.y < 0 || original.y > originalImageSize.value.height
+  ) {
+    return
   }
+
+  // Left click includes the point in the object, right click excludes it.
+  const button = e.evt?.button
+  if (button !== 0 && button !== 2) return
+
+  magicPoints.value.push({ x: canvasPoint.x, y: canvasPoint.y, polar: button === 0 })
+  magicPreviewPoints.value = []
+  runMagicInference()
 }
 
 // Expose methods to parent
@@ -3132,6 +3100,7 @@ defineExpose({
   finishDrawing,
   finalizeAnnotation, // Part 1: Expose the Finalizer
   clearMagicSession,
+  endMagicSession,
   resetAnnotationState,
   getImageScale: () => imageScale.value,
   getImageOffset: () => imageOffset.value,

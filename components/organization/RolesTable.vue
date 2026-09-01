@@ -1,170 +1,134 @@
 <script setup lang="ts">
 /**
- * RolesTable Component
- * 
- * Displays organization roles in a table format with the ability to view
- * detailed permission flags for each role in a modal.
+ * The roles that exist in an organization, read as a sheet of facts rather
+ * than a card grid. Used inside the setup wizard, where the reader needs to
+ * see what a role actually grants before handing it to anyone.
  */
+import PermissionFlagsModal from './PermissionFlagsModal.vue'
+import { summarisePermissions } from './permissions'
 
-// ----- Imports -----
-import PermissionFlagsModal from './PermissionFlagsModal.vue';
-import { watch } from 'vue';
-
-// ----- Types -----
 interface Role {
-    name: string;
-    description: string;
-    icon?: string;
-    permissionFlags: Record<string, boolean>;
-    // Using Record to handle additional API fields
-    [key: string]: string | boolean | Record<string, boolean> | undefined;
+  id?: number
+  name: string
+  description: string
+  permissionFlags: Record<string, boolean>
+  createdAt?: number
 }
 
-// ----- Props -----
 const props = defineProps<{
-    orgId: string | number; // Organization ID for fetching roles
-    refreshKey?: number;
-}>();
+  orgId: string | number
+  refreshKey?: number
+}>()
 
-// ----- State -----
-const rolesData = ref<Role[]>([]);
-const isModalOpen = ref(false);
-const selectedRole = ref<Role | null>(null);
+const rolesData = ref<Role[]>([])
+const loading = ref(true)
+const loadError = ref<string | null>(null)
+const isModalOpen = ref(false)
+const selectedRole = ref<Role | null>(null)
 
-// ----- Authentication -----
-const token = useCookie('auth_token');
-if (!token.value) {
-    console.warn('No auth token found');
+const token = useCookie('auth_token')
+
+const fetchRoles = async () => {
+  if (!props.orgId) return
+  loading.value = true
+  loadError.value = null
+  try {
+    const res = await $fetch<{ data: Role[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all',
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`,
+          orgId: String(props.orgId)
+        }
+      }
+    )
+    rolesData.value = res.data ?? []
+  } catch (error: any) {
+    rolesData.value = []
+    loadError.value = error?.data?.error || error?.message || 'The roles could not be loaded.'
+  } finally {
+    loading.value = false
+  }
 }
 
-// ----- Data Fetching -----
-const fetchRoles = async () => {
-    // Clear existing data first
-    rolesData.value = [];
-    
-    const result = await useFetch<{ data: Role[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
-        method: 'GET',        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token.value}`,
-            "orgId": String(props.orgId)
-        },
-        // Use unique cache key per organization to prevent cache conflicts
-        key: `roles-${props.orgId}`,
-        // Disable server-side caching for this specific request
-        server: false
-    });
-
-    if (result.data.value?.data) {
-        rolesData.value = result.data.value.data;
-    }
-};
-
-// ----- Modal Handling -----
 const showPermissionFlags = (role: Role) => {
-    // Create a clean copy of the role data to prevent reactivity issues
-    selectedRole.value = {
-        name: role.name,
-        description: role.description || "",
-        permissionFlags: role.permissionFlags || {}
-    };
-    isModalOpen.value = true;
+  selectedRole.value = {
+    name: role.name,
+    description: role.description || '',
+    permissionFlags: (role.permissionFlags || {}) as Record<string, boolean>
+  }
+  isModalOpen.value = true
 }
 
 const closeModal = () => {
-    isModalOpen.value = false;
-    selectedRole.value = null;
+  isModalOpen.value = false
+  selectedRole.value = null
 }
 
-// ----- Watchers -----
-// Watch for orgId changes to refetch data for new organization
 watch(() => props.orgId, (newOrgId, oldOrgId) => {
-    if (newOrgId && newOrgId !== oldOrgId) {
-        console.log(`Organization changed from ${oldOrgId} to ${newOrgId}, refetching roles`);
-        fetchRoles();
-    }
-}, { immediate: false });
+  if (newOrgId && newOrgId !== oldOrgId) fetchRoles()
+})
 
-// Watch for manual refresh trigger
-watch(() => props.refreshKey, () => {
-    fetchRoles();
-});
+watch(() => props.refreshKey, () => fetchRoles())
 
-// ----- Lifecycle -----
-// Load roles data when component is mounted
-await fetchRoles();
+onMounted(fetchRoles)
+
+defineExpose({ refresh: fetchRoles })
 </script>
 
 <template>
-    <div>
-        <!-- Roles data table with responsive container -->
-        <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <!-- Column headers -->
-                <thead class="bg-gray-50 dark:bg-gray-800">
-                    <tr>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Role Name
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Description
-                        </th>
-                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                            Permission Flags
-                        </th>
-                    </tr>
-                </thead>
-                
-                <!-- Table data -->
-                <tbody class="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    <!-- Role row for each role -->
-                    <tr v-for="role in rolesData" :key="role.name" class="hover:bg-gray-50 dark:hover:bg-gray-800">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                            <div class="flex items-center">
-                                <div class="p-2 bg-primary/10 rounded-lg mr-3">
-                                    <UIcon :name="role.icon || 'i-heroicons-user-group'" class="w-4 h-4 text-primary" />
-                                </div>
-                                <div>
-                                    <div class="font-medium">{{ role.name }}</div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                            {{ role.description }}
-                        </td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-gray-100">
-                            <UButton size="sm" color="info" @click="showPermissionFlags(role)">
-                                View Permissions
-                            </UButton>
-                        </td>
-                    </tr>
-                    
-                    <!-- Empty state message when no roles found -->
-                    <tr v-if="rolesData.length === 0">
-                        <td colspan="3" class="px-6 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
-                            No roles found
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-        
-        <!-- Permission flags modal component -->
-        <PermissionFlagsModal 
-            :show="isModalOpen" 
-            :role="selectedRole" 
-            @close="closeModal" 
-        />
+  <div class="border border-stock-400">
+    <div v-if="loading" class="flex items-center gap-3 px-4 py-8 text-stock-600">
+      <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+      <span class="furniture">Reading roles</span>
     </div>
-</template>
 
-<style scoped>
-/* Table styling for better visual appearance */
-table {
-    border-collapse: separate;
-    border-spacing: 0;
-    width: 100%;
-    border-radius: 0.5rem;
-    overflow: hidden;
-    box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-}
-</style>
+    <div v-else-if="loadError" class="px-4 py-6">
+      <p class="text-correct-600 font-medium">Roles could not be loaded</p>
+      <p class="text-sm text-stock-700 mt-1">{{ loadError }}</p>
+      <button type="button" class="ink-button ink-button--outline mt-4" @click="fetchRoles">Try again</button>
+    </div>
+
+    <div v-else-if="rolesData.length === 0" class="px-4 py-8">
+      <p class="text-stock-950 font-medium">No roles yet</p>
+      <p class="text-sm text-stock-700 mt-1 max-w-prose">
+        A role decides what a member may do. Create at least one before adding people —
+        every member has to be given a role when they are added.
+      </p>
+    </div>
+
+    <table v-else class="min-w-full">
+      <thead>
+        <tr class="border-b border-stock-400">
+          <th scope="col" class="furniture text-stock-600 text-left px-4 py-3">Role</th>
+          <th scope="col" class="furniture text-stock-600 text-left px-4 py-3">Grants</th>
+          <th scope="col" class="furniture text-stock-600 text-right px-4 py-3">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr
+          v-for="role in rolesData"
+          :key="role.id ?? role.name"
+          class="border-b border-stock-400 last:border-b-0 hover:bg-stock-50"
+        >
+          <td class="px-4 py-3 align-top">
+            <div class="font-medium text-stock-950">{{ role.name }}</div>
+            <div v-if="role.description" class="text-sm text-stock-600">{{ role.description }}</div>
+          </td>
+          <td class="px-4 py-3 align-top text-sm text-stock-700 max-w-md">
+            {{ summarisePermissions(role.permissionFlags) }}
+          </td>
+          <td class="px-4 py-3 align-top text-right">
+            <button type="button" class="ink-button ink-button--outline" @click="showPermissionFlags(role)">
+              Read permissions
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <PermissionFlagsModal :show="isModalOpen" :role="selectedRole" @close="closeModal" />
+  </div>
+</template>

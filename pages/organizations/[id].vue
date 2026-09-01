@@ -1,110 +1,110 @@
 <template>
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-    <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col justify-center items-center min-h-[400px] py-8 space-y-3">
-      <ULoading />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading organization details...</p>
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center gap-3 min-h-[400px] text-stock-600">
+      <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+      <span class="furniture">Reading organization</span>
     </div>
 
-    <!-- Error State -->
-    <div v-else-if="error" class="text-center py-8">
-      <div class="mx-auto max-w-md">
-        <h3 class="text-2xl font-semibold text-red-600 mb-4">Error Loading Organization</h3>
-        <p class="text-gray-500 mb-6">{{ error }}</p>
-        <UButton @click="refreshData" color="primary">Try Again</UButton>
+    <!-- Error -->
+    <div v-else-if="error" class="min-h-[400px] py-12">
+      <div class="max-w-xl border border-correct-500 bg-correct-100 p-6" role="alert">
+        <h1 class="text-xl font-semibold text-correct-600">This organization could not be opened</h1>
+        <p class="text-stock-800 mt-2">{{ error }}</p>
+        <div class="flex flex-wrap gap-3 mt-5">
+          <button type="button" class="ink-button" @click="refreshData">Try again</button>
+          <NuxtLink to="/homepage" class="ink-button ink-button--outline">All organizations</NuxtLink>
+        </div>
       </div>
     </div>
 
-    <!-- Main Content -->
+    <!-- Main -->
     <div v-else>
-      <!-- Organization Header -->
-      <div v-if="organization" class="bg-white dark:bg-gray-800 rounded-lg shadow-md mb-8 overflow-hidden">
-        <div class="h-3 bg-secondary"></div>
-        <div class="p-8">
-          <div class="flex items-start justify-between">
-            <div class="flex items-center space-x-6">
-              <div class="flex-shrink-0">
-                <img 
-                  :src="organization.organizations.logo || DEFAULT_ORGANIZATION_LOGO" 
-                  :alt="`${organization.organizations.name} logo`"
-                  class="w-20 h-20 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600"
-                  @error="handleImageError"
-                />
-              </div>
-              
-              <div class="flex-1">
-                <div class="flex items-center space-x-3 mb-2">
-                  <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-                    {{ organization.organizations.name }}
-                  </h1>
-                  <UBadge v-if="organization.organizations.isActiveOrg" color="success" variant="subtle">
-                    Active
-                  </UBadge>
-                </div>
-                <p v-if="organization.organizations.description" class="text-gray-600 dark:text-gray-300 text-lg mb-4">
-                  {{ organization.organizations.description }}
-                </p>
-                <div class="flex items-center space-x-6 text-sm text-gray-500 dark:text-gray-400">
-                  <span class="flex items-center space-x-1">
-                    <UIcon name="i-heroicons-calendar" class="w-4 h-4" />
-                    <span>Created {{ formatDate(organization.organizations.createdAt) }}</span>
-                  </span>
-                  <span class="flex items-center space-x-1">
-                    <UIcon name="i-heroicons-identification" class="w-4 h-4" />
-                    <span>Organization ID: {{ organization.organizations.id }}</span>
-                  </span>
-                </div>
-              </div>
-            </div>
+      <!-- Sheet head: the organization as a strip of facts, not a hero card -->
+      <header v-if="organization" class="border-b border-stock-400 pb-6 mb-8">
+        <div class="flex items-start gap-5">
+          <img
+            v-if="organization.organizations.logo"
+            :src="organization.organizations.logo"
+            :alt="`${organization.organizations.name} logo`"
+            class="w-14 h-14 object-cover border border-stock-400 shrink-0"
+            @error="hideBrokenLogo"
+          >
+          <div class="min-w-0">
+            <h1 class="text-3xl font-semibold text-stock-950">
+              {{ organization.organizations.name }}
+            </h1>
+            <p v-if="organization.organizations.description" class="text-stock-700 mt-2 max-w-3xl">
+              {{ organization.organizations.description }}
+            </p>
           </div>
         </div>
-      </div>      <!-- Dynamic Section Content -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md">
-        <div class="p-8">
 
-          <!-- Overview Section (Default) -->
-          <OrganizationSectionsOverviewSection 
-            v-if="activeSection === 'overview'"
-            :organization-id="organizationId"
-          />
-
-          <!-- Projects Section -->
-          <OrganizationSectionsProjectsSection 
-            v-else-if="activeSection === 'projects'"
-            :organization-id="organizationId"
-            @refresh="() => {}"
-          />
-
-          <!-- Users Section -->
-          <OrganizationSectionsUsersSection 
-            v-else-if="activeSection === 'users'"
-            :organization-id="organizationId"
-          />
-
-          <!-- Roles Section -->
-          <OrganizationSectionsRolesSection 
-            v-else-if="activeSection === 'roles'"
-            :organization-id="organizationId"
-          />          <!-- Settings Section -->
-          <OrganizationSectionsSettingsSection 
-            v-else-if="activeSection === 'settings'"
-            :organization="organization"
-            @refresh="refreshData"
-          />
-
-          <!-- Fallback Debug -->
-          <div v-else class="text-center py-8">
-            <p class="text-gray-500">Unknown section: {{ activeSection }}</p>
+        <dl class="docket flex-wrap gap-x-8 gap-y-2 py-3 mt-5 furniture border-b-0">
+          <div class="docket-field">
+            <dt>Created</dt>
+            <dd>{{ formatDate(organization.organizations.createdAt) }}</dd>
           </div>
-        </div>
+          <div class="docket-field">
+            <dt>ID</dt>
+            <dd>{{ organization.organizations.id }}</dd>
+          </div>
+          <div class="docket-field">
+            <dt>Status</dt>
+            <dd>{{ organization.organizations.isActiveOrg ? 'Active' : 'Inactive' }}</dd>
+          </div>
+        </dl>
+      </header>
+
+      <OrganizationSectionsOverviewSection
+        v-if="activeSection === 'overview'"
+        :organization-id="organizationId"
+      />
+
+      <OrganizationSectionsProjectsSection
+        v-else-if="activeSection === 'projects'"
+        :organization-id="organizationId"
+      />
+
+      <OrganizationSectionsUsersSection
+        v-else-if="activeSection === 'users'"
+        :organization-id="organizationId"
+      />
+
+      <OrganizationSectionsRolesSection
+        v-else-if="activeSection === 'roles'"
+        :organization-id="organizationId"
+      />
+
+      <OrganizationSectionsModelsSection
+        v-else-if="activeSection === 'models'"
+        :organization-id="organizationId"
+      />
+
+      <OrganizationSectionsSettingsSection
+        v-else-if="activeSection === 'settings'"
+        :organization="organization"
+        @refresh="refreshData"
+      />
+
+      <div v-else class="border border-stock-400 p-8 max-w-2xl">
+        <h2 class="text-lg font-semibold text-stock-950">There is no "{{ activeSection }}" section</h2>
+        <p class="text-stock-700 mt-2">
+          The address asks for a section this organization does not have. Pick one from the
+          list on the left, or go back to the overview.
+        </p>
+        <NuxtLink
+          :to="{ query: { section: 'overview' } }"
+          class="ink-button ink-button--outline mt-5"
+        >
+          Overview
+        </NuxtLink>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
-
 interface Organization {
   organizations: {
     id: number
@@ -126,116 +126,110 @@ interface Organization {
   }
 }
 
-// Get route parameters
 const route = useRoute()
+
 const organizationId = computed(() => {
   const id = route.params.id
   return typeof id === 'string' ? id : id[0]
 })
 
-// Auth composable
 const { isAuthenticated } = useAuth()
 
-// Use the global state for section management (shared with layout)
-const activeSection = useState('currentSection', () => {
-  // Check if there's a section query parameter
-  const sectionFromQuery = route.query.section as string
-  return sectionFromQuery || 'overview'
-})
+/**
+ * The open section lives in the address, so Back leaves the section rather
+ * than the organization, a link to Settings opens Settings, and moving to
+ * another organization starts at its overview instead of inheriting whatever
+ * was last open somewhere else.
+ */
+const activeSection = computed(() => (route.query.section as string) || 'overview')
 
-// Reactive state
 const organization = ref<Organization | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Token for API requests
+// Read by the sidebar, so it can name the organization being edited.
+const currentOrganizationName = useState<string | null>('currentOrganizationName', () => null)
+
 const token = useCookie('auth_token')
 
-// Fetch organization details
 const fetchOrganization = async () => {
   try {
-    const response = await fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${organizationId.value}`, {
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${organizationId.value}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token.value}`,
+          'Content-Type': 'application/json'
+        }
       }
-    })
+    )
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch organization: ${response.statusText}`)
+      if (response.status === 401) throw new Error('Your session has expired. Sign in again.')
+      if (response.status === 403) throw new Error('You are not a member of this organization.')
+      if (response.status === 404) throw new Error('No organization with this address exists.')
+      throw new Error(`The server answered ${response.status}.`)
     }
 
     const data = await response.json()
-    
+
     if (data.data && data.data.length > 0) {
       organization.value = data.data[0]
+      currentOrganizationName.value = organization.value?.organizations?.name ?? null
     } else {
-      throw new Error('Organization not found')
+      throw new Error('No organization with this address exists, or you are not a member of it.')
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load organization'
-    console.error('Error fetching organization:', err)
+    error.value = err instanceof Error ? err.message : 'The organization could not be loaded.'
+    currentOrganizationName.value = null
   } finally {
     loading.value = false
   }
 }
 
-// Refresh all data
 const refreshData = async () => {
   loading.value = true
   error.value = null
-  
   await fetchOrganization()
 }
 
-// Utility functions
 const formatDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+  if (!timestamp) return 'Unknown'
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   })
 }
 
-const handleImageError = (event: Event) => {
+const hideBrokenLogo = (event: Event) => {
   const target = event.target as HTMLImageElement
-  if (target) {
-    // Set a simple data URI for a gray circle as fallback
-    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iODAiIHZpZXdCb3g9IjAgMCA4MCA4MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iNDAiIGN5PSI0MCIgcj0iNDAiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIyMCIgeT0iMjAiPgo8cGF0aCBkPSJNMjAgM0MxMC44IDMgMy4zIDEwLjggMy4zIDIwUzEwLjggMzcgMjAgMzdTMzYuNyAyOS4yIDM2LjcgMjBTMjkuMiAzIDIwIDNaTTIwIDguM0MyMi43NyA4LjMgMjUgMTAuNTcgMjUgMTMuM1MyMi43NyAxOC4zIDIwIDE4LjNTMTUgMTYuMDcgMTUgMTMuM1MxNy4yMyA4LjMgMjAgOC4zWk0yMCAzMi4yQzE1Ljg1IDMyLjIgMTIuMTcgMjkuODcgMTAgMjYuM0MxMC4wNSAyMy4zMiAxNi42OCAyMS41IDIwIDIxLjVTMjkuOTUgMjMuMzIgMzAgMjYuM0MyNy44MyAyOS44NyAyNC4xNSAzMi4yIDIwIDMyLjJaIiBmaWxsPSIjOUNBM0FGIi8+Cjwvc3ZnPgo8L3N2Zz4='
-  }
+  if (target) target.style.display = 'none'
 }
 
-// Middleware to check authentication
 definePageMeta({
   middleware: 'auth',
   layout: 'organization'
 })
 
-// Initialize data on mount
 onMounted(async () => {
   if (!isAuthenticated.value) {
     await navigateTo('/login')
     return
   }
-  
   await refreshData()
 })
 
-// SEO
-useSeoMeta({
-  title: () => organization.value ? `${organization.value.organizations.name} - Organization Details` : 'Organization Details',
-  description: () => organization.value?.organizations.description || 'View organization details and projects'
+onUnmounted(() => {
+  currentOrganizationName.value = null
 })
 
+watch(organizationId, refreshData)
 
+useSeoMeta({
+  title: () => organization.value
+    ? `${organization.value.organizations.name} — Labeloo`
+    : 'Organization — Labeloo',
+  description: () => organization.value?.organizations.description || 'Organization settings, members and projects'
+})
 </script>
-
-<style scoped>
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-</style>

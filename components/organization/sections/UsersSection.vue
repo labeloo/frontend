@@ -1,294 +1,21 @@
-<template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Users</h2>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage organization members and their access</p>
-      </div>
-      <UButton color="secondary" variant="solid" class="cursor-pointer" icon="i-heroicons-plus" @click="toggleInviteModal">
-        Invite User
-      </UButton>
-    </div>    <!-- Invite User Modal -->
-    <UModal v-model="showInviteModal">
-      <UCard>
-        <div class="p-6" @click.stop>
-          <div class="flex items-center justify-between mb-6">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              Invite Users to Organization
-            </h3>
-            <UButton 
-              color="secondary" 
-              variant="ghost" 
-              icon="i-heroicons-x-mark-20-solid" 
-              class="-my-1" 
-              @click="showInviteModal = false" 
-            />
-          </div>
-          
-          <!-- Search Users Form -->
-          <UForm :state="searchUserState" class="flex flex-col gap-4">
-            <UFormField label="Add Users to Your Organization" name="current" required>
-              <UInput 
-                v-model="searchUserState.finds" 
-                placeholder="Search User" 
-                required 
-                class="w-full"
-                @click.stop
-                @focus.stop
-              />
-            </UFormField>
-              <UTable 
-              v-if="foundUsers.length > 0" 
-              :data="foundUsers" 
-              :columns="userSearchColumns" 
-              ref="userSearchTable"
-              v-model:row-selection="rowSelection" 
-              @select="onSelectUser" 
-              @click.stop
-              :key="`table-key-${userSearchColumns.length}-${roleSelectOptions.length}-${existingUsers.length}`"
-            >
-              <!-- Role select slot -->
-              <template #role-cell="{ row }">
-                <div @click.stop class="flex items-center gap-2">
-                  <!-- Avatar preview based on selected role -->
-                  <UAvatar
-                    v-if="selectedRoles[row.original.id] && selectedRoles[row.original.id] !== null"
-                    :icon="getRoleAvatarPreview(selectedRoles[row.original.id]!).icon"
-                    :style="getRoleAvatarPreview(selectedRoles[row.original.id]!).style"
-                    size="xs"
-                    :class="getRoleAvatarPreview(selectedRoles[row.original.id]!).ringClass"
-                    class="ring-1 ring-offset-1"
-                  />
-                  <USelect 
-                    :model-value="selectedRoles[row.original.id] ?? undefined"
-                    @update:model-value="(value) => selectedRoles[row.original.id] = value"
-                    :items="roleSelectOptions"
-                    placeholder="Select Role"
-                    class="min-w-[150px]"
-                    :loading="rolesLoading"
-                    :disabled="isUserInOrganization(row.original.id)"
-                    @focus="() => fetchRolesForSearch()"
-                    @click.stop
-                  />
-                </div>
-              </template>
-              <!-- Status column slot -->
-              <template #status-cell="{ row }">
-                <div @click.stop>
-                  <UBadge 
-                    v-if="isUserInOrganization(row.original.id)"
-                    color="primary"
-                    variant="subtle"
-                    size="sm"
-                  >
-                    Already in organization
-                  </UBadge>
-                  <UBadge 
-                    v-else
-                    color="secondary"
-                    variant="subtle"
-                    size="sm"
-                  >
-                    Available
-                  </UBadge>
-                </div>
-              </template>
-            </UTable>
-              <!-- Add Users button -->
-            <UButton 
-              v-if="foundUsers.length > 0 && Object.keys(rowSelection).some(key => rowSelection[key])"
-              label="Add Users" 
-              color="secondary" 
-              size="lg"
-              class="self-end cursor-pointer mt-4"
-              icon="i-heroicons-user-plus"
-              :disabled="!allSelectedUsersHaveRoles"
-              @click.stop="addUsersToOrganization"
-            />
-            
-            <!-- Helper message when button is disabled -->
-            <div 
-              v-if="foundUsers.length > 0 && Object.keys(rowSelection).some(key => rowSelection[key]) && !allSelectedUsersHaveRoles"
-              class="text-sm text-amber-600 mt-2 text-right"
-            >
-              Please assign roles to all selected users before adding them.
-            </div>
-          </UForm>
-        </div>
-      </UCard>
-    </UModal><!-- Search and Filters -->
-    <div class="flex flex-col sm:flex-row gap-4">
-      <div class="flex-1">
-        <UInput
-          v-model="searchQuery"
-          icon="i-heroicons-magnifying-glass"
-          placeholder="Search users..."
-          @click.stop
-          @focus.stop
-        />
-      </div>
-      <USelect
-        v-model="selectedRole"
-        :options="roleOptions"
-        placeholder="Filter by role"
-      />
-    </div><!-- Users Loading -->
-    <div v-if="loading" class="flex flex-col justify-center items-center py-12 space-y-3">
-      <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading users...</p>
-    </div>    <!-- Error State -->
-    <UAlert
-      v-else-if="error"
-      color="error"
-      variant="subtle"
-      :title="error"
-      icon="i-heroicons-exclamation-triangle"
-    />
-
-    <!-- No Users State -->
-    <div v-else-if="filteredUsers.length === 0 && !searchQuery" class="text-center py-12">
-      <div class="mx-auto max-w-md">
-        <div class="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-6">
-          <UIcon name="i-heroicons-users" class="w-12 h-12 text-gray-400" />
-        </div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Users Yet</h3>
-        <p class="text-gray-600 dark:text-gray-300 mb-6">
-          Start building your team by inviting members to this organization.
-        </p>        <UButton 
-          color="primary" 
-          size="lg"
-          icon="i-heroicons-plus"
-          @click="toggleInviteModal"
-        >
-          Invite Your First User
-        </UButton>
-      </div>
-    </div>
-
-    <!-- No Search Results -->
-    <div v-else-if="filteredUsers.length === 0 && searchQuery" class="text-center py-12">
-      <div class="mx-auto max-w-md">
-        <UIcon name="i-heroicons-magnifying-glass" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">No users found</h3>
-        <p class="text-gray-600 dark:text-gray-300">
-          Try adjusting your search terms or filters.
-        </p>
-      </div>
-    </div>    <!-- Users List -->
-    <div v-else class="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white">Organization Members</h3>
-      </div>
-      
-      <div class="divide-y divide-gray-200 dark:divide-gray-700">
-        <div 
-          v-for="user in filteredUsers" 
-          :key="user.id"
-          class="px-6 py-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-        >
-          <div class="flex items-center justify-between">
-            <div class="flex items-center space-x-4">
-              <UAvatar
-                :src="user.avatar || getUserAvatarConfig(user.role).src"
-                :alt="user.name"
-                :icon="user.avatar ? undefined : getUserAvatarConfig(user.role).icon"
-                :style="user.avatar ? {} : getUserAvatarConfig(user.role).style"
-                size="md"
-                class="ring-2 ring-offset-2 ring-offset-white dark:ring-offset-gray-800"
-                :class="user.avatar ? 'ring-gray-200 dark:ring-gray-600' : getUserAvatarConfig(user.role).ringClass"
-              />
-              <div>
-                <div class="font-medium text-gray-900 dark:text-white">{{ user.name }}</div>
-                <div class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</div>
-              </div>
-            </div>
-            
-            <div class="flex items-center space-x-4">
-              <UBadge 
-                :color="getRoleColor(user.role)" 
-                variant="subtle"
-              >
-                {{ user.role }}
-              </UBadge>
-              
-              <UBadge 
-                :color="getStatusColor(user.status)" 
-                variant="subtle"
-              >
-                {{ user.status }}
-              </UBadge>
-              
-              <span class="text-sm text-gray-600 dark:text-gray-400">
-                {{ formatLastActive(user.lastActive) }}
-              </span>
-              
-              <UDropdown :items="getUserActions(user)">
-                <UButton 
-                  color="secondary" 
-                  variant="ghost" 
-                  icon="i-heroicons-ellipsis-horizontal"
-                />
-              </UDropdown>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Users Stats -->
-    <div v-if="users.length > 0" class="grid grid-cols-1 md:grid-cols-4 gap-6 mt-8">
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-blue-500">{{ users.length }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Total Users</div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-success">{{ activeUsers }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Active Users</div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-warning">{{ pendingUsers }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Pending Invites</div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-info">{{ adminUsers }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Admins</div>
-        </div>
-      </UCard>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { h, resolveComponent } from 'vue'
-import type { TableColumn, TableRow } from '@nuxt/ui'
+/**
+ * The members of an organization.
+ *
+ * Three things were wrong here and all three were about telling the truth:
+ * the list rendered fields the API never returns (name, status, last active),
+ * the counters measured invitations that do not exist, and the row menu, the
+ * only way to remove somebody or change their role, ran console.log. The list
+ * now shows what the API actually sends, and the two management actions call
+ * the endpoints that already exist.
+ */
 
-const UCheckbox = resolveComponent('UCheckbox')
-
-interface User {
+interface Member {
   id: number
-  name: string
   email: string
-  avatar?: string
+  isActive: boolean
   role: string
-  status: 'active' | 'pending' | 'inactive'
-  lastActive: number
-  joinedAt: number
-}
-
-interface SearchUser {
-  id: number
-  email: string
+  createdAt: number
 }
 
 interface Props {
@@ -297,542 +24,427 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Reactive state for existing functionality
-const users = ref<User[]>([])
+const token = useCookie('auth_token')
+const toast = useToast()
+
+const members = ref<Member[]>([])
+const roles = ref<{ id: number; name: string }[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
+
 const searchQuery = ref('')
-const selectedRole = ref<string | null>(null)
-const showInviteModal = ref(false)
+const roleFilter = ref<string | null>(null)
 
-// New reactive state for search users functionality
-const searchUserState = reactive({
-  finds: ''
-})
-const foundUsers = ref<SearchUser[]>([])
-const rolesLoading = ref(false)
-const roles = ref<{id: number, name: string, icon?: string}[]>([])
-const selectedRoles = reactive<Record<number, number | null>>({})
-const existingUsers = ref<number[]>([])
-const rowSelection = ref<Record<string, boolean>>({})
-const userSearchColumns = ref<TableColumn<SearchUser>[]>([])
+const showAddModal = ref(false)
 
-// Refs
-const searchUsersRef = ref()
-const userSearchTable = ref()
+const memberToRemove = ref<Member | null>(null)
+const removing = ref(false)
 
-// Token for API requests
-const token = useCookie('auth_token')
+const memberToRerole = ref<Member | null>(null)
+const newRoleId = ref<number | null>(null)
+const reroling = ref(false)
 
-// Role options for filter
-const roleOptions = [
-  { label: 'All Roles', value: null },
-  { label: 'Admin', value: 'admin' },
-  { label: 'Manager', value: 'manager' },
-  { label: 'Member', value: 'member' },
-  { label: 'Viewer', value: 'viewer' }
-]
+const roleFilterItems = computed(() => [
+  { label: 'All roles', value: null },
+  ...Array.from(new Set(members.value.map(m => m.role).filter(Boolean)))
+    .sort()
+    .map(name => ({ label: name, value: name }))
+])
 
-// Computed properties
-const filteredUsers = computed(() => {
-  let filtered = users.value
+const roleItems = computed(() => roles.value.map(r => ({ label: r.name, value: r.id })))
 
-  // Filter by search query (name or email)
-  if (searchQuery.value && searchQuery.value.trim()) {
-    const query = searchQuery.value.toLowerCase().trim()
-    filtered = filtered.filter(user => {
-      // Safely check if name and email exist before calling toLowerCase
-      const nameMatch = user.name ? user.name.toLowerCase().includes(query) : false
-      const emailMatch = user.email ? user.email.toLowerCase().includes(query) : false
-      return nameMatch || emailMatch
-    })
-  }
+const filteredMembers = computed(() => {
+  let filtered = members.value
 
-  // Filter by selected role
-  if (selectedRole.value) {
-    filtered = filtered.filter(user => user.role === selectedRole.value)
-  }
+  const query = searchQuery.value.trim().toLowerCase()
+  if (query) filtered = filtered.filter(m => (m.email || '').toLowerCase().includes(query))
+
+  if (roleFilter.value) filtered = filtered.filter(m => m.role === roleFilter.value)
 
   return filtered
 })
 
-const activeUsers = computed(() => 
-  users.value.filter(user => user.status === 'active').length
-)
-
-const pendingUsers = computed(() => 
-  users.value.filter(user => user.status === 'pending').length
-)
-
-const adminUsers = computed(() => 
-  users.value.filter(user => user.role === 'admin').length
-)
-
-// Search users computed properties
-const roleSelectOptions = computed(() =>
-  roles.value.map(role => ({
-    label: role.name,
-    value: role.id
-  }))
-)
-
-const allSelectedUsersHaveRoles = computed(() => {
-  const selectedRowIndices = Object.keys(rowSelection.value).filter(id => rowSelection.value[id])
-  const selectedUserIds = selectedRowIndices.map(rowIndex => {
-    const user = foundUsers.value[Number(rowIndex)]
-    return user ? user.id : null
-  }).filter((id): id is number => id !== null && !isUserInOrganization(id))
-  
-  return selectedUserIds.length > 0 && selectedUserIds.every(userId => {
-    const roleId = selectedRoles[userId]
-    return roleId !== null && roleId !== undefined
-  })
+const roleTally = computed(() => {
+  const tally = new Map<string, number>()
+  for (const m of members.value) {
+    const key = m.role || 'No role'
+    tally.set(key, (tally.get(key) ?? 0) + 1)
+  }
+  return [...tally.entries()].sort((a, b) => b[1] - a[1])
 })
 
-// Methods for existing functionality
-const fetchUsers = async () => {
+/** The API sends no display name, so the local part of the address stands in. */
+const displayName = (member: Member) => (member.email || '').split('@')[0] || `Account #${member.id}`
+
+const formatDate = (timestamp: number) => {
+  if (!timestamp) return 'Unknown'
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+}
+
+const describeError = (err: any, fallback: string) => {
+  const status = err?.status ?? err?.statusCode
+  if (status === 401) return 'Your session has expired. Sign in again and retry.'
+  if (status === 403) return 'Your role does not allow managing members here.'
+  return err?.data?.error || err?.message || fallback
+}
+
+const fetchMembers = async () => {
+  loading.value = true
+  error.value = null
   try {
-    loading.value = true
-    error.value = null
-    
-    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': String(props.organizationId)
+    const response = await $fetch<{ data: Member[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users',
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`,
+          orgId: String(props.organizationId)
+        }
       }
-    })
-    
-    // @ts-ignore - API response typing
-    users.value = response.data || []
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load users'
-    console.error('Error fetching users:', err)
+    )
+    members.value = response.data ?? []
+  } catch (err: any) {
+    error.value = describeError(err, 'The member list could not be loaded.')
   } finally {
     loading.value = false
   }
 }
 
-const toggleInviteModal = () => {
-  showInviteModal.value = !showInviteModal.value
-}
-
-// Search users methods
-const generateUserSearchColumns = (): TableColumn<SearchUser>[] => {
-  return [
-    {
-      id: 'select',
-      //@ts-ignore
-      header: ({ table }) =>
-        h(UCheckbox, {
-          modelValue: table.getIsSomePageRowsSelected()
-            ? 'indeterminate'
-            : table.getIsAllPageRowsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-            table.toggleAllPageRowsSelected(!!value),
-          'aria-label': 'Select all'
-        }),
-      //@ts-ignore
-      cell: ({ row }) =>
-        h(UCheckbox, {
-          modelValue: row.getIsSelected(),
-          'onUpdate:modelValue': (value: boolean | 'indeterminate') =>
-            row.toggleSelected(!!value),
-          'aria-label': 'Select row',
-          disabled: isUserInOrganization(row.original.id)
-        })
-    },
-    {
-      accessorKey: 'id',
-      header: 'ID'
-    },
-    {
-      accessorKey: 'email',
-      header: 'Email'
-    },
-    {
-      id: 'role',
-      header: 'Role'
-    },
-    {
-      id: 'status',
-      header: 'Status'
-    }
-  ]
-}
-
-const fetchRolesForSearch = async (forceRefresh = false) => {
-  if (!forceRefresh && (roles.value.length > 0 || rolesLoading.value)) return
-  
-  rolesLoading.value = true
-  try {        
-    const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`,
-        "orgId": String(props.organizationId)
-      }
-    })
-    //@ts-ignore
-    roles.value = res.data.map((r) => ({
-      id: r.id,
-      name: r.name,
-      icon: r.icon
-    }))
-  } catch (error) {
-    console.error('Error fetching roles:', error)
-  } finally {
-    rolesLoading.value = false
-  }
-}
-
-const fetchExistingUsers = async () => {
-  if (!props.organizationId) return
-  
-  try {        
-    const res = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': String(props.organizationId)
-      }
-    })
-    
-    //@ts-ignore
-    existingUsers.value = res.data.map(user => user.id)
-    console.log('Existing organization users:', existingUsers.value)
-  } catch (error) {
-    console.error('Error fetching existing users:', error)
-  }
-}
-
-const isUserInOrganization = (userId: number): boolean => {
-  return existingUsers.value.includes(userId)
-}
-
-const onSelectUser = (row: TableRow<SearchUser>, e?: Event) => {
-  if (isUserInOrganization(row.original.id)) {
-    console.log('Cannot select user - already in organization:', row.original.id)
-    return
-  }
-  
-  row.toggleSelected(!row.getIsSelected())
-  console.log('onSelect called for user:', row.original.id)
-}
-
-let debounceTimeout: ReturnType<typeof setTimeout>
-const debouncedUserSearch = (query: string) => {
-  clearTimeout(debounceTimeout)
-
-  debounceTimeout = setTimeout(() => {
-    if (!query) return
-
-    $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/users/search', {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        word: query
-      }
-    })
-      .then((res) => {
-        console.log('Fetched users:', res)
-        //@ts-ignore
-        foundUsers.value = res.data
-      })
-      .catch((err) => {
-        console.error('Search error:', err)
-      })
-  }, 300)
-}
-
-const addUsersToOrganization = async () => {
-  const selectedRowIndices = Object.keys(rowSelection.value).filter(id => rowSelection.value[id])
-  const selectedUserIds = selectedRowIndices.map(rowIndex => {
-    const user = foundUsers.value[Number(rowIndex)]
-    return user ? user.id : null
-  }).filter((id): id is number => id !== null && !isUserInOrganization(id))
-  
-  if (selectedUserIds.length === 0) {
-    console.warn('No users selected')
-    return
-  }
-
-  const usersToAdd = selectedUserIds.map(userId => {
-    const roleId = selectedRoles[userId]
-    
-    if (!userId || !roleId) {
-      return null
-    }
-    
-    return {
-      roleId: Number(roleId),
-      userId: Number(userId)
-    }
-  }).filter((user): user is { roleId: number; userId: number } => 
-    user !== null && user?.roleId != null && user?.userId != null
-  )
-
-  if (usersToAdd.length === 0) {
-    console.warn('No users with assigned roles')
-    return
-  }
-
+const fetchRoles = async () => {
   try {
-    const response = await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/addUser', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': String(props.organizationId)
-      },
-      body: usersToAdd
-    })
-    
-    console.log('API Response received:', response)
-    console.log('Users added successfully to API')
-
-    // Refresh the existing users list
-    await fetchExistingUsers()
-    await fetchUsers()
-    
-    // Reset selections
-    rowSelection.value = {}
-    for (const key of Object.keys(selectedRoles)) {
-      delete selectedRoles[Number(key)]
-    }
-    
-    // Close modal
-    showInviteModal.value = false
-    
-    console.log('Users added process completed')
-  } catch (error: unknown) {
-    console.error('Failed to add users:', error)
-  }
-}
-
-const handleUsersAdded = async (userDetails: { id: number; email: string; roleId: number }[]) => {
-  console.log('Users added:', userDetails)
-  showInviteModal.value = false
-  
-  // Refresh the users list
-  await fetchUsers()
-  
-  // Refresh roles in SearchUsers component if needed
-  if (searchUsersRef.value?.refreshRoles) {
-    searchUsersRef.value.refreshRoles()
-  }
-}
-
-const getUserActions = (user: User) => [
-  [{
-    label: 'View Profile',
-    icon: 'i-heroicons-user',
-    click: () => viewUser(user.id)
-  }, {
-    label: 'Edit Role',
-    icon: 'i-heroicons-pencil',
-    click: () => editUserRole(user.id)
-  }],
-  [{
-    label: 'Remove User',
-    icon: 'i-heroicons-trash',
-    click: () => removeUser(user.id)
-  }]
-]
-
-const viewUser = (userId: number) => {
-  console.log('View user:', userId)
-}
-
-const editUserRole = (userId: number) => {
-  console.log('Edit user role:', userId)
-}
-
-const removeUser = (userId: number) => {
-  console.log('Remove user:', userId)
-}
-
-const getRoleColor = (role: string): 'error' | 'primary' | 'secondary' | 'warning' | 'info' => {
-  const colors: Record<string, 'error' | 'primary' | 'secondary' | 'warning' | 'info'> = {
-    admin: 'error',
-    manager: 'warning',
-    member: 'primary',
-    viewer: 'secondary'
-  }
-  return colors[role] || 'secondary'
-}
-
-const getStatusColor = (status: string): 'success' | 'warning' | 'error' => {
-  const colors: Record<string, 'success' | 'warning' | 'error'> = {
-    active: 'success',
-    pending: 'warning',
-    inactive: 'error'
-  }
-  return colors[status] || 'warning'
-}
-
-const formatLastActive = (timestamp: number) => {
-  if (timestamp === 0) return 'Never'
-  
-  const now = Date.now() / 1000
-  const diff = now - timestamp
-  
-  if (diff < 3600) {
-    const minutes = Math.floor(diff / 60)
-    return `${minutes}m ago`
-  }
-  
-  if (diff < 86400) {
-    const hours = Math.floor(diff / 3600)
-    return `${hours}h ago`
-  }
-  
-  const days = Math.floor(diff / 86400)
-  return `${days}d ago`
-}
-
-// Avatar configuration based on user role
-const getUserAvatarConfig = (role: string) => {
-  const configs = {
-    admin: {
-      icon: 'i-heroicons-shield-check-solid',
-      style: { 
-        backgroundColor: '#dc2626',
-        color: 'white'
-      },
-      ringClass: 'ring-red-500',
-      src: undefined
-    },
-    manager: {
-      icon: 'i-heroicons-briefcase-solid',
-      style: { 
-        backgroundColor: '#f59e0b',
-        color: 'white'
-      },
-      ringClass: 'ring-amber-500',
-      src: undefined
-    },
-    member: {
-      icon: 'i-heroicons-user-solid',
-      style: { 
-        backgroundColor: '#3b82f6',
-        color: 'white'
-      },
-      ringClass: 'ring-blue-500',
-      src: undefined
-    },
-    viewer: {
-      icon: 'i-heroicons-eye-solid',
-      style: { 
-        backgroundColor: '#6b7280',
-        color: 'white'
-      },
-      ringClass: 'ring-gray-500',
-      src: undefined
-    }
-  }
-  
-  return configs[role as keyof typeof configs] || configs.member
-}
-
-// Get role avatar preview by role ID for invite modal
-const getRoleAvatarPreview = (roleId: number) => {
-  const role = roles.value.find(r => r.id === roleId)
-  if (!role) {
-    return {
-      icon: 'i-heroicons-user-solid',
-      style: { backgroundColor: '#6b7280', color: 'white' },
-      ringClass: 'ring-gray-500'
-    }
-  }
-  
-  // Use the role's custom icon if available, otherwise fall back to role-name-based icons
-  const roleIcon = role.icon || getUserAvatarConfig(role.name.toLowerCase()).icon
-  const roleColor = getRoleColor(role.name.toLowerCase())
-  
-  return {
-    icon: roleIcon,
-    style: { 
-      backgroundColor: getRoleBackgroundColor(roleColor), 
-      color: 'white' 
-    },
-    ringClass: `ring-${getRoleColorName(roleColor)}-500`
-  }
-}
-
-// Helper function to get background color based on role color
-const getRoleBackgroundColor = (roleColor: string) => {
-  const colorMap: Record<string, string> = {
-    'error': '#dc2626',
-    'warning': '#f59e0b', 
-    'primary': '#3b82f6',
-    'secondary': '#6b7280',
-    'info': '#3b82f6'
-  }
-  return colorMap[roleColor] || '#6b7280'
-}
-
-// Helper function to get color name for ring classes
-const getRoleColorName = (roleColor: string) => {
-  const colorMap: Record<string, string> = {
-    'error': 'red',
-    'warning': 'amber',
-    'primary': 'blue', 
-    'secondary': 'gray',
-    'info': 'blue'
-  }
-  return colorMap[roleColor] || 'gray'
-}
-
-// Lifecycle
-onMounted(() => {
-  fetchUsers()
-  userSearchColumns.value = generateUserSearchColumns()
-  fetchExistingUsers() // Fetch existing users when component mounts
-})
-
-// Watch for organization changes
-watch(() => props.organizationId, () => {
-  fetchUsers()
-  if (props.organizationId) {
-    fetchExistingUsers()
-  }
-})
-
-// Watch the search input field for user search
-watch(() => searchUserState.finds, (newValue) => {
-  debouncedUserSearch(newValue)
-})
-
-// Watch rowSelection changes
-watch(rowSelection, (newSelection) => {
-  console.log('Row selection changed:', newSelection)
-}, { deep: true })
-
-// Watch existing users to remove them from selection if they get added
-watch(existingUsers, (newExistingUsers) => {
-  if (newExistingUsers.length > 0) {
-    // Remove any existing users from current selections
-    const currentSelection = { ...rowSelection.value }
-    let selectionChanged = false
-    
-    Object.keys(currentSelection).forEach(rowIndex => {
-      if (currentSelection[rowIndex]) {
-        const user = foundUsers.value[Number(rowIndex)]
-        if (user && isUserInOrganization(user.id)) {
-          delete currentSelection[rowIndex]
-          selectionChanged = true
-          console.log('Removed existing user from selection:', user.id)
+    const res = await $fetch<{ data: { id: number; name: string }[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRoles/all',
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`,
+          orgId: String(props.organizationId)
         }
       }
-    })
-    
-    if (selectionChanged) {
-      rowSelection.value = currentSelection
-    }
+    )
+    roles.value = (res.data ?? []).map(r => ({ id: r.id, name: r.name }))
+  } catch {
+    roles.value = []
   }
-}, { deep: true })
+}
+
+const onMembersAdded = async () => {
+  showAddModal.value = false
+  await fetchMembers()
+}
+
+const openRerole = (member: Member) => {
+  memberToRerole.value = member
+  newRoleId.value = roles.value.find(r => r.name === member.role)?.id ?? null
+}
+
+const confirmRerole = async () => {
+  const member = memberToRerole.value
+  if (!member || newRoleId.value == null) return
+
+  reroling.value = true
+  try {
+    await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/updateRelation', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token.value}`,
+        orgId: String(props.organizationId)
+      },
+      body: { userId: member.id, newRoleId: Number(newRoleId.value) }
+    })
+
+    const roleName = roles.value.find(r => r.id === Number(newRoleId.value))?.name ?? 'the new role'
+    toast.add({
+      title: 'Role changed',
+      description: `${member.email} is now ${roleName}.`,
+      color: 'success'
+    })
+    memberToRerole.value = null
+    await fetchMembers()
+  } catch (err: any) {
+    toast.add({
+      title: 'The role was not changed',
+      description: describeError(err, `${member.email} still holds ${member.role}.`),
+      color: 'error'
+    })
+  } finally {
+    reroling.value = false
+  }
+}
+
+const confirmRemove = async () => {
+  const member = memberToRemove.value
+  if (!member) return
+
+  removing.value = true
+  try {
+    await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/removeUser', {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token.value}`,
+        orgId: String(props.organizationId)
+      },
+      body: { userId: member.id }
+    })
+
+    toast.add({
+      title: 'Member removed',
+      description: `${member.email} no longer has access to this organization.`,
+      color: 'success'
+    })
+    memberToRemove.value = null
+    await fetchMembers()
+  } catch (err: any) {
+    toast.add({
+      title: 'The member was not removed',
+      description: describeError(err, `${member.email} still has access.`),
+      color: 'error'
+    })
+  } finally {
+    removing.value = false
+  }
+}
+
+const memberActions = (member: Member) => [
+  [
+    {
+      label: 'Change role',
+      icon: 'i-lucide-replace',
+      onSelect: () => openRerole(member)
+    }
+  ],
+  [
+    {
+      label: 'Remove from organization',
+      icon: 'i-lucide-user-minus',
+      color: 'error' as const,
+      onSelect: () => { memberToRemove.value = member }
+    }
+  ]
+]
+
+onMounted(() => {
+  fetchMembers()
+  fetchRoles()
+})
+
+watch(() => props.organizationId, () => {
+  fetchMembers()
+  fetchRoles()
+})
 </script>
+
+<template>
+  <div class="space-y-8">
+    <!-- Heading -->
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-stock-400 pb-5">
+      <div>
+        <h2 class="text-2xl font-semibold text-stock-950">Members</h2>
+        <p class="text-stock-600 mt-1">Who is in this organization, and what each of them may do.</p>
+      </div>
+      <button type="button" class="ink-button" @click="showAddModal = true">
+        <UIcon name="i-lucide-user-plus" class="w-3.5 h-3.5" />
+        Add member
+      </button>
+    </header>
+
+    <!-- Fact strip -->
+    <dl v-if="members.length > 0" class="docket flex-wrap gap-x-8 gap-y-2 py-3 furniture">
+      <div class="docket-field">
+        <dt>Members</dt>
+        <dd>{{ members.length }}</dd>
+      </div>
+      <div v-for="[name, count] in roleTally" :key="name" class="docket-field">
+        <dt>{{ name }}</dt>
+        <dd>{{ count }}</dd>
+      </div>
+    </dl>
+
+    <!-- Filters -->
+    <div v-if="members.length > 0" class="flex flex-col sm:flex-row gap-3">
+      <UInput
+        v-model="searchQuery"
+        class="flex-1"
+        icon="i-lucide-search"
+        placeholder="Filter by email"
+      />
+      <USelect
+        v-model="roleFilter"
+        :items="roleFilterItems"
+        placeholder="All roles"
+        class="sm:w-56"
+      />
+    </div>
+
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center gap-3 py-12 text-stock-600">
+      <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+      <span class="furniture">Reading members</span>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="error" role="alert" class="border border-correct-500 bg-correct-100 p-5">
+      <p class="font-medium text-correct-600">The member list could not be loaded</p>
+      <p class="text-sm text-stock-800 mt-1">{{ error }}</p>
+      <button type="button" class="ink-button ink-button--outline mt-4" @click="fetchMembers">Try again</button>
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="members.length === 0" class="border border-stock-400 p-8 max-w-2xl">
+      <h3 class="text-lg font-semibold text-stock-950">Nobody here but you</h3>
+      <p class="text-stock-700 mt-2">
+        Members are added from accounts that already exist on Labeloo. There is no invitation
+        email yet, so a new labeller has to sign up first and tell you the address they used —
+        then you can find them here and give them a role.
+      </p>
+      <button type="button" class="ink-button mt-5" @click="showAddModal = true">
+        <UIcon name="i-lucide-user-plus" class="w-3.5 h-3.5" />
+        Add member
+      </button>
+    </div>
+
+    <!-- No match -->
+    <div v-else-if="filteredMembers.length === 0" class="border border-stock-400 p-8 max-w-2xl">
+      <h3 class="text-lg font-semibold text-stock-950">No member matches this filter</h3>
+      <p class="text-stock-700 mt-2">
+        {{ members.length }} {{ members.length === 1 ? 'member is' : 'members are' }} in this
+        organization. Clear the filter to see all of them.
+      </p>
+      <button
+        type="button"
+        class="ink-button ink-button--outline mt-5"
+        @click="searchQuery = ''; roleFilter = null"
+      >
+        Clear filter
+      </button>
+    </div>
+
+    <!-- List -->
+    <div v-else class="border border-stock-400">
+      <ul class="divide-y divide-stock-400">
+        <li
+          v-for="member in filteredMembers"
+          :key="member.id"
+          class="flex flex-wrap items-center gap-4 px-5 py-4 hover:bg-stock-50"
+        >
+          <div class="flex-1 min-w-[14rem]">
+            <div class="font-medium text-stock-950">{{ displayName(member) }}</div>
+            <div class="text-sm text-stock-600">{{ member.email }}</div>
+          </div>
+
+          <dl class="flex items-center gap-6 furniture">
+            <div class="docket-field">
+              <dt>Role</dt>
+              <dd>{{ member.role || 'None' }}</dd>
+            </div>
+            <div class="docket-field hidden md:flex">
+              <dt>Joined</dt>
+              <dd>{{ formatDate(member.createdAt) }}</dd>
+            </div>
+            <div v-if="!member.isActive" class="docket-field">
+              <dt>Account</dt>
+              <dd>Disabled</dd>
+            </div>
+          </dl>
+
+          <UDropdownMenu :items="memberActions(member)">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              icon="i-lucide-ellipsis"
+              :aria-label="`Actions for ${member.email}`"
+            />
+          </UDropdownMenu>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Add member -->
+    <UModal
+      v-model:open="showAddModal"
+      title="Add member"
+      description="Attach an existing Labeloo account to this organization."
+      :ui="{ content: 'max-w-3xl' }"
+    >
+      <template #body>
+        <OrganizationSearchUsers :org-id="organizationId" @users-added="onMembersAdded" />
+      </template>
+    </UModal>
+
+    <!-- Change role -->
+    <UModal
+      :open="!!memberToRerole"
+      :title="`Change role — ${memberToRerole?.email ?? ''}`"
+      @update:open="(open) => { if (!open) memberToRerole = null }"
+    >
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-stock-700">
+            Currently <span class="text-stock-950 font-medium">{{ memberToRerole?.role || 'no role' }}</span>.
+            The new role takes effect immediately, everywhere in this organization.
+          </p>
+          <USelect v-model="newRoleId" :items="roleItems" placeholder="Choose a role" class="w-full" />
+          <p v-if="roleItems.length === 0" class="text-sm text-stock-700">
+            This organization has no roles to move them to. Create one in Roles first.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <button type="button" class="ink-button ink-button--outline" @click="memberToRerole = null">Cancel</button>
+          <button
+            type="button"
+            class="ink-button"
+            :disabled="newRoleId == null || reroling"
+            @click="confirmRerole"
+          >
+            <UIcon v-if="reroling" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+            {{ reroling ? 'Saving' : 'Change role' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Remove member -->
+    <UModal
+      :open="!!memberToRemove"
+      title="Remove member"
+      @update:open="(open) => { if (!open) memberToRemove = null }"
+    >
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-stock-950">
+            Remove <span class="font-medium">{{ memberToRemove?.email }}</span> from this organization?
+          </p>
+          <p class="text-stock-700">
+            They lose access to every project, task and annotation here immediately. Their
+            Labeloo account stays; the annotations they already made stay too. You can add
+            them back later with the same email address.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <button type="button" class="ink-button ink-button--outline" @click="memberToRemove = null">Cancel</button>
+          <button
+            type="button"
+            class="ink-button border-correct-600 bg-correct-600 hover:bg-correct-500 hover:border-correct-500"
+            :disabled="removing"
+            @click="confirmRemove"
+          >
+            <UIcon v-if="removing" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+            {{ removing ? 'Removing' : 'Remove member' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
+  </div>
+</template>

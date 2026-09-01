@@ -1,743 +1,23 @@
-<template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div>
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Organization Settings</h2>
-      <p class="text-gray-600 dark:text-gray-300 mt-1">Manage your organization preferences and configuration</p>
-    </div>
-
-    <!-- Settings Sections -->
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <!-- Settings Navigation -->
-      <div class="lg:col-span-1">
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div class="p-4">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Settings</h3>            <nav class="space-y-1">
-              <button
-                v-for="section in settingSections"
-                :key="section.key"
-                @click="section.disabled ? null : activeSection = section.key"
-                :class="[
-                  'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors relative',
-                  section.disabled 
-                    ? 'text-gray-400 dark:text-gray-600 cursor-not-allowed bg-gray-50 dark:bg-gray-700/50' 
-                    : activeSection === section.key
-                      ? 'bg-primary/10 text-secondary border-secondary dark:border-secondary/50 border-l-4'
-                      : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                ]"
-                :disabled="section.disabled"
-              >
-                <UIcon :name="section.icon" class="w-4 h-4 mr-3" />
-                {{ section.label }}
-                <UIcon 
-                  v-if="section.disabled" 
-                  name="i-heroicons-lock-closed" 
-                  class="w-3 h-3 ml-auto text-gray-400" 
-                />
-                <!-- Unsaved changes indicator -->
-                <div 
-                  v-if="section.key === 'general' && hasUnsavedChanges" 
-                  class="w-2 h-2 bg-orange-500 rounded-full ml-auto"
-                  title="Unsaved changes"
-                ></div>
-              </button>
-            </nav>
-          </div>
-        </div>
-      </div>
-
-      <!-- Settings Content -->
-      <div class="lg:col-span-2">        <!-- General Settings -->
-        <div v-if="activeSection === 'general'" class="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div class="p-6">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">General Information</h3>
-            
-            <!-- Loading State -->
-            <div v-if="!props.organization" class="flex justify-center items-center py-12">
-              <USpinner size="lg" />
-              <span class="ml-3 text-gray-600 dark:text-gray-300">Loading organization data...</span>
-            </div>
-            
-            <!-- Form -->
-            <form v-else @submit.prevent="saveGeneralSettings" class="space-y-8">
-              <!-- Organization Logo -->
-              <UFormGroup>
-                <template #label>
-                  <div class="flex items-center space-x-2 mb-3">
-                    <UIcon name="i-heroicons-photo" class="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                    <span class="text-base font-semibold text-gray-900 dark:text-white">Organization Logo</span>
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Optional</span>
-                  </div>
-                  <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Upload a visual representation of your organization for branding purposes</p>
-                </template>
-                <div class="flex items-center space-x-4">
-                  <div class="flex-shrink-0">
-                    <img 
-                      v-if="formData.logo" 
-                      :src="formData.logo" 
-                      alt="Organization logo"
-                      class="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-600"
-                    />
-                    <div v-else class="w-16 h-16 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center border border-gray-200 dark:border-gray-600">
-                      <UIcon name="i-heroicons-building-office" class="w-8 h-8 text-gray-400" />
-                    </div>
-                  </div>
-                  <div>
-                    <!-- TODO: Implement logo upload functionality -->
-                    <UButton color="secondary" variant="outline" size="sm" disabled>
-                      <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4 mr-2" />
-                      Upload Logo
-                    </UButton>
-                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">JPG, PNG up to 2MB (Upload coming soon)</p>
-                  </div>
-                </div>
-              </UFormGroup>
-
-              <!-- Organization Name -->
-              <UFormGroup class="space-y-4">
-                <template #label>
-                  <div class="flex items-center space-x-3 mb-2">
-                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                      <UIcon name="i-heroicons-building-office-2" class="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <div class="flex items-center space-x-2">
-                        <span class="text-base font-semibold text-gray-900 dark:text-white">Organization Name</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300">Required</span>
-                      </div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">The public display name for your organization</p>
-                    </div>
-                  </div>
-                </template>
-                
-                <!-- Clear Input Label -->
-                <div class="mb-4 mt-6">
-                  <label for="organization-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2 ">
-                    Organization Name
-                  </label>
-                </div>
-                
-                <div class="relative">
-                  <UInput 
-                    id="organization-name"
-                    v-model="formData.name" 
-                    placeholder="e.g., Acme Corporation, Tech Innovations Inc."
-                    size="xl"
-                    :color="formData.name.trim().length === 0 ? 'error' : 'primary'"
-                    class="text-lg font-medium shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
-                    :aria-label="'Organization name input - currently: ' + (formData.name || 'empty')"
-                  />
-                  <div v-if="formData.name.trim().length > 0" class="absolute inset-y-0 right-0 flex items-center pr-4">
-                    <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-500" />
-                  </div>
-                </div>
-                <template #help>
-                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg" :class="[
-                    formData.name.trim().length === 0 ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' : 'bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800'
-                  ]">
-                    <UIcon 
-                      :name="formData.name.trim().length === 0 ? 'i-heroicons-exclamation-triangle' : 'i-heroicons-information-circle'" 
-                      :class="[
-                        'w-5 h-5 mt-0.5 flex-shrink-0',
-                        formData.name.trim().length === 0 ? 'text-red-500' : 'text-blue-500'
-                      ]"
-                    />
-                    <div>
-                      <p 
-                        :class="[
-                          'text-sm font-medium',
-                          formData.name.trim().length === 0 ? 'text-red-800 dark:text-red-200' : 'text-blue-800 dark:text-blue-200'
-                        ]"
-                      >
-                        {{ formData.name.trim().length === 0 ? 'Organization name is required' : 'Perfect! This name looks great' }}
-                      </p>
-                      <p 
-                        :class="[
-                          'text-xs mt-1',
-                          formData.name.trim().length === 0 ? 'text-red-700 dark:text-red-300' : 'text-blue-700 dark:text-blue-300'
-                        ]"
-                      >
-                        {{ formData.name.trim().length === 0 ? 'Please enter a name for your organization to continue.' : 'This name will appear in invitations, project headers, and throughout the platform.' }}
-                      </p>
-                    </div>
-                  </div>
-                </template>
-              </UFormGroup>
-
-              <!-- Description -->
-              <UFormGroup class="space-y-4">
-                <template #label>
-                  <div class="flex items-center space-x-3 mb-2">
-                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-                      <UIcon name="i-heroicons-document-text" class="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                    </div>
-                    <div>
-                      <div class="flex items-center space-x-2">
-                        <span class="text-base font-semibold text-gray-900 dark:text-white">Description</span>
-                        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-300">Optional</span>
-                      </div>
-                      <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Tell people what your organization is all about</p>
-                    </div>
-                  </div>
-                </template>
-                
-                <!-- Clear Input Label -->
-                <div class="mb-4 mt-6">
-                  <label for="organization-description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Organization Description
-                  </label>
-                </div>
-                
-                <div class="relative w-full">
-                  <UTextarea 
-                    id="organization-description"
-                    v-model="formData.description" 
-                    placeholder="Share your organization's mission, values, or what makes it unique. This helps team members understand your purpose and attracts the right collaborators..."
-                    :rows="5"
-                    maxlength="500"
-                    size="xl"
-                    class="w-full text-base leading-relaxed shadow-sm transition-all duration-200 focus:shadow-md hover:shadow-sm resize-none rounded-xl px-4 py-4 bg-white dark:bg-gray-800 ring-1 ring-gray-300 dark:ring-gray-600 focus:ring-2 focus:ring-purple-500 dark:focus:ring-purple-400"
-                    style="resize: none !important;"
-                    :aria-label="'Organization description input - ' + (formData.description.length > 0 ? formData.description.length + ' characters entered' : 'empty')"
-                  />
-                  <div class="absolute bottom-3 right-3">
-                    <span 
-                      :class="[
-                        'text-xs font-medium tabular-nums px-2 py-1 rounded-md',
-                        formData.description.length > 450 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300' :
-                        formData.description.length > 400 ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300' :
-                        'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                      ]"
-                    >
-                      {{ formData.description.length }}/500
-                    </span>
-                  </div>
-                </div>
-                <template #help>
-                  <div class="flex items-start space-x-3 mt-3 p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800">
-                    <UIcon name="i-heroicons-light-bulb" class="w-5 h-5 text-purple-500 mt-0.5 flex-shrink-0" />
-                    <div>
-                      <p class="text-sm font-medium text-purple-800 dark:text-purple-200">
-                        {{ formData.description.length === 0 ? 'Pro tip: Add a description to make your organization more discoverable' : 'Great! Your description helps others understand your organization' }}
-                      </p>
-                      <p class="text-xs text-purple-700 dark:text-purple-300 mt-1">
-                        {{ formData.description.length === 0 ? 'A good description includes your mission, industry, or what makes your organization special.' : 'This description will be visible to team members and in organization directories.' }}
-                      </p>
-                    </div>
-                  </div>
-                </template>
-              </UFormGroup>              <!-- Action Buttons -->
-              <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                  <!-- Reset Button -->
-                  <div class="flex items-center">
-                    <UButton 
-                      v-if="hasUnsavedChanges"
-                      color="secondary" 
-                      variant="ghost" 
-                      size="md"
-                      @click="resetForm"
-                      :disabled="saving"
-                      class="flex items-center"
-                    >
-                      <UIcon name="i-heroicons-arrow-path" class="w-4 h-4 mr-2" />
-                      Reset Changes
-                    </UButton>
-                  </div>
-                  
-                  <!-- Save Button -->
-                  <div class="flex items-center">
-                    <UButton 
-                      type="submit" 
-                      :color="saved ? 'success' : hasUnsavedChanges ? 'primary' : 'secondary'" 
-                      :variant="hasUnsavedChanges ? 'solid' : 'outline'"
-                      size="lg"
-                      :loading="saving"
-                      :disabled="saving || !isGeneralFormValid"
-                      class="min-w-[140px] justify-center"
-                    >
-                      <UIcon v-if="saved" name="i-heroicons-check" class="w-5 h-5 mr-2" />
-                      <UIcon v-else-if="hasUnsavedChanges" name="i-heroicons-pencil" class="w-5 h-5 mr-2" />
-                      <UIcon v-else name="i-heroicons-document-check" class="w-5 h-5 mr-2" />
-                      <span class="font-medium">
-                        {{ saved ? 'Saved!' : saving ? 'Saving...' : hasUnsavedChanges ? 'Save Changes' : 'No Changes' }}
-                      </span>
-                    </UButton>
-                  </div>
-                </div>
-                
-                <!-- Success/Info Messages -->
-                <div v-if="hasUnsavedChanges || saved" class="mt-4 p-4 rounded-lg" :class="[
-                  saved ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' :
-                  hasUnsavedChanges ? 'bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800' :
-                  'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-                ]">
-                  <div class="flex items-center space-x-3">
-                    <UIcon 
-                      :name="saved ? 'i-heroicons-check-circle' : 'i-heroicons-exclamation-triangle'" 
-                      :class="[
-                        'w-5 h-5',
-                        saved ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400'
-                      ]"
-                    />
-                    <div>
-                      <p :class="[
-                        'text-sm font-medium',
-                        saved ? 'text-green-800 dark:text-green-200' : 'text-amber-800 dark:text-amber-200'
-                      ]">
-                        {{ saved ? 'Changes saved successfully!' : 'You have unsaved changes' }}
-                      </p>
-                      <p :class="[
-                        'text-xs mt-1',
-                        saved ? 'text-green-700 dark:text-green-300' : 'text-amber-700 dark:text-amber-300'
-                      ]">
-                        {{ saved ? 'Your organization settings have been updated.' : 'Don\'t forget to save your changes before leaving this page.' }}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </form>
-          </div>
-        </div>        <!-- Security Settings -->
-        <div v-else-if="activeSection === 'security'" class="bg-white dark:bg-gray-800 rounded-lg shadow relative">
-          <!-- Disabled Overlay -->
-          <div class="absolute inset-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
-            <div class="text-center">
-              <UIcon name="i-heroicons-lock-closed" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h4 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">Coming Soon</h4>
-              <p class="text-sm text-gray-500 dark:text-gray-500">Security features will be available in a future update</p>
-            </div>
-          </div>
-          
-          <div class="p-6 pointer-events-none">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Security & Access</h3>
-            
-            <div class="space-y-6">
-              <!-- Two-Factor Authentication -->
-              <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">Two-Factor Authentication</h4>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Require 2FA for all organization members</p>
-                </div>
-                <UToggle v-model="settings.require2FA" />
-              </div>
-
-              <!-- SSO -->
-              <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                <div>
-                  <h4 class="text-sm font-medium text-gray-900 dark:text-white">Single Sign-On (SSO)</h4>
-                  <p class="text-sm text-gray-500 dark:text-gray-400">Enable SSO for organization login</p>
-                </div>
-                <UToggle v-model="settings.enableSSO" />
-              </div>
-
-              <!-- Session Timeout -->
-              <UFormGroup label="Session Timeout">
-                <USelect 
-                  v-model="settings.sessionTimeout" 
-                  :options="sessionTimeoutOptions"
-                />
-              </UFormGroup>
-
-              <!-- IP Whitelist -->
-              <UFormGroup label="IP Whitelist">
-                <UTextarea 
-                  v-model="settings.ipWhitelist" 
-                  placeholder="Enter IP addresses (one per line)"
-                  :rows="3"
-                />
-                <template #help>
-                  <span class="text-xs">Leave empty to allow access from any IP address</span>
-                </template>
-              </UFormGroup>
-
-              <div class="flex justify-end">
-                <UButton color="primary" @click="saveSecuritySettings" :loading="saving">
-                  Save Security Settings
-                </UButton>
-              </div>
-            </div>
-          </div>
-        </div>        <!-- Notifications Settings -->
-        <div v-else-if="activeSection === 'notifications'" class="bg-white dark:bg-gray-800 rounded-lg shadow relative">
-          <!-- Disabled Overlay -->
-          <div class="absolute inset-0 bg-gray-50/80 dark:bg-gray-900/80 backdrop-blur-sm rounded-lg z-10 flex items-center justify-center">
-            <div class="text-center">
-              <UIcon name="i-heroicons-bell-slash" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-              <h4 class="text-lg font-medium text-gray-600 dark:text-gray-400 mb-2">Coming Soon</h4>
-              <p class="text-sm text-gray-500 dark:text-gray-500">Notification features will be available in a future update</p>
-            </div>
-          </div>
-          
-          <div class="p-6 pointer-events-none">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Notification Preferences</h3>
-            
-            <div class="space-y-6">
-              <!-- Email Notifications -->
-              <div>
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Email Notifications</h4>
-                <div class="space-y-3">
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm text-gray-900 dark:text-white">New member joins</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Get notified when someone joins the organization</p>
-                    </div>
-                    <UToggle v-model="settings.notifications.newMember" />
-                  </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm text-gray-900 dark:text-white">Project updates</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Get notified about project changes</p>
-                    </div>
-                    <UToggle v-model="settings.notifications.projectUpdates" />
-                  </div>
-                  
-                  <div class="flex items-center justify-between">
-                    <div>
-                      <p class="text-sm text-gray-900 dark:text-white">Security alerts</p>
-                      <p class="text-xs text-gray-500 dark:text-gray-400">Get notified about security events</p>
-                    </div>
-                    <UToggle v-model="settings.notifications.securityAlerts" />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Slack Integration -->
-              <div class="border-t border-gray-200 dark:border-gray-600 pt-6">
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-4">Slack Integration</h4>
-                <div class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-600 rounded-lg">
-                  <div>
-                    <p class="text-sm text-gray-900 dark:text-white">Connect Slack workspace</p>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">Send notifications to your Slack channels</p>
-                  </div>
-                  <UButton color="secondary" variant="outline" size="sm">
-                    <UIcon name="i-simple-icons-slack" class="w-4 h-4 mr-2" />
-                    Connect
-                  </UButton>
-                </div>
-              </div>
-
-              <div class="flex justify-end">
-                <UButton color="primary" @click="saveNotificationSettings" :loading="saving">
-                  Save Notification Settings
-                </UButton>
-              </div>
-            </div>
-          </div>        </div>
-
-        <!-- Backend Connections -->
-        <div v-else-if="activeSection === 'backend'" class="bg-white dark:bg-gray-800 rounded-lg shadow">
-          <div class="p-6">
-            <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">Backend Connections</h3>
-            
-            <!-- Model Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-               <UModal 
-                 v-for="type in backendTypes"
-                 :key="type.id"
-                 v-model="modalStates[type.id]"
-               >
-                 <div 
-                   class="border rounded-lg p-4 cursor-pointer hover:border-primary-500 transition-colors relative group"
-                   :class="getConnection(type.id) ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-900/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'"
-                   @click="openModelConfig(type.id)"
-                 >
-                    <div class="flex items-start justify-between">
-                      <div class="flex items-center space-x-3">
-                        <div class="p-2 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-                           <UIcon name="i-heroicons-cpu-chip" class="w-6 h-6 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <h4 class="font-medium text-gray-900 dark:text-white">{{ type.name }}</h4>
-                          <p class="text-xs text-gray-500 dark:text-gray-400">Configure {{ type.name }} connection</p>
-                        </div>
-                      </div>
-                      <div v-if="getConnection(type.id)" class="flex items-center text-green-600 dark:text-green-400 text-xs font-medium">
-                        <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-1" />
-                        Connected
-                      </div>
-                    </div>
-                 </div>
-
-                 <template #content>
-                    <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
-                      <template #header>
-                        <div class="flex items-center justify-between">
-                          <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                            Configure {{ type.name }}
-                          </h3>
-                          <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[type.id] = false" />
-                        </div>
-                      </template>
-
-                      <div class="space-y-4">
-                          <UFormGroup label="Endpoint URL">
-                            <UInput
-                              v-model="newConnection.endpoint"
-                              placeholder="https://api.example.com"
-                            />
-                          </UFormGroup>
-
-                          <UFormGroup label="API Key">
-                            <UInput
-                              v-model="newConnection.apiKey"
-                              type="password"
-                              placeholder="sk-..."
-                              icon="i-heroicons-key"
-                            />
-                          </UFormGroup>
-                          
-                          <div v-if="testResult" class="text-sm" :class="testResult.success ? 'text-green-600' : 'text-red-600'">
-                            <div class="flex items-center">
-                              <UIcon :name="testResult.success ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'" class="w-4 h-4 mr-1" />
-                              {{ testResult.message }}
-                            </div>
-                          </div>
-                      </div>
-
-                      <template #footer>
-                        <div class="flex justify-end space-x-3">
-                          <UButton color="gray" variant="ghost" @click="modalStates[type.id] = false">Cancel</UButton>
-                          <UButton
-                            color="tertiary"
-                            variant="ghost"
-                            @click="testConnection"
-                            :loading="testingConnection"
-                            :disabled="!newConnection.endpoint"
-                          >
-                            Test Connection
-                          </UButton>
-                          <UButton
-                            color="primary"
-                            @click="saveConnection"
-                            :disabled="!connectionVerified"
-                          >
-                            {{ getConnection(type.id) ? 'Update' : 'Connect' }}
-                          </UButton>
-                        </div>
-                      </template>
-                    </UCard>
-                 </template>
-               </UModal>
-            </div>
-
-            <!-- Existing Connections List -->
-            <div class="space-y-4" v-if="backendConnections.length > 0">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white">Active Connections</h4>
-              
-              <div v-for="(conn, index) in backendConnections" :key="index" class="flex items-center justify-between p-4 border border-gray-200 dark:border-gray-700 rounded-lg">
-                <div class="flex items-center space-x-4">
-                  <div class="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                    <UIcon name="i-heroicons-server" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-                  </div>
-                  <div>
-                    <h5 class="text-sm font-medium text-gray-900 dark:text-white uppercase">{{ conn.backendTypeName }}</h5>
-                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ conn.baseUrl }}</p>
-                  </div>
-                </div>
-                
-                <div class="flex items-center space-x-3">
-                  <UToggle v-model="conn.isActive" @change="toggleConnection(conn)" />
-                  
-                  <UModal v-model="modalStates[conn.backendId]">
-                    <UButton
-                      color="gray"
-                      variant="ghost"
-                      icon="i-heroicons-pencil-square"
-                      size="sm"
-                      @click="openModelConfig(conn.backendId)"
-                    />
-                    <template #content>
-                      <UCard :ui="{ ring: '', divide: 'divide-y divide-gray-100 dark:divide-gray-800' }">
-                        <template #header>
-                          <div class="flex items-center justify-between">
-                            <h3 class="text-base font-semibold leading-6 text-gray-900 dark:text-white">
-                              Configure {{ conn.backendTypeName }}
-                            </h3>
-                            <UButton color="gray" variant="ghost" icon="i-heroicons-x-mark-20-solid" class="-my-1" @click="modalStates[conn.backendId] = false" />
-                          </div>
-                        </template>
-
-                        <div class="space-y-4">
-                            <UFormGroup label="Endpoint URL">
-                              <UInput
-                                v-model="newConnection.endpoint"
-                                placeholder="https://api.example.com"
-                              />
-                            </UFormGroup>
-
-                            <UFormGroup label="API Key">
-                              <UInput
-                                v-model="newConnection.apiKey"
-                                type="password"
-                                placeholder="sk-..."
-                                icon="i-heroicons-key"
-                              />
-                            </UFormGroup>
-                            
-                            <div v-if="testResult" class="text-sm" :class="testResult.success ? 'text-green-600' : 'text-red-600'">
-                              <div class="flex items-center">
-                                <UIcon :name="testResult.success ? 'i-heroicons-check-circle' : 'i-heroicons-x-circle'" class="w-4 h-4 mr-1" />
-                                {{ testResult.message }}
-                              </div>
-                            </div>
-                        </div>
-
-                        <template #footer>
-                          <div class="flex justify-end space-x-3">
-                            <UButton color="gray" variant="ghost" @click="modalStates[conn.backendId] = false">Cancel</UButton>
-                            <UButton
-                              color="tertiary"
-                              variant="ghost"
-                              @click="testConnection"
-                              :loading="testingConnection"
-                              :disabled="!newConnection.endpoint"
-                            >
-                              Test Connection
-                            </UButton>
-                            <UButton
-                              color="primary"
-                              @click="saveConnection"
-                              :disabled="!connectionVerified"
-                            >
-                              Update
-                            </UButton>
-                          </div>
-                        </template>
-                      </UCard>
-                    </template>
-                  </UModal>
-
-                  <UButton
-                    color="warning"
-                    variant="ghost"
-                    icon="i-heroicons-trash"
-                    size="sm"
-                    @click="removeConnection(index)"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Danger Zone -->
-        <div v-else-if="activeSection === 'danger'" class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
-          <div class="p-6">
-            <h3 class="text-lg font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
-            
-            <div class="space-y-6">              <!-- Transfer Ownership -->
-              <div class="p-4 border border-red-200 dark:border-red-800 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Transfer Ownership</h4>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Transfer this organization to another user. You will lose admin access.
-                </p>
-                <!-- Note: This section will handle the ownerID field update -->
-                <UButton color="error" variant="outline" size="sm" disabled>
-                  Transfer Organization
-                </UButton>
-                <p class="text-xs text-gray-400 mt-2">Coming soon - This will update the ownerID field</p>
-              </div><!-- Delete Organization -->
-              <div class="p-4 border border-red-200 dark:border-red-800 rounded-lg">
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Delete Organization</h4>
-                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                  Permanently delete this organization and all of its data. This action cannot be undone.
-                </p>
-                
-                <!-- Delete confirmation form -->
-                <div v-if="!showDeleteConfirm" class="flex justify-start">
-                  <UButton color="error" size="sm" @click="showDeleteConfirm = true">
-                    Delete Organization
-                  </UButton>
-                </div>
-                
-                <div v-else class="space-y-4">
-                  <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg border border-red-200 dark:border-red-800">
-                    <p class="text-sm text-red-800 dark:text-red-200 mb-3">
-                      This action cannot be undone. This will permanently delete the organization and all of its data.
-                    </p>                    <UFormGroup label="Type the organization name to confirm" class="mb-4">
-                      <UInput 
-                        v-model="deleteConfirmation" 
-                        :placeholder="`Type '${settings.name}' to confirm`"
-                        class="w-full"
-                        :color="deleteConfirmation && !isDeleteConfirmationValid ? 'error' : isDeleteConfirmationValid ? 'success' : 'primary'"
-                      />
-                      <template #help>
-                        <div class="flex items-center mt-1">
-                          <UIcon 
-                            v-if="deleteConfirmation && isDeleteConfirmationValid" 
-                            name="i-heroicons-check-circle" 
-                            class="w-4 h-4 text-green-500 mr-1" 
-                          />
-                          <UIcon 
-                            v-else-if="deleteConfirmation && !isDeleteConfirmationValid" 
-                            name="i-heroicons-x-circle" 
-                            class="w-4 h-4 text-red-500 mr-1" 
-                          />
-                          <span 
-                            :class="[
-                              'text-xs',
-                              deleteConfirmation && isDeleteConfirmationValid ? 'text-green-600 dark:text-green-400' :
-                              deleteConfirmation && !isDeleteConfirmationValid ? 'text-red-600 dark:text-red-400' :
-                              'text-gray-500 dark:text-gray-400'
-                            ]"
-                          >
-                            {{ isDeleteConfirmationValid ? 'Organization name confirmed' : 'Type the exact organization name to enable deletion' }}
-                          </span>
-                        </div>
-                      </template>
-                    </UFormGroup>
-                    
-                    <div class="flex justify-end gap-3">
-                      <UButton 
-                        color="secondary" 
-                        variant="ghost" 
-                        size="sm"
-                        @click="showDeleteConfirm = false; deleteConfirmation = ''"
-                      >
-                        Cancel
-                      </UButton>
-                      <UButton 
-                        color="error" 
-                        size="sm"
-                        :disabled="!isDeleteConfirmationValid"
-                        @click="deleteOrganization"
-                        :loading="deleting"
-                      >
-                        Delete Organization
-                      </UButton>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>        </div>
-      </div>
-    </div>
-
-
-  </div>
-</template>
-
 <script setup lang="ts">
 /**
- * Organization Settings Component
- * 
- * API Integration:
- * - PUT /api/organizations/:id - Updates organization settings
- *   Body: { name?, logo?, description?, ownerID? }
- *   Note: ownerID updates are handled in Transfer Ownership section (coming soon)
- * 
- * - DELETE /api/organizations/:id - Deletes organization
- * 
- * Features:
- * - Real-time form validation
- * - Unsaved changes detection
- * - Toast notifications for success/error feedback
- * - Auto-save detection and visual indicators
- * - Confirmation dialogs for destructive actions
+ * Organization settings.
+ *
+ * Three things were quietly wrong here.
+ *
+ * Clearing the description looked like it worked — the empty string was
+ * stripped out of the PUT body before it was sent, and the screen said
+ * "saved". It is sent now, so clearing means clearing.
+ *
+ * The SAM 2 connection could be deleted in one unconfirmed click while the
+ * switch that would have merely paused it never rendered at all, because
+ * UToggle does not exist in this version of the component library. Disabling
+ * is the near action now; removing asks first and says what stops working.
+ *
+ * The connection test forced a missing protocol to https and overwrote what
+ * the reader had typed, which made the ordinary `localhost:8000` install
+ * impossible to save. The test is advice now, not a gate, it leaves the field
+ * alone, and it says out loud that it ran from this browser rather than from
+ * the server that will actually call SAM 2.
  */
 
 interface Organization {
@@ -781,107 +61,31 @@ interface BackendConnection {
   isActive: boolean
   createdAt: number
   updatedAt: number
-  // UI specific fields
-  status?: 'verified' | 'unverified'
 }
 
 const props = defineProps<Props>()
-const emit = defineEmits<{
-  refresh: []
-}>()
+const emit = defineEmits<{ refresh: [] }>()
 
-// Reactive state
-const activeSection = ref('general')
+const toast = useToast()
+const token = useCookie('auth_token')
+
+const activeSection = ref<'general' | 'connections' | 'danger'>('general')
+
+const settingSections = [
+  { key: 'general' as const, label: 'General', icon: 'i-lucide-building-2' },
+  { key: 'connections' as const, label: 'Connections', icon: 'i-lucide-plug' },
+  { key: 'danger' as const, label: 'Danger zone', icon: 'i-lucide-triangle-alert' }
+]
+
+/* ── General ─────────────────────────────────────────────────────────────── */
+
+const formData = ref({ name: '', description: '', logo: '' })
 const saving = ref(false)
 const saved = ref(false)
-const deleting = ref(false)
-const showDeleteConfirm = ref(false)
-const deleteConfirmation = ref('')
 
-// Backend Connections State
-const backendTypes = ref<BackendType[]>([])
-const backendConnections = ref<BackendConnection[]>([])
-const newConnection = ref({
-  name: 'sam2',
-  endpoint: '',
-  apiKey: ''
-})
-const testingConnection = ref(false)
-const connectionVerified = ref(false)
-const testResult = ref<{ success: boolean; message: string } | null>(null)
-const modalStates = ref<Record<string, boolean>>({})
-const selectedModel = ref('')
+const logoUploading = ref(false)
+const logoError = ref('')
 
-onMounted(() => {
-  fetchBackendTypes()
-  fetchBackendConnections()
-})
-
-const getConnection = (name: string) => {
-  return backendConnections.value.find(c => c.backendId === name)
-}
-
-const openModelConfig = (modelName: string) => {
-  console.log('Opening config for:', modelName)
-  selectedModel.value = modelName
-  const existing = getConnection(modelName)
-  
-  newConnection.value = {
-    name: modelName,
-    endpoint: existing ? existing.baseUrl : '',
-    apiKey: existing ? existing.apiKey || '' : ''
-  }
-  
-  testResult.value = null
-  connectionVerified.value = false 
-  modalStates.value[modelName] = true
-}
-
-// Form state for editing
-const formData = ref({
-  name: '',
-  description: '',
-  logo: ''
-})
-
-// Use real organization data when available, fallback to mock data
-const settings = computed(() => {
-  if (props.organization?.organizations) {
-    const org = props.organization.organizations
-    return {
-      name: org.name,
-      description: org.description || '',
-      logo: org.logo || '',
-      require2FA: false,
-      enableSSO: false,
-      sessionTimeout: '8h',
-      ipWhitelist: '',
-      notifications: {
-        newMember: true,
-        projectUpdates: true,
-        securityAlerts: true
-      }
-    }
-  }
-  
-  // Fallback to mock data when organization is not loaded
-  return {
-    name: 'Acme Corporation',
-    description: 'A leading technology company focused on innovation and excellence.',
-    logo: '',
-    require2FA: false,
-    enableSSO: false,
-    sessionTimeout: '8h',
-    ipWhitelist: '',
-    notifications: {
-      newMember: true,
-      projectUpdates: true,
-      securityAlerts: true
-    }
-  }
-})
-
-// Watch for organization changes and update form data
 watch(() => props.organization, (newOrg) => {
   if (newOrg?.organizations) {
     const org = newOrg.organizations
@@ -893,473 +97,889 @@ watch(() => props.organization, (newOrg) => {
   }
 }, { immediate: true })
 
-// Setting sections
-const settingSections = [
-  { key: 'general', label: 'General', icon: 'i-heroicons-building-office', disabled: false },
-  { key: 'backend', label: 'Backend Connections', icon: 'i-heroicons-server', disabled: false },
-  { key: 'security', label: 'Security', icon: 'i-heroicons-shield-check', disabled: true },
-  { key: 'notifications', label: 'Notifications', icon: 'i-heroicons-bell', disabled: true },
-  { key: 'danger', label: 'Danger Zone', icon: 'i-heroicons-exclamation-triangle', disabled: false }
-]
-
-// Computed properties
-const isDeleteConfirmationValid = computed(() => {
-  return deleteConfirmation.value.trim().toLowerCase() === settings.value.name.trim().toLowerCase()
-})
-
-const isGeneralFormValid = computed(() => {
-  return formData.value.name.trim().length > 0
-})
+const isGeneralFormValid = computed(() => formData.value.name.trim().length > 0)
 
 const hasUnsavedChanges = computed(() => {
-  if (!props.organization?.organizations) return false
-  
-  const org = props.organization.organizations
+  const org = props.organization?.organizations
+  if (!org) return false
   return (
     formData.value.name !== org.name ||
     formData.value.description !== (org.description || '') ||
     formData.value.logo !== (org.logo || '')
-    // Add other fields when implemented:
-    // formData.value.website !== (org.website || '') ||
-    // formData.value.industry !== (org.industry || '') ||
-    // formData.value.companySize !== (org.companySize || '')
   )
 })
 
-// Watch for disabled section access and redirect to general
-watch(activeSection, (newSection) => {
-  const section = settingSections.find(s => s.key === newSection)
-  if (section?.disabled) {
-    activeSection.value = 'general'
+const resetForm = () => {
+  const org = props.organization?.organizations
+  if (!org) return
+  formData.value = {
+    name: org.name,
+    description: org.description || '',
+    logo: org.logo || ''
   }
+}
+
+const describeError = (err: any, fallback: string) => {
+  const status = err?.status ?? err?.statusCode
+  if (status === 401) return 'Your session has expired. Sign in again and retry.'
+  if (status === 403) return 'Your role does not allow changing this organization.'
+  return err?.data?.error || err?.message || fallback
+}
+
+const uploadLogo = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+
+  logoError.value = ''
+
+  if (!file.type.startsWith('image/')) {
+    logoError.value = 'That is not an image file. Choose a JPG or PNG.'
+    return
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    logoError.value = `That file is ${(file.size / 1024 / 1024).toFixed(1)} MB. The limit is 5 MB.`
+    return
+  }
+
+  logoUploading.value = true
+  try {
+    const arrayBuffer = await file.arrayBuffer()
+    const response = await $fetch<{ url?: string }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/bucket/uploadPicture',
+      {
+        method: 'POST',
+        headers: {
+          type: 'organization',
+          'Content-Type': file.type,
+          Authorization: `Bearer ${token.value}`
+        },
+        body: arrayBuffer
+      }
+    )
+
+    if (!response?.url) throw new Error('The upload service did not return an address for the image.')
+    formData.value.logo = response.url
+  } catch (err: any) {
+    logoError.value = describeError(err, 'The logo was not uploaded. Try again.')
+  } finally {
+    logoUploading.value = false
+    target.value = ''
+  }
+}
+
+const saveGeneralSettings = async () => {
+  const org = props.organization?.organizations
+  if (!org) return
+
+  saving.value = true
+  saved.value = false
+
+  try {
+    if (!formData.value.name.trim()) throw new Error('The organization needs a name.')
+
+    // An empty description and an empty logo are deliberate acts, so they are
+    // sent as empty strings rather than dropped from the body.
+    const response = await $fetch<any>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${org.id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token.value}`
+        },
+        body: {
+          name: formData.value.name.trim(),
+          logo: formData.value.logo,
+          description: formData.value.description.trim()
+        }
+      }
+    )
+
+    // The route answers with the updated row; trust it over the request.
+    const returned = response?.data ?? response
+    if (!returned || typeof returned !== 'object') {
+      throw new Error('The server did not confirm the change. Reload to see what was stored.')
+    }
+
+    saved.value = true
+    emit('refresh')
+
+    toast.add({
+      title: 'Settings saved',
+      description: `"${returned.name ?? formData.value.name.trim()}" has been updated.`,
+      color: 'success'
+    })
+
+    setTimeout(() => { saved.value = false }, 2500)
+  } catch (err: any) {
+    toast.add({
+      title: 'Nothing was saved',
+      description: describeError(err, 'The organization was not updated. Your edits are still on screen.'),
+      color: 'error'
+    })
+  } finally {
+    saving.value = false
+  }
+}
+
+/* ── Connections ─────────────────────────────────────────────────────────── */
+
+const backendTypes = ref<BackendType[]>([])
+const backendConnections = ref<BackendConnection[]>([])
+const connectionsLoading = ref(true)
+
+const configuring = ref<{ backendId: string; name: string; existing: BackendConnection | null } | null>(null)
+const draft = ref({ endpoint: '', apiKey: '' })
+const savingConnection = ref(false)
+
+const testingConnection = ref(false)
+const testResult = ref<{ ok: boolean; title: string; detail: string } | null>(null)
+
+// The API stores no verification state, so what a test proved is only known
+// for this session. Saying "untested" is more honest than a stale green tick.
+const reachability = ref<Record<string, 'reachable' | 'unreachable' | 'untested'>>({})
+
+const connectionToRemove = ref<BackendConnection | null>(null)
+const removingConnection = ref(false)
+
+const orgIdHeader = computed(() => props.organization?.organizations?.id?.toString() || '')
+
+const connectionFor = (backendId: string) =>
+  backendConnections.value.find(c => c.backendId === backendId)
+
+const fetchBackendTypes = async () => {
+  try {
+    const response = await $fetch<{ data: BackendType[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations/types',
+      { headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value } }
+    )
+    backendTypes.value = response.data ?? []
+  } catch {
+    backendTypes.value = []
+  }
+}
+
+const fetchBackendConnections = async () => {
+  connectionsLoading.value = true
+  try {
+    const response = await $fetch<{ data: BackendConnection[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations',
+      { headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value } }
+    )
+    backendConnections.value = response.data ?? []
+  } catch {
+    backendConnections.value = []
+  } finally {
+    connectionsLoading.value = false
+  }
+}
+
+const openConfig = (backendId: string, name: string) => {
+  const existing = connectionFor(backendId) ?? null
+  configuring.value = { backendId, name, existing }
+  draft.value = {
+    endpoint: existing?.baseUrl ?? '',
+    apiKey: existing?.apiKey ?? ''
+  }
+  testResult.value = null
+}
+
+const closeConfig = () => {
+  configuring.value = null
+  testResult.value = null
+}
+
+/** What the reader typed, tidied only of surrounding space and a trailing slash. */
+const normalisedEndpoint = computed(() => {
+  let value = draft.value.endpoint.trim()
+  while (value.endsWith('/')) value = value.slice(0, -1)
+  return value
 })
 
-// Warn user before leaving with unsaved changes
+const endpointCandidates = computed(() => {
+  const value = normalisedEndpoint.value
+  if (!value) return []
+  if (value.startsWith('http://') || value.startsWith('https://')) return [value]
+  // No protocol given: a SAM 2 service on this machine is plain http far more
+  // often than not, so try both rather than forcing https and failing.
+  return [`http://${value}`, `https://${value}`]
+})
+
+const testConnection = async () => {
+  const candidates = endpointCandidates.value
+  if (candidates.length === 0) return
+
+  testingConnection.value = true
+  testResult.value = null
+
+  let lastFailure: { title: string; detail: string } | null = null
+
+  for (const candidate of candidates) {
+    try {
+      const response = await $fetch<{ success?: boolean; name?: string }>(`${candidate}/health`, {
+        method: 'GET',
+        timeout: 5000
+      })
+
+      if (response?.success === false) throw new Error('unhealthy')
+
+      testResult.value = {
+        ok: true,
+        title: `Your browser reached ${candidate}`,
+        detail: response?.name
+          ? `The service identified itself as "${response.name}". Note this test ran from this browser — annotation calls are made by the Labeloo server, which may reach a different set of addresses.`
+          : 'Note this test ran from this browser — annotation calls are made by the Labeloo server, which may reach a different set of addresses.'
+      }
+      if (configuring.value) reachability.value[configuring.value.backendId] = 'reachable'
+      testingConnection.value = false
+      return
+    } catch (error: any) {
+      const status = error?.status ?? error?.statusCode
+      const message = String(error?.message ?? '')
+
+      if (status === 404) {
+        lastFailure = {
+          title: `${candidate} answered, but has no /health`,
+          detail: 'Something is running at that address, but it does not look like a SAM 2 service. Check the address and the port.'
+        }
+      } else if (status) {
+        lastFailure = {
+          title: `${candidate} answered ${status}`,
+          detail: 'The service is reachable but refused the health check. If it needs an API key, enter it and try again.'
+        }
+      } else if (message.includes('abort') || message.includes('timeout')) {
+        lastFailure = {
+          title: `No answer from ${candidate} within 5 seconds`,
+          detail: 'The service may be starting up, loading a model, or not running at all.'
+        }
+      } else {
+        lastFailure = {
+          title: `Your browser could not reach ${candidate}`,
+          detail: 'Either nothing is listening there, or the service is running but does not allow requests from this page (CORS). You can still save the address — the Labeloo server may be able to reach it even when this browser cannot.'
+        }
+      }
+    }
+  }
+
+  testResult.value = { ok: false, title: lastFailure!.title, detail: lastFailure!.detail }
+  if (configuring.value) reachability.value[configuring.value.backendId] = 'unreachable'
+  testingConnection.value = false
+}
+
+const saveConnection = async () => {
+  const target = configuring.value
+  if (!target || !normalisedEndpoint.value) return
+
+  const baseUrl = endpointCandidates.value[0]!
+
+  savingConnection.value = true
+  try {
+    if (target.existing) {
+      await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${target.existing.id}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value },
+        body: { baseUrl, apiKey: draft.value.apiKey, isActive: true }
+      })
+    } else {
+      await $fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value },
+        body: {
+          backendId: target.backendId,
+          baseUrl,
+          apiKey: draft.value.apiKey,
+          isActive: true
+        }
+      })
+    }
+
+    await fetchBackendConnections()
+    closeConfig()
+
+    toast.add({
+      title: `${target.name} connection saved`,
+      description: testResult.value?.ok
+        ? 'Assisted labelling is available to everyone in this organization.'
+        : 'Saved without a passing test. If the magic stick fails, come back and test the address.',
+      color: 'success'
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'The connection was not saved',
+      description: describeError(err, 'Nothing changed. The address is still on screen.'),
+      color: 'error'
+    })
+  } finally {
+    savingConnection.value = false
+  }
+}
+
+const toggleConnection = async (conn: BackendConnection, value: boolean) => {
+  const previous = conn.isActive
+  conn.isActive = value
+  try {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value },
+      body: { isActive: value }
+    })
+    toast.add({
+      title: value ? `${conn.backendTypeName} switched on` : `${conn.backendTypeName} switched off`,
+      description: value
+        ? 'The magic stick and video tracking work again.'
+        : 'The magic stick and video tracking stop for everyone here. The address and key are kept.',
+      color: value ? 'success' : 'warning'
+    })
+  } catch (err: any) {
+    conn.isActive = previous
+    toast.add({
+      title: 'The switch did not take',
+      description: describeError(err, 'The connection is unchanged.'),
+      color: 'error'
+    })
+  }
+}
+
+const confirmRemoveConnection = async () => {
+  const conn = connectionToRemove.value
+  if (!conn) return
+
+  removingConnection.value = true
+  try {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${token.value}`, orgId: orgIdHeader.value }
+    })
+    connectionToRemove.value = null
+    await fetchBackendConnections()
+    toast.add({
+      title: 'Connection removed',
+      description: 'The address and API key are gone. Assisted labelling is off until a new one is added.',
+      color: 'success'
+    })
+  } catch (err: any) {
+    toast.add({
+      title: 'The connection was not removed',
+      description: describeError(err, 'It is still in place.'),
+      color: 'error'
+    })
+  } finally {
+    removingConnection.value = false
+  }
+}
+
+/* ── Danger zone ─────────────────────────────────────────────────────────── */
+
+const showDeleteConfirm = ref(false)
+const deleteConfirmation = ref('')
+const deleting = ref(false)
+const contents = ref<{ projects: number | null; members: number | null }>({ projects: null, members: null })
+
+const organizationName = computed(() => props.organization?.organizations?.name ?? '')
+
+// Character for character: the instruction says "exact", so the check is exact.
+const isDeleteConfirmationValid = computed(() =>
+  deleteConfirmation.value.trim() === organizationName.value.trim() && organizationName.value.length > 0
+)
+
+const fetchContents = async () => {
+  if (!orgIdHeader.value) return
+  const headers = {
+    Authorization: `Bearer ${token.value}`,
+    'Content-Type': 'application/json',
+    orgId: orgIdHeader.value
+  }
+  try {
+    const projects = await $fetch<{ data: any[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects/all',
+      { headers }
+    )
+    contents.value.projects = (projects.data ?? []).filter(
+      (p: any) => String(p.organizationId) === orgIdHeader.value
+    ).length
+  } catch {
+    contents.value.projects = null
+  }
+  try {
+    const members = await $fetch<{ data: any[] }>(
+      import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users',
+      { method: 'GET', headers }
+    )
+    contents.value.members = (members.data ?? []).length
+  } catch {
+    contents.value.members = null
+  }
+}
+
+const deleteOrganization = async () => {
+  const org = props.organization?.organizations
+  if (!org) return
+
+  deleting.value = true
+  try {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${org.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token.value}`
+      }
+    })
+
+    toast.add({
+      title: `"${org.name}" deleted`,
+      description: 'The organization and everything inside it are gone.',
+      color: 'success'
+    })
+
+    showDeleteConfirm.value = false
+    deleteConfirmation.value = ''
+    await navigateTo('/homepage')
+  } catch (err: any) {
+    toast.add({
+      title: 'The organization was not deleted',
+      description: describeError(err, 'Nothing was removed.'),
+      color: 'error'
+    })
+  } finally {
+    deleting.value = false
+  }
+}
+
+/* ── Lifecycle ───────────────────────────────────────────────────────────── */
+
 onMounted(() => {
+  fetchBackendTypes()
+  fetchBackendConnections()
+  fetchContents()
+
   const handleBeforeUnload = (e: BeforeUnloadEvent) => {
     if (hasUnsavedChanges.value) {
       e.preventDefault()
       e.returnValue = ''
     }
   }
-  
   window.addEventListener('beforeunload', handleBeforeUnload)
-  
-  onUnmounted(() => {
-    window.removeEventListener('beforeunload', handleBeforeUnload)
-  })
+  onUnmounted(() => window.removeEventListener('beforeunload', handleBeforeUnload))
 })
 
-// Options
-const sessionTimeoutOptions = [
-  { label: '1 hour', value: '1h' },
-  { label: '4 hours', value: '4h' },
-  { label: '8 hours', value: '8h' },
-  { label: '24 hours', value: '24h' },
-  { label: 'Never', value: 'never' }
-]
-
-// Token for API requests
-const token = useCookie('auth_token')
-
-// Methods
-const saveGeneralSettings = async () => {
-  saving.value = true
-  saved.value = false
-  
-  try {
-    if (!props.organization?.organizations?.id) {
-      throw new Error('Organization ID not found')
-    }
-
-    // Basic validation
-    if (!formData.value.name.trim()) {
-      throw new Error('Organization name is required')
-    }    const updateData: Record<string, any> = {
-      name: formData.value.name.trim(),
-      logo: formData.value.logo || undefined,
-      description: formData.value.description.trim()
-    }
-
-    // Remove undefined values to keep the request clean
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined || updateData[key] === '') {
-        delete updateData[key]
-      }
-    })
-
-    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${props.organization.organizations.id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`
-      },
-      body: updateData
-    })
-
-    console.log('General settings saved successfully:', response)
-    
-    // Show success state
-    saved.value = true
-    
-    // Emit refresh event to update parent component
-    emit('refresh')
-      // Show success toast
-    const toast = useToast()
-    toast.add({
-      title: 'Settings saved',
-      description: 'Organization settings have been updated successfully.',
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-    
-    // Reset saved state after 2 seconds
-    setTimeout(() => {
-      saved.value = false
-    }, 2000)
-    
-  } catch (error: any) {
-    console.error('Error saving settings:', error)
-    
-    // Show error toast
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to save settings',
-      description: error.message || 'An error occurred while saving organization settings.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-  } finally {
-    saving.value = false
-  }
-}
-
-const saveSecuritySettings = async () => {
-  saving.value = true
-  try {
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    console.log('Security settings saved')
-  } catch (error) {
-    console.error('Error saving security settings:', error)
-  } finally {
-    saving.value = false
-  }
-}
-
-const saveNotificationSettings = async () => {
-  saving.value = true
-  try {
-    // Mock API call
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    console.log('Notification settings saved')
-  } catch (error) {
-    console.error('Error saving notification settings:', error)
-  } finally {
-    saving.value = false
-  }
-}
-
-const testConnection = async () => {
-  if (!newConnection.value.endpoint) return
-  
-  testingConnection.value = true
-  testResult.value = null
-  connectionVerified.value = false
-  
-  try {
-    // Ensure endpoint has protocol
-    let endpoint = newConnection.value.endpoint.trim()
-    if (!endpoint.startsWith('http://') && !endpoint.startsWith('https://')) {
-      endpoint = `https://${endpoint}`
-    }
-    
-    // Remove trailing slash if present
-    if (endpoint.endsWith('/')) {
-      endpoint = endpoint.slice(0, -1)
-    }
-
-    // Update the input with the sanitized value
-    newConnection.value.endpoint = endpoint
-
-    const response = await $fetch<{ success: boolean; name: string }>(`${endpoint}/health`, {
-      method: 'GET',
-      timeout: 5000
-    })
-
-    if (response.success) {
-      testResult.value = {
-        success: true,
-        message: `Successfully connected to ${response.name || newConnection.value.name}`
-      }
-      connectionVerified.value = true
-      // Update the name to match what the server returned if needed, or just verify it matches
-      if (response.name && response.name !== newConnection.value.name) {
-        testResult.value.message += ` (Note: Server identified as ${response.name})`
-      }
-    } else {
-      throw new Error('Invalid response from server')
-    }
-  } catch (error: any) {
-    console.error('Connection test failed:', error)
-    testResult.value = {
-      success: false,
-      message: `Connection failed: ${error.message || 'Unknown error'}`
-    }
-    connectionVerified.value = false
-  } finally {
-    testingConnection.value = false
-  }
-}
-
-// API Methods for Backend Connections
-const fetchBackendTypes = async () => {
-  try {
-    const response = await $fetch<{ data: BackendType[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations/types', {
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': props.organization?.organizations?.id.toString() || ''
-      }
-    })
-    backendTypes.value = response.data
-    // Initialize modal states
-    response.data.forEach(type => {
-      modalStates.value[type.id] = false
-    })
-  } catch (error) {
-    console.error('Error fetching backend types:', error)
-  }
-}
-
-const fetchBackendConnections = async () => {
-  try {
-    const response = await $fetch<{ data: BackendConnection[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations', {
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': props.organization?.organizations?.id.toString() || ''
-      }
-    })
-    backendConnections.value = response.data.map(conn => ({
-      ...conn,
-      status: 'verified' // Assume fetched connections are verified
-    }))
-    // Initialize modal states for connections
-    response.data.forEach(conn => {
-      modalStates.value[conn.backendId] = false
-    })
-  } catch (error) {
-    console.error('Error fetching backend connections:', error)
-  }
-}
-
-const saveConnection = async () => {
-  if (!connectionVerified.value) return
-  
-  saving.value = true
-  try {
-    const existing = getConnection(newConnection.value.name)
-    // Find backend type by ID (which matches the name 'sam2', 'sam3' etc)
-    const backendType = backendTypes.value.find(t => t.id === newConnection.value.name)
-    
-    if (!backendType) {
-      throw new Error(`Backend type ${newConnection.value.name} not found`)
-    }
-
-    if (existing) {
-      // Update existing
-      const response = await $fetch<{ data: BackendConnection }>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${existing.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${token.value}`,
-          'orgId': props.organization?.organizations?.id.toString() || ''
-        },
-        body: {
-          baseUrl: newConnection.value.endpoint,
-          apiKey: newConnection.value.apiKey,
-          isActive: true
-        }
-      })
-      
-      // Update local state
-      const index = backendConnections.value.findIndex(c => c.id === existing.id)
-      if (index !== -1) {
-        backendConnections.value[index] = { ...response.data, status: 'verified' }
-      }
-    } else {
-      // Create new
-      const response = await $fetch<{ data: BackendConnection }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/backendRelations', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.value}`,
-          'orgId': props.organization?.organizations?.id.toString() || ''
-        },
-        body: {
-          backendId: backendType.id,
-          baseUrl: newConnection.value.endpoint,
-          apiKey: newConnection.value.apiKey,
-          isActive: true
-        }
-      })
-      
-      backendConnections.value.push({ ...response.data, status: 'verified' })
-    }
-
-    if (selectedModel.value) {
-      modalStates.value[selectedModel.value] = false
-    }
-    
-    const toast = useToast()
-    toast.add({
-      title: 'Connection saved',
-      description: `Backend connection for ${newConnection.value.name} has been saved successfully.`,
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-  } catch (error: any) {
-    console.error('Error saving connection:', error)
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to save connection',
-      description: error.message || 'An error occurred while saving the connection.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-  } finally {
-    saving.value = false
-  }
-}
-
-const removeConnection = async (index: number) => {
-  const conn = backendConnections.value[index]
-  if (!conn) return
-
-  try {
-    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': props.organization?.organizations?.id.toString() || ''
-      }
-    })
-    
-    backendConnections.value.splice(index, 1)
-    
-    const toast = useToast()
-    toast.add({
-      title: 'Connection removed',
-      description: 'Backend connection has been removed successfully.',
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-  } catch (error: any) {
-    console.error('Error removing connection:', error)
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to remove connection',
-      description: error.message || 'An error occurred while removing the connection.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-  }
-}
-
-const toggleConnection = async (conn: BackendConnection) => {
-  try {
-    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/backendRelations/${conn.id}`, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': props.organization?.organizations?.id.toString() || ''
-      },
-      body: {
-        isActive: conn.isActive
-      }
-    })
-  } catch (error: any) {
-    console.error('Error toggling connection:', error)
-    // Revert change on error
-    conn.isActive = !conn.isActive
-    
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to update connection',
-      description: error.message || 'An error occurred while updating the connection status.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-  }
-}
-
-const resetForm = () => {
-  if (props.organization?.organizations) {
-    const org = props.organization.organizations
-    formData.value = {
-      name: org.name,
-      description: org.description || '',
-      logo: org.logo || ''
-    }
-  }
-}
-
-const deleteOrganization = async () => {
-  deleting.value = true
-  try {
-    if (!props.organization?.organizations?.id) {
-      throw new Error('Organization ID not found')
-    }
-
-    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/organizations/${props.organization.organizations.id}`, {
-      method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`
-      }
-    })
-
-    console.log('Organization deleted successfully:', response)
-      // Show success toast
-    const toast = useToast()
-    toast.add({
-      title: 'Organization deleted',
-      description: 'The organization has been permanently deleted.',
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-    
-    // Reset form state
-    showDeleteConfirm.value = false
-    deleteConfirmation.value = ''
-    
-    // Redirect to homepage after a brief delay
-    setTimeout(async () => {
-      await navigateTo('/homepage')
-    }, 1500)
-    
-  } catch (error: any) {
-    console.error('Error deleting organization:', error)
-    
-    // Show error toast
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to delete organization',
-      description: error.message || 'An error occurred while deleting the organization.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
-    
-    // Reset form state on error too
-    showDeleteConfirm.value = false
-    deleteConfirmation.value = ''
-  } finally {
-    deleting.value = false
-  }
-}
-
-const formatDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
+watch(() => props.organization?.organizations?.id, (id) => {
+  if (!id) return
+  fetchBackendTypes()
+  fetchBackendConnections()
+  fetchContents()
+})
 </script>
+
+<template>
+  <div class="space-y-8">
+    <header class="border-b border-stock-400 pb-5">
+      <h2 class="text-2xl font-semibold text-stock-950">Settings</h2>
+      <p class="text-stock-600 mt-1">The organization's own details, its model connection, and its removal.</p>
+    </header>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+      <!-- Section list -->
+      <nav class="lg:col-span-1 flex lg:flex-col gap-1 flex-wrap" aria-label="Settings sections">
+        <button
+          v-for="section in settingSections"
+          :key="section.key"
+          type="button"
+          class="flex items-center gap-3 px-3 py-2 text-sm text-left border-l-2 transition-colors"
+          :class="activeSection === section.key
+            ? 'border-stock-950 text-stock-950 bg-stock-200'
+            : 'border-transparent text-stock-600 hover:text-stock-950 hover:bg-stock-50'"
+          @click="activeSection = section.key"
+        >
+          <UIcon :name="section.icon" class="w-4 h-4 shrink-0" />
+          {{ section.label }}
+          <span
+            v-if="section.key === 'general' && hasUnsavedChanges"
+            class="furniture text-stock-600 ml-auto"
+          >Unsaved</span>
+        </button>
+      </nav>
+
+      <div class="lg:col-span-3">
+        <!-- ── General ───────────────────────────────────────────────── -->
+        <section v-if="activeSection === 'general'">
+          <div v-if="!props.organization" class="flex items-center gap-3 py-12 text-stock-600">
+            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+            <span class="furniture">Reading organization</span>
+          </div>
+
+          <form v-else class="space-y-10 max-w-2xl" @submit.prevent="saveGeneralSettings">
+            <!-- Name -->
+            <div>
+              <label for="organization-name" class="block font-medium text-stock-950">
+                Organization name
+              </label>
+              <p class="text-sm text-stock-600 mt-1">
+                Appears in project headers and wherever this organization is listed.
+              </p>
+              <UInput
+                id="organization-name"
+                v-model="formData.name"
+                class="w-full mt-3"
+                size="lg"
+                placeholder="Acme Labelling"
+              />
+              <p v-if="!isGeneralFormValid" class="text-sm text-correct-600 mt-2">
+                A name is required — saving is disabled until there is one.
+              </p>
+            </div>
+
+            <!-- Description -->
+            <div>
+              <label for="organization-description" class="block font-medium text-stock-950">
+                Description
+              </label>
+              <p class="text-sm text-stock-600 mt-1">
+                Optional. Clearing it and saving removes it for good.
+              </p>
+              <UTextarea
+                id="organization-description"
+                v-model="formData.description"
+                class="w-full mt-3"
+                :rows="4"
+                maxlength="500"
+                placeholder="What this organization labels, and for whom."
+              />
+              <p class="furniture text-stock-600 mt-2 text-right">
+                {{ formData.description.length }}/500
+              </p>
+            </div>
+
+            <!-- Logo -->
+            <div>
+              <span class="block font-medium text-stock-950">Logo</span>
+              <p class="text-sm text-stock-600 mt-1">Optional. JPG or PNG, up to 5 MB.</p>
+
+              <div class="flex items-start gap-4 mt-3">
+                <img
+                  v-if="formData.logo"
+                  :src="formData.logo"
+                  alt="Organization logo"
+                  class="w-16 h-16 object-cover border border-stock-400 shrink-0"
+                >
+                <div
+                  v-else
+                  class="w-16 h-16 border border-stock-400 flex items-center justify-center shrink-0"
+                >
+                  <UIcon name="i-lucide-image" class="w-6 h-6 text-stock-500" />
+                </div>
+
+                <div class="space-y-2">
+                  <input
+                    id="organization-logo"
+                    type="file"
+                    accept="image/*"
+                    class="block text-sm text-stock-700 file:mr-3 file:border file:border-stock-400 file:bg-stock-50 file:px-3 file:py-1.5 file:text-stock-950 file:font-mono file:text-[10.5px] file:uppercase file:tracking-[0.14em]"
+                    :disabled="logoUploading"
+                    @change="uploadLogo"
+                  >
+                  <p v-if="logoUploading" class="flex items-center gap-2 text-sm text-stock-600">
+                    <UIcon name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+                    Uploading
+                  </p>
+                  <p v-if="logoError" class="text-sm text-correct-600">{{ logoError }}</p>
+                  <button
+                    v-if="formData.logo && !logoUploading"
+                    type="button"
+                    class="ink-button ink-button--outline"
+                    @click="formData.logo = ''"
+                  >
+                    Remove logo
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Save -->
+            <div class="border-t border-stock-400 pt-6 flex flex-wrap items-center justify-between gap-4">
+              <p class="text-sm text-stock-600">
+                <template v-if="saved">Saved.</template>
+                <template v-else-if="hasUnsavedChanges">Unsaved changes.</template>
+                <template v-else>Nothing changed.</template>
+              </p>
+              <div class="flex gap-3">
+                <button
+                  v-if="hasUnsavedChanges"
+                  type="button"
+                  class="ink-button ink-button--outline"
+                  :disabled="saving"
+                  @click="resetForm"
+                >
+                  Discard changes
+                </button>
+                <button
+                  type="submit"
+                  class="ink-button"
+                  :disabled="saving || !isGeneralFormValid || !hasUnsavedChanges"
+                >
+                  <UIcon v-if="saving" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+                  {{ saving ? 'Saving' : 'Save changes' }}
+                </button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- ── Connections ───────────────────────────────────────────── -->
+        <section v-else-if="activeSection === 'connections'" class="max-w-3xl">
+          <h3 class="text-lg font-semibold text-stock-950">Model connections</h3>
+          <p class="text-stock-700 mt-1 max-w-prose">
+            SAM 2 runs as a separate service, addressed per organization. Without it the magic
+            stick and video tracking fail for everyone here and every shape has to be drawn by hand.
+          </p>
+
+          <div v-if="connectionsLoading" class="flex items-center gap-3 py-10 text-stock-600">
+            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+            <span class="furniture">Reading connections</span>
+          </div>
+
+          <div v-else class="mt-6 border border-stock-400">
+            <ul class="divide-y divide-stock-400">
+              <li v-for="type in backendTypes" :key="type.id" class="p-5">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                  <div class="min-w-[14rem]">
+                    <h4 class="font-medium text-stock-950">{{ type.name }}</h4>
+                    <p v-if="connectionFor(type.id)" class="text-sm text-stock-600 mt-1 font-mono break-all">
+                      {{ connectionFor(type.id)?.baseUrl }}
+                    </p>
+                    <p v-else class="text-sm text-stock-600 mt-1">Not connected.</p>
+                    <dl v-if="connectionFor(type.id)" class="flex flex-wrap gap-x-6 gap-y-1 furniture mt-2">
+                      <div class="docket-field">
+                        <dt>State</dt>
+                        <dd>{{ connectionFor(type.id)?.isActive ? 'On' : 'Off' }}</dd>
+                      </div>
+                      <div class="docket-field">
+                        <dt>Last test</dt>
+                        <dd>
+                          {{ reachability[type.id] === 'reachable' ? 'Reached from this browser'
+                            : reachability[type.id] === 'unreachable' ? 'Not reached from this browser'
+                            : 'Not tested here' }}
+                        </dd>
+                      </div>
+                    </dl>
+                  </div>
+
+                  <div class="flex items-center gap-3">
+                    <USwitch
+                      v-if="connectionFor(type.id)"
+                      :model-value="!!connectionFor(type.id)?.isActive"
+                      :aria-label="`${type.name} enabled`"
+                      @update:model-value="(value) => toggleConnection(connectionFor(type.id), value)"
+                    />
+                    <button type="button" class="ink-button ink-button--outline" @click="openConfig(type.id, type.name)">
+                      {{ connectionFor(type.id) ? 'Edit address' : 'Connect' }}
+                    </button>
+                    <button
+                      v-if="connectionFor(type.id)"
+                      type="button"
+                      class="ink-button ink-button--outline text-correct-600 border-correct-500 hover:bg-correct-600 hover:border-correct-600"
+                      @click="connectionToRemove = connectionFor(type.id) ?? null"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              </li>
+
+              <li v-if="backendTypes.length === 0" class="p-8 text-center">
+                <p class="text-stock-950 font-medium">No connection types available</p>
+                <p class="text-sm text-stock-700 mt-1">
+                  The Labeloo server did not list any model backends. It may be unreachable — reload the page.
+                </p>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <!-- ── Danger zone ───────────────────────────────────────────── -->
+        <section v-else-if="activeSection === 'danger'" class="max-w-2xl">
+          <div v-if="!props.organization" class="flex items-center gap-3 py-12 text-stock-600">
+            <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+            <span class="furniture">Reading organization</span>
+          </div>
+
+          <template v-else>
+            <h3 class="text-lg font-semibold text-correct-600">Delete this organization</h3>
+            <p class="text-stock-700 mt-2">
+              Deleting "{{ organizationName }}" removes it and everything inside it. This cannot be undone.
+            </p>
+
+            <dl class="docket flex-wrap gap-x-8 gap-y-2 py-3 mt-4 furniture">
+              <div class="docket-field">
+                <dt>Projects lost</dt>
+                <dd>{{ contents.projects ?? '—' }}</dd>
+              </div>
+              <div class="docket-field">
+                <dt>Members lose access</dt>
+                <dd>{{ contents.members ?? '—' }}</dd>
+              </div>
+              <div class="docket-field">
+                <dt>Tasks and annotations</dt>
+                <dd>All</dd>
+              </div>
+            </dl>
+            <p v-if="contents.projects === null" class="text-sm text-stock-600 mt-2">
+              The project count could not be read, so the figures above are incomplete.
+            </p>
+
+            <div v-if="!showDeleteConfirm" class="mt-6">
+              <button
+                type="button"
+                class="ink-button ink-button--outline text-correct-600 border-correct-500 hover:bg-correct-600 hover:border-correct-600"
+                @click="showDeleteConfirm = true"
+              >
+                Delete organization
+              </button>
+            </div>
+
+            <div v-else class="mt-6 border border-correct-500 p-5 space-y-4">
+              <label for="delete-confirmation" class="block text-stock-950">
+                Type <span class="font-mono">{{ organizationName }}</span> to confirm.
+                Capitalisation must match.
+              </label>
+              <UInput id="delete-confirmation" v-model="deleteConfirmation" class="w-full" autocomplete="off" />
+              <p class="text-sm" :class="isDeleteConfirmationValid ? 'text-stock-700' : 'text-stock-600'">
+                {{ isDeleteConfirmationValid ? 'Name matches. Deletion is enabled.' : 'Deletion stays disabled until the name matches exactly.' }}
+              </p>
+              <div class="flex justify-end gap-3">
+                <button
+                  type="button"
+                  class="ink-button ink-button--outline"
+                  @click="showDeleteConfirm = false; deleteConfirmation = ''"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="ink-button border-correct-600 bg-correct-600 hover:bg-correct-500 hover:border-correct-500"
+                  :disabled="!isDeleteConfirmationValid || deleting"
+                  @click="deleteOrganization"
+                >
+                  <UIcon v-if="deleting" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+                  {{ deleting ? 'Deleting' : 'Delete permanently' }}
+                </button>
+              </div>
+            </div>
+          </template>
+        </section>
+      </div>
+    </div>
+
+    <!-- Configure a connection -->
+    <UModal
+      :open="!!configuring"
+      :title="configuring ? `${configuring.name} connection` : ''"
+      :ui="{ content: 'max-w-xl' }"
+      @update:open="(open) => { if (!open) closeConfig() }"
+    >
+      <template #body>
+        <div class="space-y-6">
+          <div>
+            <label for="connection-endpoint" class="block font-medium text-stock-950">Address</label>
+            <p class="text-sm text-stock-600 mt-1">
+              Where the service listens. A local install is usually
+              <span class="font-mono">localhost:8000</span>. Leave off the protocol and both
+              http and https are tried.
+            </p>
+            <UInput
+              id="connection-endpoint"
+              v-model="draft.endpoint"
+              class="w-full mt-3"
+              placeholder="localhost:8000"
+              autocomplete="off"
+            />
+          </div>
+
+          <div>
+            <label for="connection-key" class="block font-medium text-stock-950">API key</label>
+            <p class="text-sm text-stock-600 mt-1">
+              Optional. It is not shown again after saving — keep your own copy.
+            </p>
+            <UInput
+              id="connection-key"
+              v-model="draft.apiKey"
+              type="password"
+              class="w-full mt-3"
+              placeholder="Leave empty if the service needs none"
+              autocomplete="off"
+            />
+          </div>
+
+          <div v-if="testResult" class="border p-4" :class="testResult.ok ? 'border-stock-400' : 'border-correct-500'">
+            <p class="font-medium" :class="testResult.ok ? 'text-stock-950' : 'text-correct-600'">
+              {{ testResult.title }}
+            </p>
+            <p class="text-sm text-stock-700 mt-1">{{ testResult.detail }}</p>
+          </div>
+        </div>
+      </template>
+
+      <template #footer>
+        <div class="flex flex-wrap justify-end gap-3 w-full">
+          <button type="button" class="ink-button ink-button--outline" @click="closeConfig">Cancel</button>
+          <button
+            type="button"
+            class="ink-button ink-button--outline"
+            :disabled="!normalisedEndpoint || testingConnection"
+            @click="testConnection"
+          >
+            <UIcon v-if="testingConnection" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+            {{ testingConnection ? 'Testing' : 'Test from this browser' }}
+          </button>
+          <button
+            type="button"
+            class="ink-button"
+            :disabled="!normalisedEndpoint || savingConnection"
+            @click="saveConnection"
+          >
+            <UIcon v-if="savingConnection" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+            {{ savingConnection ? 'Saving' : 'Save connection' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Remove a connection -->
+    <UModal
+      :open="!!connectionToRemove"
+      title="Remove connection"
+      @update:open="(open) => { if (!open) connectionToRemove = null }"
+    >
+      <template #body>
+        <div class="space-y-3">
+          <p class="text-stock-950">
+            Remove the {{ connectionToRemove?.backendTypeName }} connection at
+            <span class="font-mono break-all">{{ connectionToRemove?.baseUrl }}</span>?
+          </p>
+          <p class="text-stock-700">
+            The magic stick and video tracking stop working for everyone in this organization,
+            and the API key is deleted — it is never shown again, so you will need your own copy
+            to set it up later.
+          </p>
+          <p class="text-stock-700">
+            To pause it instead, cancel and use the switch: that keeps the address and key.
+          </p>
+        </div>
+      </template>
+      <template #footer>
+        <div class="flex justify-end gap-3 w-full">
+          <button type="button" class="ink-button ink-button--outline" @click="connectionToRemove = null">Cancel</button>
+          <button
+            type="button"
+            class="ink-button border-correct-600 bg-correct-600 hover:bg-correct-500 hover:border-correct-500"
+            :disabled="removingConnection"
+            @click="confirmRemoveConnection"
+          >
+            <UIcon v-if="removingConnection" name="i-lucide-loader-2" class="w-3.5 h-3.5 animate-spin" />
+            {{ removingConnection ? 'Removing' : 'Remove connection' }}
+          </button>
+        </div>
+      </template>
+    </UModal>
+  </div>
+</template>

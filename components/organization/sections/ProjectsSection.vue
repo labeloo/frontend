@@ -1,143 +1,14 @@
-<template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex justify-between items-center">
-      <div>
-        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Projects</h2>
-        <p class="text-gray-600 dark:text-gray-400 mt-1">Manage and view all projects in this organization</p>
-      </div>
-      <UButton color="secondary" icon="i-heroicons-plus" class="cursor-pointer" @click="createProject">
-        Create Project
-      </UButton>
-    </div>    <!-- Projects Loading -->
-    <div v-if="loading" class="flex flex-col justify-center items-center py-12 space-y-3">
-      <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading projects...</p>
-    </div>
-
-    <!-- Error State -->
-    <UAlert
-      v-else-if="error"
-      color="error"
-      variant="subtle"
-      :title="error"
-      icon="i-heroicons-exclamation-triangle"
-    />
-
-    <!-- No Projects State -->
-    <div v-else-if="projects.length === 0" class="text-center py-12">
-      <div class="mx-auto max-w-md">
-        <div class="w-24 h-24 rounded-full bg-gray-100 dark:bg-gray-700 flex items-center justify-center mx-auto mb-6">
-          <UIcon name="i-heroicons-folder-plus" class="w-12 h-12 text-gray-400" />
-        </div>
-        <h3 class="text-xl font-semibold text-gray-900 dark:text-white mb-3">No Projects Yet</h3>
-        <p class="text-gray-600 dark:text-gray-300 mb-6">
-          Get started by creating your first project for this organization.
-        </p>
-        <UButton 
-          color="primary" 
-          size="lg"
-          icon="i-heroicons-plus"
-          @click="createProject"
-        >
-          Create Your First Project
-        </UButton>
-      </div>
-    </div>
-
-    <!-- Projects Grid -->
-    <div v-else class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <UCard 
-        v-for="project in projects" 
-        :key="project.id"
-        class="hover:shadow-lg transition-all duration-200 cursor-pointer"
-        @click="viewProject(project.id)"
-      >
-        <template #header>
-          <div class="flex items-start justify-between">
-            <div class="flex-1">
-              <h3 class="text-lg font-semibold text-gray-900 dark:text-white truncate">
-                {{ project.name }}
-              </h3>
-            </div>
-            <UBadge 
-              :color="getProjectTypeColor(project.projectType)" 
-              variant="subtle"
-              class="ml-2 flex-shrink-0"
-            >
-              Type {{ project.projectType }}
-            </UBadge>
-          </div>
-        </template>
-
-        <div class="space-y-3">
-          <p v-if="project.description" class="text-gray-600 dark:text-gray-300 text-sm line-clamp-3">
-            {{ project.description }}
-          </p>
-          
-          <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
-            <span class="flex items-center space-x-1">
-              <UIcon name="i-heroicons-calendar" class="w-3 h-3" />
-              <span>{{ formatDate(project.createdAt) }}</span>
-            </span>
-            <span class="flex items-center space-x-1">
-              <UIcon name="i-heroicons-user" class="w-3 h-3" />
-              <span>Role {{ project.roleId }}</span>
-            </span>
-          </div>
-        </div>
-
-        <template #footer>
-          <div class="flex justify-between items-center">
-            <UButton  
-              size="sm" 
-              color="info"
-              icon="i-heroicons-eye" 
-              class="text-white"
-              @click.stop="viewProject(project.id)"
-            >
-              View Details
-            </UButton>
-            <UDropdown :items="getProjectActions(project)">
-              <UButton 
-                color="secondary" 
-                variant="ghost" 
-                icon="i-heroicons-ellipsis-vertical"
-                @click.stop
-              />
-            </UDropdown>
-          </div>
-        </template>
-      </UCard>
-    </div>
-
-    <!-- Stats Section -->
-    <div v-if="projects.length > 0" class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-blue-500">{{ projects.length }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Total Projects</div>
-        </div>
-      </UCard>
-
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-success">{{ activeProjects }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Active Projects</div>
-        </div>
-      </UCard>
-      
-      <UCard>
-        <div class="text-center">
-          <div class="text-2xl font-bold text-warning">{{ recentProjects }}</div>
-          <div class="text-sm text-gray-600 dark:text-gray-400">Recent Projects</div>
-        </div>
-      </UCard>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
+/**
+ * The projects of one organization.
+ *
+ * The badge used to print "Type 0" and colour it from the raw number, so a
+ * project type could come out in correction red and read as a fault. Types
+ * are named from the one shared list now, and the row menu — which held two
+ * console.log actions — is gone rather than pretending to offer them.
+ */
+import { projectTypeName } from '~/components/project/sections/projectTypes'
+
 interface Project {
   id: number
   organizationId: number
@@ -157,120 +28,161 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Reactive state
 const projects = ref<Project[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
-// Token for API requests
 const token = useCookie('auth_token')
 
-// Computed properties
 const activeProjects = computed(() => {
-  // Assuming projects created in the last 30 days are active
-  const thirtyDaysAgo = Date.now() / 1000 - (30 * 24 * 60 * 60)
+  const thirtyDaysAgo = Date.now() / 1000 - 30 * 24 * 60 * 60
   return projects.value.filter(p => p.updatedAt > thirtyDaysAgo).length
 })
 
-const recentProjects = computed(() => {
-  // Projects created in the last 7 days
-  const sevenDaysAgo = Date.now() / 1000 - (7 * 24 * 60 * 60)
-  return projects.value.filter(p => p.createdAt > sevenDaysAgo).length
-})
-
-// Methods
 const fetchProjects = async () => {
+  loading.value = true
+  error.value = null
   try {
-    loading.value = true
-    error.value = null
-      const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects/all', {
+    const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/projects/all', {
       headers: {
-        'Authorization': `Bearer ${token.value}`,
+        Authorization: `Bearer ${token.value}`,
         'Content-Type': 'application/json',
-        'orgId': props.organizationId.toString()
-      },
+        orgId: props.organizationId.toString()
+      }
     })
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch projects: ${response.statusText}`)
+      throw new Error(
+        response.status === 401
+          ? 'Your session has expired. Sign in again and retry.'
+          : `The server answered ${response.status}.`
+      )
     }
 
     const data = await response.json()
-    
+
     if (data.data) {
-      projects.value = data.data.filter((project: Project) => 
+      projects.value = data.data.filter((project: Project) =>
         project.organizationId === Number.parseInt(props.organizationId as string)
       )
+    } else {
+      projects.value = []
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load projects'
-    console.error('Error fetching projects:', err)
+    error.value = err instanceof Error ? err.message : 'The projects could not be loaded.'
   } finally {
     loading.value = false
   }
 }
 
 const createProject = () => {
-  // Navigate to project creation page
-  console.log('Create project for organization:', props.organizationId)
   navigateTo(`/projects/create?organizationId=${props.organizationId}`)
 }
 
 const viewProject = (projectId: number) => {
-  console.log('View project:', projectId)
   navigateTo(`/projects/${projectId}`)
 }
 
-const getProjectActions = (project: Project) => [
-  [{
-    label: 'Edit',
-    icon: 'i-heroicons-pencil',
-    click: () => editProject(project.id)
-  }],
-  [{
-    label: 'Delete',
-    icon: 'i-heroicons-trash',
-    click: () => deleteProject(project.id)
-  }]
-]
-
-const editProject = (projectId: number) => {
-  console.log('Edit project:', projectId)
-}
-
-const deleteProject = (projectId: number) => {
-  console.log('Delete project:', projectId)
-}
-
 const formatDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
+  if (!timestamp) return 'Unknown'
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
     year: 'numeric',
     month: 'short',
     day: 'numeric'
   })
 }
 
-const getProjectTypeColor = (type: number): 'primary' | 'secondary' | 'success' | 'warning' | 'error' => {
-  const colors: ('primary' | 'secondary' | 'success' | 'warning' | 'error')[] = ['primary', 'secondary', 'success', 'warning', 'error']
-  return colors[type % colors.length] || 'primary'
-}
+onMounted(fetchProjects)
 
-// Lifecycle
-onMounted(() => {
-  fetchProjects()
-})
-
-// Watch for organization changes
-watch(() => props.organizationId, () => {
-  fetchProjects()
-})
+watch(() => props.organizationId, fetchProjects)
 </script>
 
+<template>
+  <div class="space-y-8">
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-stock-400 pb-5">
+      <div>
+        <h2 class="text-2xl font-semibold text-stock-950">Projects</h2>
+        <p class="text-stock-600 mt-1">Every dataset this organization is labelling.</p>
+      </div>
+      <button type="button" class="ink-button" @click="createProject">
+        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        Create project
+      </button>
+    </header>
+
+    <dl v-if="projects.length > 0" class="docket flex-wrap gap-x-8 gap-y-2 py-3 furniture">
+      <div class="docket-field">
+        <dt>Projects</dt>
+        <dd>{{ projects.length }}</dd>
+      </div>
+      <div class="docket-field">
+        <dt>Touched in 30 days</dt>
+        <dd>{{ activeProjects }}</dd>
+      </div>
+    </dl>
+
+    <div v-if="loading" class="flex items-center gap-3 py-12 text-stock-600">
+      <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+      <span class="furniture">Reading projects</span>
+    </div>
+
+    <div v-else-if="error" role="alert" class="border border-correct-500 bg-correct-100 p-5">
+      <p class="font-medium text-correct-600">The projects could not be loaded</p>
+      <p class="text-sm text-stock-800 mt-1">{{ error }}</p>
+      <button type="button" class="ink-button ink-button--outline mt-4" @click="fetchProjects">Try again</button>
+    </div>
+
+    <div v-else-if="projects.length === 0" class="border border-stock-400 p-8 max-w-2xl">
+      <h3 class="text-lg font-semibold text-stock-950">No projects yet</h3>
+      <p class="text-stock-700 mt-2">
+        A project holds the images or video, the label classes an annotator may apply, and the
+        tasks handed out to members. Nothing can be labelled until one exists.
+      </p>
+      <button type="button" class="ink-button mt-5" @click="createProject">
+        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        Create the first project
+      </button>
+    </div>
+
+    <div v-else class="border border-stock-400">
+      <ul class="divide-y divide-stock-400">
+        <li v-for="project in projects" :key="project.id">
+          <button
+            type="button"
+            class="w-full text-left px-5 py-4 hover:bg-stock-50 flex flex-wrap items-start gap-4"
+            @click="viewProject(project.id)"
+          >
+            <div class="flex-1 min-w-[16rem]">
+              <div class="font-medium text-stock-950">{{ project.name }}</div>
+              <p v-if="project.description" class="text-sm text-stock-600 mt-1 line-clamp-2">
+                {{ project.description }}
+              </p>
+            </div>
+
+            <dl class="flex items-center gap-6 furniture pt-1">
+              <div class="docket-field">
+                <dt>Type</dt>
+                <dd>{{ projectTypeName(project.projectType) }}</dd>
+              </div>
+              <div class="docket-field hidden md:flex">
+                <dt>Created</dt>
+                <dd>{{ formatDate(project.createdAt) }}</dd>
+              </div>
+            </dl>
+
+            <UIcon name="i-lucide-arrow-right" class="w-4 h-4 text-stock-600 mt-1 shrink-0" />
+          </button>
+        </li>
+      </ul>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-.line-clamp-3 {
+.line-clamp-2 {
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }

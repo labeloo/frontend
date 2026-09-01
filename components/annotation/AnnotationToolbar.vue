@@ -1,184 +1,13 @@
-<template>
-  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4 shadow-sm">
-    <div class="flex flex-wrap items-center gap-3">
-      <!-- Tool Selection -->
-      <div class="flex items-center space-x-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Tools:</span>
-        <div class="flex items-center space-x-1">
-          <UButton
-            v-for="tool in tools"
-            :key="tool.id"
-            @click="selectTool(tool.id)"
-            :variant="currentTool === tool.id ? 'solid' : 'outline'"
-            :color="currentTool === tool.id ? 'primary' : 'neutral'"
-            size="sm"
-            :icon="tool.icon"
-            :title="tool.tooltip"
-          >
-            {{ tool.label }}
-          </UButton>
-        </div>
-      </div>
-
-      <!-- Divider -->
-      <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-
-      <!-- Drawing Controls -->
-      <div v-if="isAnnotating" class="flex items-center space-x-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Drawing:</span>
-        <UButton
-          @click="completeAnnotation"
-          color="success"
-          size="sm"
-          icon="i-heroicons-check"
-        >
-          Complete
-        </UButton>
-        <UButton
-          @click="cancelAnnotation"
-          color="error"
-          variant="outline"
-          size="sm"
-          icon="i-heroicons-x-mark"
-        >
-          Cancel
-        </UButton>
-      </div>
-
-      <!-- Polygon specific controls -->
-      <div v-if="currentTool === 'polygon' && isAnnotating" class="flex items-center space-x-2">
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          Click to add points • Double-click or click first point to close
-        </span>
-      </div>
-
-      <!-- Divider -->
-      <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-
-      <!-- View Controls -->
-      <div class="flex items-center space-x-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">View:</span>
-        <UButton
-          @click="zoomIn"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-magnifying-glass-plus"
-          title="Zoom In"
-        />
-        <UButton
-          @click="zoomOut"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-magnifying-glass-minus"
-          title="Zoom Out"
-        />
-        <UButton
-          @click="resetZoom"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-arrow-path"
-          title="Reset Zoom"
-        />
-        <UButton
-          @click="fitToScreen"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-squares-2x2"
-          title="Fit to Screen"
-        />
-      </div>
-
-      <!-- Divider -->
-      <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-
-      <!-- Edit Controls -->
-      <div class="flex items-center space-x-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Edit:</span>
-        <UButton
-          @click="undo"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-arrow-uturn-left"
-          title="Undo (Ctrl+Z)"
-          :disabled="!canUndo"
-        />
-        <UButton
-          @click="redo"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-arrow-uturn-right"
-          title="Redo (Ctrl+Y)"
-          :disabled="!canRedo"
-        />
-        <UButton
-          @click="deleteSelected"
-          variant="outline"
-          color="error"
-          size="sm"
-          icon="i-heroicons-trash"
-          title="Delete Selected (Delete)"
-          :disabled="!hasSelection"
-        />
-        <UButton
-          @click="duplicateSelected"
-          variant="outline"
-          color="secondary"
-          size="sm"
-          icon="i-heroicons-document-duplicate"
-          title="Duplicate Selected (Ctrl+D)"
-          :disabled="!hasSelection"
-        />
-      </div>
-
-      <!-- Divider -->
-      <div class="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
-
-      <!-- Quick Actions -->
-      <div class="flex items-center space-x-2">
-        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Quick:</span>
-        <UButton
-          @click="clearAll"
-          variant="outline"
-          color="error"
-          size="sm"
-          icon="i-heroicons-trash"
-          title="Clear All Annotations"
-          :disabled="annotationCount === 0"
-        >
-          Clear All
-        </UButton>
-      </div>
-    </div>
-
-    <!-- Status Bar -->
-    <div class="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between text-sm text-gray-600 dark:text-gray-400">
-      <div class="flex items-center space-x-4">
-        <span>Annotations: {{ annotationCount }}</span>
-        <span v-if="hasSelection">Selected: 1</span>
-        <span v-if="currentTool !== 'select'">Tool: {{ currentToolLabel }}</span>
-      </div>
-      <div class="flex items-center space-x-4">
-        <span v-if="zoomLevel !== 100">Zoom: {{ zoomLevel }}%</span>
-        <span>{{ imageSize }}</span>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-interface Tool {
-  id: string
-  label: string
-  icon: string
-  tooltip: string
-}
-
+/**
+ * The ink tray.
+ *
+ * Ordered by how the product actually works rather than by tool family:
+ * assistance sits alone at the top because one click with it replaces a minute
+ * of tracing, and the manual tools sit below a rule as the fallback they are.
+ * Every tool shows its key, so an expert stops reading the tray within a day
+ * and a newcomer never has to guess.
+ */
 interface Props {
   currentTool: string
   isAnnotating: boolean
@@ -188,6 +17,9 @@ interface Props {
   canRedo: boolean
   zoomLevel: number
   imageSize: string
+  /** False once the segmentation service has been shown not to answer. */
+  assistAvailable?: boolean
+  assistReason?: string
 }
 
 interface Emits {
@@ -206,199 +38,155 @@ interface Emits {
   (e: 'export-annotations'): void
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  zoomLevel: 100,
-  imageSize: ''
-})
-
+const props = withDefaults(defineProps<Props>(), { zoomLevel: 100, imageSize: '', assistAvailable: true, assistReason: '' })
 const emit = defineEmits<Emits>()
 
-const tools: Tool[] = [
-  {
-    id: 'select',
-    label: 'Select',
-    icon: 'i-heroicons-cursor-arrow-rays',
-    tooltip: 'Select and move annotations (V)'
-  },
-  {
-    id: 'rectangle',
-    label: 'Rectangle',
-    icon: 'i-heroicons-rectangle-stack',
-    tooltip: 'Draw rectangle annotations (R)'
-  },
-  {
-    id: 'polygon',
-    label: 'Polygon',
-    icon: 'i-heroicons-star',
-    tooltip: 'Draw polygon annotations (P)'
-  },
-  {
-    id: 'dot',
-    label: 'Point',
-    icon: 'i-heroicons-map-pin',
-    tooltip: 'Add point annotations (D)'
-  },
-  {
-    id: 'line',
-    label: 'Line',
-    icon: 'i-heroicons-minus',
-    tooltip: 'Draw line annotations (L)'
-  },
-  {
-    id: 'circle',
-    label: 'Circle',
-    icon: 'i-heroicons-ellipsis-horizontal-circle',
-    tooltip: 'Draw circle annotations (C)'
-  },
+type Tool = { id: string; label: string; icon: string; key: string; note: string }
+
+const assist: Tool[] = [
   {
     id: 'magic',
-    label: 'Magic Stick',
-    icon: 'i-heroicons-sparkles',
-    tooltip: 'Magic Stick (M)'
-  },
-  {
-    id: 'freehand',
-    label: 'Freehand',
-    icon: 'i-heroicons-pencil',
-    tooltip: 'Draw freehand annotations (F)'
+    label: 'Magic stick',
+    icon: 'i-lucide-wand-sparkles',
+    key: 'M',
+    note: 'Click an object · right click removes'
   }
 ]
 
-const currentToolLabel = computed(() => {
-  const tool = tools.find(t => t.id === props.currentTool)
-  return tool?.label || props.currentTool
-})
+const draw: Tool[] = [
+  { id: 'rectangle', label: 'Rectangle', icon: 'i-lucide-square', key: 'R', note: 'Drag a box' },
+  { id: 'polygon', label: 'Polygon', icon: 'i-lucide-pentagon', key: 'P', note: 'Click points · Enter closes' },
+  { id: 'circle', label: 'Circle', icon: 'i-lucide-circle', key: 'C', note: 'Drag from centre' },
+  { id: 'line', label: 'Line', icon: 'i-lucide-minus', key: 'L', note: 'Drag end to end' },
+  { id: 'dot', label: 'Point', icon: 'i-lucide-circle-dot', key: 'D', note: 'Click to place' },
+  { id: 'freehand', label: 'Freehand', icon: 'i-lucide-pen-line', key: 'F', note: 'Draw held down' }
+]
 
-const selectTool = (tool: string) => {
-  emit('tool-selected', tool)
-}
+const navigate: Tool[] = [
+  { id: 'select', label: 'Select', icon: 'i-lucide-mouse-pointer-2', key: 'V', note: 'Move and reshape' },
+  { id: 'pan', label: 'Pan', icon: 'i-lucide-hand', key: 'H', note: 'Drag the plate' }
+]
 
-const completeAnnotation = () => {
-  emit('complete-annotation')
-}
-
-const cancelAnnotation = () => {
-  emit('cancel-annotation')
-}
-
-const zoomIn = () => {
-  emit('zoom-in')
-}
-
-const zoomOut = () => {
-  emit('zoom-out')
-}
-
-const resetZoom = () => {
-  emit('reset-zoom')
-}
-
-const fitToScreen = () => {
-  emit('fit-to-screen')
-}
-
-const undo = () => {
-  emit('undo')
-}
-
-const redo = () => {
-  emit('redo')
-}
-
-const deleteSelected = () => {
-  emit('delete-selected')
-}
-
-const duplicateSelected = () => {
-  emit('duplicate-selected')
-}
-
-const clearAll = () => {
-  emit('clear-all')
-}
-
-const exportAnnotations = () => {
-  emit('export-annotations')
-}
-
-// Keyboard shortcuts
-onMounted(() => {
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-      return // Don't trigger shortcuts when typing in inputs
-    }
-
-    switch (e.key.toLowerCase()) {
-      case 'v':
-        selectTool('select')
-        break
-      case 'r':
-        selectTool('rectangle')
-        break
-      case 'p':
-        selectTool('polygon')
-        break
-      case 'd':
-        selectTool('dot')
-        break
-      case 'l':
-        selectTool('line')
-        break
-      case 'c':
-        selectTool('circle')
-        break
-      case 'm':
-        selectTool('magic')
-        break
-      case 'f':
-        selectTool('freehand')
-        break
-      case 'delete':
-        if (props.hasSelection) {
-          deleteSelected()
-        }
-        break
-      case 'escape':
-        if (props.isAnnotating) {
-          cancelAnnotation()
-        }
-        break
-      case 'enter':
-        if (props.isAnnotating) {
-          completeAnnotation()
-        }
-        break
-      case 'z':
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault()
-          if (e.shiftKey) {
-            redo()
-          } else {
-            undo()
-          }
-        }
-        break
-      case 'y':
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault()
-          redo()
-        }
-        break
-      case 'd':
-        if (e.ctrlKey || e.metaKey) {
-          e.preventDefault()
-          if (props.hasSelection) {
-            duplicateSelected()
-          }
-        }
-        break
-    }
-  }
-
-  window.addEventListener('keydown', handleKeyDown)
-  
-  onUnmounted(() => {
-    window.removeEventListener('keydown', handleKeyDown)
-  })
+const activeNote = computed(() => {
+  const all = [...assist, ...draw, ...navigate]
+  return all.find((t) => t.id === props.currentTool)?.note ?? ''
 })
 </script>
+
+<template>
+  <div class="flex h-full w-56 flex-none flex-col border-r border-stock-400 bg-stock-100">
+    <!-- Assistance first: it is the product's answer, not one option among eight. -->
+    <div class="px-3 pt-3">
+      <p class="furniture px-1 pb-2 text-stock-600">Assist</p>
+      <button
+        v-for="tool in assist"
+        :key="tool.id"
+        type="button"
+        :disabled="!assistAvailable"
+        :title="assistAvailable ? tool.note : assistReason"
+        class="group flex w-full items-center gap-2.5 border px-2.5 py-2 text-left transition-colors duration-150 disabled:cursor-not-allowed"
+        :class="!assistAvailable
+          ? 'border-stock-400 bg-transparent text-stock-450'
+          : currentTool === tool.id
+            ? 'border-stock-950 bg-stock-950 text-stock-50'
+            : 'border-stock-400 bg-transparent text-stock-950 hover:border-stock-950'"
+        @click="emit('tool-selected', tool.id)"
+      >
+        <UIcon :name="tool.icon" class="size-4 flex-none" />
+        <span class="flex-1 text-[13px] font-medium leading-none">{{ tool.label }}</span>
+        <kbd class="furniture" :class="currentTool === tool.id && assistAvailable ? 'text-stock-300' : 'text-stock-700'">{{ tool.key }}</kbd>
+      </button>
+
+      <!-- The tool is off, so the rail says why rather than leaving a dead button. -->
+      <p v-if="!assistAvailable && assistReason" class="mt-2 px-1 text-[12px] leading-snug text-stock-600">
+        {{ assistReason }}
+      </p>
+    </div>
+
+    <div class="px-3 pt-4">
+      <p class="furniture px-1 pb-2 text-stock-600">Draw</p>
+      <div class="border border-stock-400">
+        <button
+          v-for="(tool, index) in draw"
+          :key="tool.id"
+          type="button"
+          class="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left transition-colors duration-150"
+          :class="[
+            index > 0 ? 'border-t border-stock-400' : '',
+            currentTool === tool.id ? 'bg-stock-950 text-stock-50' : 'text-stock-950 hover:bg-stock-200'
+          ]"
+          @click="emit('tool-selected', tool.id)"
+        >
+          <UIcon :name="tool.icon" class="size-4 flex-none" />
+          <span class="flex-1 text-[13px] leading-none">{{ tool.label }}</span>
+          <kbd class="furniture" :class="currentTool === tool.id ? 'text-stock-300' : 'text-stock-700'">{{ tool.key }}</kbd>
+        </button>
+      </div>
+    </div>
+
+    <div class="px-3 pt-4">
+      <p class="furniture px-1 pb-2 text-stock-600">Navigate</p>
+      <div class="border border-stock-400">
+        <button
+          v-for="(tool, index) in navigate"
+          :key="tool.id"
+          type="button"
+          class="flex w-full items-center gap-2.5 px-2.5 py-1.5 text-left transition-colors duration-150"
+          :class="[
+            index > 0 ? 'border-t border-stock-400' : '',
+            currentTool === tool.id ? 'bg-stock-950 text-stock-50' : 'text-stock-950 hover:bg-stock-200'
+          ]"
+          @click="emit('tool-selected', tool.id)"
+        >
+          <UIcon :name="tool.icon" class="size-4 flex-none" />
+          <span class="flex-1 text-[13px] leading-none">{{ tool.label }}</span>
+          <kbd class="furniture" :class="currentTool === tool.id ? 'text-stock-300' : 'text-stock-700'">{{ tool.key }}</kbd>
+        </button>
+      </div>
+    </div>
+
+    <!-- What the selected tool expects, so nobody has to hover to find out. -->
+    <p v-if="activeNote" class="px-4 pt-3 text-[12px] leading-snug text-stock-600">{{ activeNote }}</p>
+
+    <div v-if="isAnnotating" class="mt-3 flex gap-2 px-3">
+      <button type="button" class="ink-button flex-1 justify-center" @click="emit('complete-annotation')">Finish</button>
+      <button type="button" class="ink-button ink-button--outline justify-center" @click="emit('cancel-annotation')">Esc</button>
+    </div>
+
+    <div class="flex-1" />
+
+    <!-- Plate actions. Quieter than the tools: they act on the sheet, not on it. -->
+    <div class="border-t border-stock-400 px-3 py-3">
+      <div class="grid grid-cols-2 gap-x-4 gap-y-1.5">
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-stock-700 enabled:hover:text-stock-950 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!canUndo" @click="emit('undo')">
+          <UIcon name="i-lucide-undo-2" class="size-3.5" /> Undo
+        </button>
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-stock-700 enabled:hover:text-stock-950 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!canRedo" @click="emit('redo')">
+          <UIcon name="i-lucide-redo-2" class="size-3.5" /> Redo
+        </button>
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-stock-700 hover:text-stock-950" @click="emit('fit-to-screen')">
+          <UIcon name="i-lucide-scan" class="size-3.5" /> Fit
+        </button>
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-stock-700 hover:text-stock-950" @click="emit('reset-zoom')">
+          <UIcon name="i-lucide-search" class="size-3.5" /> 100%
+        </button>
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-stock-700 enabled:hover:text-stock-950 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!hasSelection" @click="emit('duplicate-selected')">
+          <UIcon name="i-lucide-copy" class="size-3.5" /> Copy
+        </button>
+        <button type="button" class="control flex items-center gap-2 py-1 text-left text-correct-500 enabled:hover:text-correct-600 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!hasSelection" @click="emit('delete-selected')">
+          <UIcon name="i-lucide-trash-2" class="size-3.5" /> Delete
+        </button>
+      </div>
+
+      <dl class="furniture mt-3 flex items-center justify-between border-t border-stock-400 pt-2.5 text-stock-600">
+        <div class="docket-field"><dt>Zoom</dt><dd class="text-stock-950">{{ Math.round(zoomLevel) }}%</dd></div>
+        <div v-if="imageSize" class="docket-field"><dt>Plate</dt><dd class="text-stock-950">{{ imageSize }}</dd></div>
+      </dl>
+
+      <div class="mt-2 flex gap-2">
+        <button type="button" class="control flex-1 border border-stock-400 py-1.5 text-stock-700 enabled:hover:border-stock-950 enabled:hover:text-stock-950 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!annotationCount" @click="emit('export-annotations')">Export</button>
+        <button type="button" class="control flex-1 border border-stock-400 py-1.5 text-correct-500 enabled:hover:border-correct-500 disabled:text-stock-450 disabled:cursor-not-allowed" :disabled="!annotationCount" @click="emit('clear-all')">Clear all</button>
+      </div>
+    </div>
+  </div>
+</template>

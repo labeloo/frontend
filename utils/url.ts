@@ -27,6 +27,16 @@ export const getFullApiUrl = (relativeUrl: string): string => {
   // Ensure the relative URL starts with a slash
   const normalizedUrl = relativeUrl.startsWith('/') ? relativeUrl : `/${relativeUrl}`
   
-  // Combine the base URL with the relative URL
-  return `${apiUrl}${normalizedUrl}`
+  const full = `${apiUrl}${normalizedUrl}`
+
+  // Files served out of the bucket are behind an identity check now, and an
+  // `<img src>` carries no Authorization header and no cross-origin cookie. The
+  // ticket is the only proof of identity a browser will actually send for one,
+  // so it rides in the query string. Everything else - JSON endpoints called
+  // through fetch - keeps using the header and is left alone here.
+  if (!normalizedUrl.startsWith('/api/bucket/')) return full
+
+  const ticket = currentAccessTicket()
+  if (!ticket) return full
+  return `${full}${full.includes('?') ? '&' : '?'}t=${encodeURIComponent(ticket)}`
 }

@@ -1,72 +1,56 @@
 <template>
-  <div class="p-8">
-    <!-- Project Header -->
-    <div class="mb-8">
-      <div class="flex items-center justify-between">
-        <div>
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">
-            Project #{{ projectId }}
-          </h1>
-          <p class="text-gray-600 dark:text-gray-400 mt-2">
-            Manage your project details, users, tasks, and settings
-          </p>
+  <div>
+    <!-- What this project is, printed once. It replaced two buttons ("Edit
+         Project", "Add New Task") that were wired to nothing at all. -->
+    <header class="flex flex-wrap items-baseline gap-x-8 gap-y-2 border-b border-stock-400 px-4 py-5 sm:px-6 lg:px-8">
+      <h1 class="text-xl font-semibold tracking-[-0.02em] text-stock-950">
+        {{ projectName || `Project ${projectId}` }}
+      </h1>
+
+      <dl class="furniture flex flex-wrap items-baseline gap-x-6 gap-y-2 text-stock-600">
+        <div class="docket-field"><dt>Project</dt><dd>{{ projectId }}</dd></div>
+        <div v-if="classCount" class="docket-field"><dt>Inks</dt><dd>{{ classCount }}</dd></div>
+        <div v-if="projectDescription" class="docket-field hidden lg:flex">
+          <dt>Brief</dt>
+          <dd class="max-w-[26rem] truncate normal-case tracking-normal">{{ projectDescription }}</dd>
         </div>
-        <div class="flex gap-3">
-          <UButton color="secondary" variant="outline" class="cursor-pointer">
-            <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
-            Edit Project
-          </UButton>
-          <UButton color="secondary" variant="outline" class="cursor-pointer">
-            <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
-            Add New Task
-          </UButton>
-        </div>
-      </div>
-    </div>    
+      </dl>
+    </header>
 
-    <!-- Dynamic Content Based on Active Section -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-      <!-- Users Section -->
-      <div v-if="currentSection === 'users'" class="p-6">
-        <ProjectSectionsProjectUsersSection :project-id="projectId" />
-      </div>
+    <p v-if="projectLoadError" class="furniture border-b border-stock-400 bg-stock-100 px-4 py-2 text-correct-500 sm:px-6 lg:px-8">
+      {{ projectLoadError }}
+    </p>
 
-      <!-- Tasks Section -->
-      <div v-else-if="currentSection === 'tasks'" class="p-6">
-        <ProjectSectionsProjectTasksSection :project-id="projectId" />
-      </div>
+    <div class="px-4 py-8 sm:px-6 lg:px-8">
+      <ProjectSectionsProjectUsersSection v-if="currentSection === 'users'" :project-id="projectId" />
 
-      <!-- Settings Section -->
-      <div v-else-if="currentSection === 'settings'" class="p-6">
-        <ProjectSectionsProjectSettingsSection :project-id="projectId" />      </div>      <!-- Classes Section -->
-      <div v-else-if="currentSection === 'classes'" class="p-6">
-        <ProjectSectionsProjectClassesSection :project-id="projectId" />
-      </div>
+      <ProjectSectionsProjectTasksSection v-else-if="currentSection === 'tasks'" :project-id="projectId" />
 
-      <!-- Upload Data Section -->
-      <div v-else-if="currentSection === 'upload-data'" class="p-6">
-        <ProjectSectionsProjectUploadDataSection :project-id="projectId" />
-      </div>
+      <ProjectSectionsProjectSettingsSection v-else-if="currentSection === 'settings'" :project-id="projectId" />
 
-      <!-- Annotation Section -->
-      <div v-else-if="currentSection === 'annotate'" class="p-6">
-        <ProjectSectionsProjectAnnotateSection :project-id="projectId" />
-      </div>
+      <ProjectSectionsProjectClassesSection v-else-if="currentSection === 'classes'" :project-id="projectId" />
 
-      <!-- Default fallback -->
-      <div v-else class="p-6">
-        <div class="text-center text-gray-500 dark:text-gray-400">
-          <UIcon name="i-heroicons-exclamation-triangle" class="w-12 h-12 mx-auto mb-4" />
-          <h3 class="text-lg font-medium mb-2">No Content Available</h3>
-          <p>Please select a section from the sidebar.</p>
-        </div>
+      <ProjectSectionsProjectUploadDataSection v-else-if="currentSection === 'upload-data'" :project-id="projectId" />
+
+      <ProjectSectionsProjectAnnotateSection v-else-if="currentSection === 'annotate'" :project-id="projectId" />
+
+      <div v-else class="max-w-xl border border-stock-400 bg-stock-100 p-6">
+        <p class="furniture text-stock-600">Nothing selected</p>
+        <p class="mt-2 text-[13px] leading-snug text-stock-700">
+          This project has no section open. Pick one from the sidebar — Annotate holds the task
+          pool, Upload Data adds images or video, Classes defines the label vocabulary.
+        </p>
+        <NuxtLink :to="{ path: route.path, query: { ...route.query, section: 'annotate' } }" class="ink-button mt-5 inline-flex">
+          Open Annotate
+        </NuxtLink>
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-// Set the layout for this page
+import { useProjectRecord } from '~/components/project/useProjectRecord'
+
 definePageMeta({
   layout: 'project'
 })
@@ -74,11 +58,16 @@ definePageMeta({
 const route = useRoute()
 const projectId = computed(() => route.params.id as string)
 
-// Get the current section from the global state
 const currentSection = useState('currentProjectSection', () => 'annotate')
 
-// Set page title
+const { project, projectName, classCount, loadError: projectLoadError, load } = useProjectRecord(projectId)
+
+const projectDescription = computed(() => project.value?.description?.trim() || '')
+
+watch(projectId, () => load(), { immediate: true })
+onMounted(() => load())
+
 useHead({
-  title: `Project ${projectId.value} - Labeloo`
+  title: computed(() => `${projectName.value || `Project ${projectId.value}`} — Labeloo`)
 })
 </script>

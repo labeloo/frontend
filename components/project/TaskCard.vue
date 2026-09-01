@@ -1,131 +1,68 @@
+<!--
+  One card for the whole pool. The three tabs differ only in which action sits
+  in the action slot; the identity block, the selection behaviour and the key
+  path are the same everywhere, so muscle memory carries across tabs.
+-->
 <template>
-  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-    <!-- Task Image/Preview -->
-    <div class="relative h-48 bg-gray-100 dark:bg-gray-700">
-      <img 
-        v-if="task.dataType.includes('image')"
-        :src="getTaskImageUrl(task)" 
-        :alt="`Task ${task.id}`"
-        class="w-full h-full object-cover"
-        @error="handleImageError"
+  <div
+    :class="[
+      'group flex flex-col border bg-stock-100 transition-colors',
+      selectable ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:outline-reflex-600' : '',
+      selected ? 'border-stock-950 bg-stock-200' : 'border-stock-400 hover:border-stock-600'
+    ]"
+    :role="selectable ? 'checkbox' : undefined"
+    :tabindex="selectable ? 0 : undefined"
+    :aria-checked="selectable ? selected : undefined"
+    :aria-label="selectable ? `${name} — select` : undefined"
+    @click="selectable && emit('toggle', task.id)"
+    @keydown.space.prevent="selectable && emit('toggle', task.id)"
+    @keydown.enter.prevent="selectable && emit('toggle', task.id)"
+  >
+    <!-- Preview -->
+    <div class="relative h-32 border-b border-stock-400 bg-stock-200">
+      <img
+        v-if="isImage && !previewFailed"
+        :src="imageUrl"
+        :alt="name"
+        class="h-full w-full object-cover"
+        loading="lazy"
+        @error="previewFailed = true"
       />
-      <div v-else class="flex items-center justify-center h-full">
-        <UIcon name="i-heroicons-document" class="w-12 h-12 text-gray-400" />
-        <span class="ml-2 text-gray-500 dark:text-gray-400">{{ getFileType() }}</span>
-      </div>
-      
-      <!-- Status Badge -->
-      <div class="absolute top-3 right-3">
-        <span :class="statusBadgeClass">
-          {{ task.status.toUpperCase() }}
-        </span>
+      <div v-else class="flex h-full flex-col items-center justify-center gap-1 px-3 text-center">
+        <UIcon :name="previewFailed ? 'i-lucide-image-off' : 'i-lucide-file'" class="size-5 text-stock-600" />
+        <span class="furniture text-stock-600">{{ previewFailed ? 'Preview unavailable' : kindLabel }}</span>
       </div>
 
-      <!-- Priority Badge -->
-      <div v-if="task.priority > 0" class="absolute top-3 left-3">
-        <span class="px-2 py-1 text-xs font-medium bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 rounded-full">
-          High Priority
-        </span>
-      </div>
+      <span
+        v-if="selected"
+        class="absolute right-0 top-0 flex items-center gap-1 bg-stock-950 px-1.5 py-1 text-stock-50"
+      >
+        <UIcon name="i-lucide-check" class="size-3" />
+        <span class="furniture">Selected</span>
+      </span>
     </div>
 
-    <!-- Task Info -->
-    <div class="p-4">
-      <div class="flex items-start justify-between mb-2">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-          Task #{{ task.id }}
-        </h3>
-        <div class="text-xs text-gray-500 dark:text-gray-400">
-          {{ formatDate(task.createdAt) }}
+    <!-- Identity -->
+    <div class="flex flex-1 flex-col gap-2 p-3">
+      <p class="truncate text-[13px] font-medium leading-snug text-stock-950" :title="name">
+        {{ name }}
+      </p>
+
+      <dl class="furniture flex flex-wrap gap-x-4 gap-y-1 text-stock-600">
+        <div class="docket-field"><dt>Sheet</dt><dd>{{ task.id }}</dd></div>
+        <div v-if="detail" class="docket-field"><dt>At</dt><dd>{{ detail }}</dd></div>
+        <div class="docket-field">
+          <dt>With</dt>
+          <dd class="max-w-[9rem] truncate normal-case tracking-normal" :title="assigneeLabel">{{ assigneeLabel }}</dd>
         </div>
-      </div>
-
-      <!-- Metadata -->
-      <div v-if="parsedMetadata" class="mb-3">
-        <p class="text-sm text-gray-600 dark:text-gray-400 truncate">
-          {{ parsedMetadata.originalFileName }}
-        </p>
-        <p v-if="parsedMetadata.extractedFrom" class="text-xs text-gray-500 dark:text-gray-500 truncate">
-          From: {{ parsedMetadata.extractedFrom }}
-        </p>
-      </div>
-
-      <!-- Assignment Info -->
-      <div v-if="task.assignedTo" class="mb-3 flex items-center text-sm text-gray-600 dark:text-gray-400">
-        <UIcon name="i-heroicons-user" class="w-4 h-4 mr-1" />
-        Assigned to User #{{ task.assignedTo }}
-      </div>
-
-      <!-- Progress Bar (for annotating tasks) -->
-      <div v-if="showProgress" class="mb-3">
-        <div class="flex items-center justify-between text-sm text-gray-600 dark:text-gray-400 mb-1">
-          <span>Progress</span>
-          <span>{{ mockProgress }}%</span>
+        <div v-if="showUpdated" class="docket-field">
+          <dt>{{ task.status === 'completed' ? 'Done' : 'Changed' }}</dt>
+          <dd class="normal-case tracking-normal">{{ updatedLabel }}</dd>
         </div>
-        <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-          <div 
-            class="bg-blue-600 h-2 rounded-full transition-all duration-300"
-            :style="{ width: `${mockProgress}%` }"
-          ></div>
-        </div>
-      </div>
+      </dl>
 
-      <!-- Completion Info -->
-      <div v-if="showCompletionInfo && task.status === 'completed'" class="mb-3">
-        <div class="flex items-center text-sm text-green-600 dark:text-green-400">
-          <UIcon name="i-heroicons-check-circle" class="w-4 h-4 mr-1" />
-          Completed {{ formatDate(task.updatedAt) }}
-        </div>
-      </div>
-
-      <!-- Actions -->
-      <div class="flex gap-2 mt-4">
-        <!-- View Button -->
-        <UButton 
-          variant="outline" 
-          size="sm" 
-          @click="$emit('view', task)"
-          class="flex-1"
-        >
-          <UIcon name="i-heroicons-eye" class="w-4 h-4 mr-1" />
-          View
-        </UButton>
-
-        <!-- Assign Button (for unassigned tasks) -->
-        <UButton 
-          v-if="showAssignButton && task.status === 'unassigned'" 
-          color="primary" 
-          size="sm" 
-          @click="$emit('assign', task)"
-          class="flex-1"
-        >
-          <UIcon name="i-heroicons-user-plus" class="w-4 h-4 mr-1" />
-          Assign
-        </UButton>
-
-        <!-- Continue Button (for annotating tasks) -->
-        <UButton 
-          v-if="task.status === 'annotating'" 
-          color="primary" 
-          size="sm" 
-          @click="$emit('continue', task)"
-          class="flex-1"
-        >
-          <UIcon name="i-heroicons-play" class="w-4 h-4 mr-1" />
-          Continue
-        </UButton>
-
-        <!-- Review Button (for completed tasks) -->        <UButton 
-          v-if="showCompletionInfo && task.status === 'completed'" 
-          color="success" 
-          variant="outline"
-          size="sm" 
-          @click="$emit('review', task)"
-          class="flex-1"
-        >
-          <UIcon name="i-heroicons-magnifying-glass" class="w-4 h-4 mr-1" />
-          Review
-        </UButton>
+      <div v-if="$slots.action" class="mt-auto pt-1" @click.stop>
+        <slot name="action" />
       </div>
     </div>
   </div>
@@ -133,86 +70,43 @@
 
 <script setup lang="ts">
 import { useImageUrl } from '~/composables/useImageUrl'
+import { formatTaskDate, taskDetail, taskName, type TaskLike } from './taskFacts'
+
+const props = withDefaults(defineProps<{
+  task: TaskLike
+  selectable?: boolean
+  selected?: boolean
+  /** Address of the person holding this task; empty means nobody. */
+  assignee?: string
+}>(), {
+  selectable: false,
+  selected: false,
+  assignee: ''
+})
+
+const emit = defineEmits<{
+  toggle: [taskId: number]
+}>()
 
 const { getTaskImageUrl } = useImageUrl()
 
-interface Task {
-  id: number
-  projectId: number
-  dataUrl: string
-  dataType: string
-  status: 'unassigned' | 'annotating' | 'completed'
-  assignedTo: number | null
-  metadata: string
-  priority: number
-  createdAt: number
-  updatedAt: number
-}
+const previewFailed = ref(false)
+watch(() => props.task.dataUrl, () => { previewFailed.value = false })
 
-// Props
-const props = defineProps<{
-  task: Task
-  showAssignButton?: boolean
-  showProgress?: boolean
-  showCompletionInfo?: boolean
-}>()
+const isImage = computed(() => (props.task.dataType || '').includes('image'))
+const imageUrl = computed(() => getTaskImageUrl(props.task))
+const name = computed(() => taskName(props.task))
+const detail = computed(() => taskDetail(props.task))
 
-// Emits
-defineEmits<{
-  view: [task: Task]
-  assign: [task: Task]
-  continue: [task: Task]
-  review: [task: Task]
-}>()
-
-// Computed properties
-const statusBadgeClass = computed(() => {
-  const baseClasses = 'px-2 py-1 text-xs font-medium rounded-full'
-  switch (props.task.status) {
-    case 'unassigned':
-      return `${baseClasses} bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300`
-    case 'annotating':
-      return `${baseClasses} bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300`
-    case 'completed':
-      return `${baseClasses} bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300`
-    default:
-      return `${baseClasses} bg-gray-100 text-gray-800 dark:bg-gray-900/40 dark:text-gray-300`
-  }
-})
-
-const parsedMetadata = computed(() => {
-  try {
-    return JSON.parse(props.task.metadata)
-  } catch {
-    return null
-  }
-})
-
-const mockProgress = computed(() => {
-  // Generate a mock progress based on task ID for demonstration
-  // In a real app, this would come from the API
-  return Math.min(Math.max((props.task.id * 17) % 100, 10), 90)
-})
-
-// Methods
-const formatDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
-const getFileType = () => {
-  if (props.task.dataType.includes('image')) return 'Image'
-  if (props.task.dataType.includes('video')) return 'Video'
-  if (props.task.dataType.includes('audio')) return 'Audio'
+const kindLabel = computed(() => {
+  const type = props.task.dataType || ''
+  if (type.includes('video')) return 'Video'
+  if (type.includes('audio')) return 'Audio'
   return 'File'
-}
+})
 
-const handleImageError = (event: Event) => {
-  const target = event.target as HTMLImageElement
-  target.style.display = 'none'
-  // You could add a fallback image here
-}
+const assigneeLabel = computed(() => props.assignee || 'Nobody')
+
+const showUpdated = computed(() => props.task.status !== 'unassigned' && !!props.task.updatedAt)
+const updatedLabel = computed(() => formatTaskDate(props.task.updatedAt))
 </script>

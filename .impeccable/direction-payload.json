@@ -1,0 +1,51 @@
+{
+  "title": "Labeloo — görsel dünya seçimi",
+  "question": "Zar 'Plotting Sheet' yönünü atadı. Onu tut, alternatiflerden birini al, ya da yeniden at.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Plotting Sheet",
+      "kicker": "ZARIN ATADIĞI",
+      "lineage": "fotogrametrik çizim paftaları ve mylar hava-fotoğrafı asetatları",
+      "thesis": "Anotasyon, panonun üstündeki bir bileşen değil; fotoğrafın üstüne serilmiş bir asetat.",
+      "palette": ["#7A7C7B", "#EDEAE1", "#1E2124", "#C4452F"],
+      "materials": ["mylar çizim asetatı", "fotoğraf plakası", "çizim kalemi mürekkebi", "kalibre nötr gri"],
+      "viewport": "Plaka kareyi doldurur; çevresi kalibre nötr gri, çünkü görüntü yargısını bozmayan tek zemin odur. İnce bir tescil kenarlığı kare işaretlerini, koordinat çentiklerini ve sınıf lejantını taşır. Araçlar bir şerit menü değil, ressamın tepsisi gibi okunur.",
+      "risk": "Nötr gri, mürekkep kalınlıkları ve kenar boşlukları tam tutturulmazsa 'bitmemiş' hissi verir.",
+      "case": "Fotoğraftan şekil çıkarmak zaten fotogrametridir: sınıf renkleri mürekkep renkleri, sınıf listesi lejant, kare indeksi kenar çentiği olur. Kategorinin koyu IDE kabuğunu da beyaz SaaS panosunu da reddeder."
+    },
+    {
+      "id": "challenger-teletext",
+      "label": "Teletext Service",
+      "lineage": "yayın teletext dergileri, 40×24 karakter ızgarası",
+      "thesis": "Katalog bir yayın indeksi: bölümler değil, numaralı sayfalar.",
+      "case": "Kısmen oturuyor: numarayla adreslenen sayfalar görevlere birebir eşleniyor ve sekiz renklik sabit paleti gerçek bir sınıf lejantı. Ama fotoğrafın altındaki düz siyah, aracın var oluş sebebi olan görüntü yargısıyla kavga ediyor.",
+      "hero": "https://impeccable.style/worlds/cards/broadcast-programming-teletext-service-hero.webp"
+    },
+    {
+      "id": "challenger-orizuru",
+      "label": "Orizuru Sequence",
+      "lineage": "otuz iki katlamalık turna kuşu katlama dizisi",
+      "thesis": "İş, geri alınabilir adımlardan oluşan tek bir kesintisiz dizi.",
+      "case": "Kenarlarda güzel oturuyor: numaralı otuz iki adım ve aktif adımı gösteren tek altın nokta, takip edilen bir klibin zaman çizelgesinin ta kendisi. Ama başkasının fotoğrafının altına serilen vermilyon washi yanlış zemin.",
+      "hero": "https://impeccable.style/worlds/cards/paper-folds-pleats-deployable-orizuru-crane-sequence-hero.webp"
+    },
+    {
+      "id": "challenger-tensegrity",
+      "label": "Tensegrity Column",
+      "lineage": "karbon çubuk ve kırmızı halatlı gerilim heykeli",
+      "thesis": "Yapı, karşıt kuvvetlerin ağı olarak okunur.",
+      "case": "Zayıf oturuyor: düğümlere iğnelenmiş kılavuz çizgileri poligon köşelerine yakışıyor, ama 'gerilim' ve 'basınç' etiketleme işinde hiçbir şeye karşılık gelmiyor — dünya süs olarak kalırdı.",
+      "hero": "https://impeccable.style/worlds/cards/kinetic-sculpture-automata-tensegrity-breathing-column-hero.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Kategori standardı",
+    "thesis": "Bu kategorinin hep gönderdiği şey, kusursuz işçilikle.",
+    "viewport": "Neredeyse siyah kabuk, solda ikon şeridi, tek neon vurgu — CVAT, Label Studio ve bugünkü Labeloo'nun ortak dili, tam ustalıkla uygulanmış.",
+    "risk": "Tanıdık ve güvenli; Labeloo'yu rakiplerinden ayırmaz."
+  },
+  "steer": true
+}

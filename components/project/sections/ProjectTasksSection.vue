@@ -1,118 +1,233 @@
+<!--
+  The progress sheet. This screen used to print invented figures (45 tasks, a
+  Jane Smith, a December due date) that no project ever produced; every number
+  here now comes from the same /api/tasks/my-tasks record the pool reads, and
+  when a figure cannot be known it is not shown.
+-->
 <template>
-  <div>
-    <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Project Tasks</h2>
-      <UButton color="secondary" class="cursor-pointer">
-        <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2 " />
-        Create Task
-      </UButton>
-    </div>
-
-    <!-- Task Statistics -->
-    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-      <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-        <div class="flex items-center">
-          <UIcon name="i-heroicons-clipboard-document-list" class="w-8 h-8 text-blue-600 mr-3" />
-          <div>
-            <p class="text-sm text-blue-600 dark:text-blue-400">Total Tasks</p>
-            <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">45</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-        <div class="flex items-center">
-          <UIcon name="i-heroicons-check-circle" class="w-8 h-8 text-green-600 mr-3" />
-          <div>
-            <p class="text-sm text-green-600 dark:text-green-400">Completed</p>
-            <p class="text-2xl font-bold text-green-900 dark:text-green-200">32</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded-lg">
-        <div class="flex items-center">
-          <UIcon name="i-heroicons-clock" class="w-8 h-8 text-yellow-600 mr-3" />
-          <div>
-            <p class="text-sm text-yellow-600 dark:text-yellow-400">In Progress</p>
-            <p class="text-2xl font-bold text-yellow-900 dark:text-yellow-200">8</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="bg-red-50 dark:bg-red-900/20 p-4 rounded-lg">
-        <div class="flex items-center">
-          <UIcon name="i-heroicons-exclamation-triangle" class="w-8 h-8 text-red-600 mr-3" />
-          <div>
-            <p class="text-sm text-red-600 dark:text-red-400">Pending</p>
-            <p class="text-2xl font-bold text-red-900 dark:text-red-200">5</p>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tasks List -->
-    <div class="space-y-4">
-      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center space-x-3">
-            <h3 class="font-medium text-gray-900 dark:text-white">Image Classification Task #1</h3>            <UBadge color="success" variant="soft">Completed</UBadge>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-500">Due: Dec 15, 2024</span>
-            <UButton color="neutral" variant="ghost" size="sm">
-              <UIcon name="i-heroicons-ellipsis-horizontal" class="w-4 h-4" />
-            </UButton>
-          </div>
-        </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Classify 1000 images into categories: cats, dogs, birds
+  <section class="space-y-8">
+    <header class="flex flex-wrap items-end justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-semibold tracking-[-0.02em] text-stock-950">Progress</h2>
+        <p class="mt-1 text-[13px] text-stock-700">
+          {{ canViewAllTasks
+            ? 'Every task in this project, and who is holding it.'
+            : 'The tasks assigned to you in this project.' }}
         </p>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <UIcon name="i-heroicons-user" class="w-4 h-4 text-gray-400" />
-            <span class="text-sm text-gray-500">Assigned to: Jane Smith</span>
-          </div>
-          <div class="w-24 bg-gray-200 rounded-full h-2">
-            <div class="bg-green-600 h-2 rounded-full" style="width: 100%"></div>
-          </div>
-        </div>
       </div>
 
-      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center space-x-3">
-            <h3 class="font-medium text-gray-900 dark:text-white">Text Annotation Task #2</h3>
-            <UBadge color="warning" variant="soft">In Progress</UBadge>
-          </div>
-          <div class="flex items-center space-x-2">
-            <span class="text-sm text-gray-500">Due: Dec 20, 2024</span>
-            <UButton color="neutral" variant="ghost" size="sm">
-              <UIcon name="i-heroicons-ellipsis-horizontal" class="w-4 h-4" />
-            </UButton>
-          </div>
-        </div>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">
-          Annotate sentiment analysis on customer reviews dataset
-        </p>
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <UIcon name="i-heroicons-user" class="w-4 h-4 text-gray-400" />
-            <span class="text-sm text-gray-500">Assigned to: Mike Johnson</span>
-          </div>
-          <div class="w-24 bg-gray-200 rounded-full h-2">
-            <div class="bg-yellow-600 h-2 rounded-full" style="width: 65%"></div>
-          </div>
-        </div>
-      </div>
+      <button
+        type="button"
+        class="ink-button ink-button--outline"
+        :disabled="loading"
+        @click="load()"
+      >
+        <UIcon :name="loading ? 'i-lucide-loader-circle' : 'i-lucide-rotate-cw'" class="size-3.5" :class="loading ? 'animate-spin' : ''" />
+        Refresh
+      </button>
+    </header>
+
+    <!-- Failure states say the problem and the way out. -->
+    <div v-if="error" class="border border-correct-500 bg-stock-100 p-5">
+      <p class="furniture text-correct-500">Progress could not be read</p>
+      <p class="mt-2 max-w-xl text-[13px] leading-snug text-stock-700">{{ error }}</p>
+      <button type="button" class="ink-button mt-4" @click="load()">Try again</button>
     </div>
-  </div>
+
+    <p v-else-if="loading && !loaded" class="furniture text-stock-600">Reading tasks…</p>
+
+    <template v-else>
+      <!-- Nothing to count yet: say why, and where tasks come from. -->
+      <div v-if="total === 0" class="border border-stock-400 bg-stock-100 p-6">
+        <p class="furniture text-stock-600">No tasks yet</p>
+        <p class="mt-2 max-w-xl text-[13px] leading-snug text-stock-700">
+          {{ canViewAllTasks
+            ? 'Tasks are not written by hand: one is created for every image you upload, and one for every frame extracted from a video. Upload data to fill this project.'
+            : 'Nothing in this project is assigned to you yet. A project editor assigns work from the task pool.' }}
+        </p>
+        <button
+          v-if="canViewAllTasks"
+          type="button"
+          class="ink-button mt-5"
+          @click="goToSection('upload-data')"
+        >
+          <UIcon name="i-lucide-upload" class="size-3.5" />
+          Upload data
+        </button>
+      </div>
+
+      <template v-else>
+        <!-- The four facts, printed as a docket rather than four cards. -->
+        <div>
+          <dl class="docket furniture flex-wrap gap-x-8 gap-y-2 px-4 py-3 text-stock-600">
+            <div class="docket-field"><dt>Tasks</dt><dd>{{ total }}</dd></div>
+            <div class="docket-field"><dt>Completed</dt><dd>{{ completedCount }} · {{ completedPercent }}%</dd></div>
+            <div class="docket-field"><dt>In progress</dt><dd>{{ annotatingCount }}</dd></div>
+            <div class="docket-field"><dt>Unassigned</dt><dd>{{ unassignedCount }}</dd></div>
+          </dl>
+
+          <div class="h-2 w-full border border-t-0 border-stock-400 bg-stock-100" role="img" :aria-label="`${completedPercent}% of tasks completed`">
+            <div class="h-full bg-stock-950" :style="{ width: `${completedPercent}%` }"></div>
+          </div>
+        </div>
+
+        <!-- Who is holding what. Only meaningful when the whole pool is visible. -->
+        <div v-if="canViewAllTasks" class="space-y-3">
+          <h3 class="furniture text-stock-600">By member</h3>
+
+          <p v-if="workload.length === 0" class="text-[13px] text-stock-700">
+            No task in this project is assigned to anyone yet. Open Annotate to hand work out.
+          </p>
+
+          <table v-else class="w-full border-collapse">
+            <caption class="sr-only">Tasks held by each member of this project</caption>
+            <thead>
+              <tr class="furniture border-b border-stock-400 text-left text-stock-600">
+                <th scope="col" class="py-2 pr-4 font-normal">Member</th>
+                <th scope="col" class="py-2 pr-4 text-right font-normal">In progress</th>
+                <th scope="col" class="py-2 pr-4 text-right font-normal">Completed</th>
+                <th scope="col" class="py-2 text-right font-normal">Share done</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="row in workload" :key="row.key" class="border-b border-stock-400">
+                <th scope="row" class="max-w-[18rem] truncate py-2 pr-4 text-left text-[13px] font-normal text-stock-950" :title="row.label">
+                  {{ row.label }}
+                </th>
+                <td class="py-2 pr-4 text-right text-[13px] tabular-nums text-stock-950">{{ row.annotating }}</td>
+                <td class="py-2 pr-4 text-right text-[13px] tabular-nums text-stock-950">{{ row.completed }}</td>
+                <td class="py-2 text-right">
+                  <div class="flex items-center justify-end gap-2">
+                    <span class="furniture text-stock-600">{{ row.percent }}%</span>
+                    <span class="h-1.5 w-24 border border-stock-400 bg-stock-100">
+                      <span class="block h-full bg-stock-950" :style="{ width: `${row.percent}%` }"></span>
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p v-if="unassignedCount > 0" class="text-[13px] text-stock-700">
+            {{ unassignedCount }} {{ unassignedCount === 1 ? 'task is' : 'tasks are' }} still in the pool, held by nobody.
+            <button type="button" class="underline underline-offset-2 hover:text-stock-950" @click="goToSection('annotate')">
+              Hand them out in Annotate
+            </button>
+          </p>
+        </div>
+      </template>
+    </template>
+  </section>
 </template>
 
 <script setup lang="ts">
-interface Props {
-  projectId: string
+import { useProjectRecord, useOrganizationUsers } from '../useProjectRecord'
+import type { TaskLike } from '../taskFacts'
+
+interface UserPermissions {
+  isOrgAdmin: boolean
+  canEditProject: boolean
+  canAssignTasks: boolean
+  canViewAllTasks: boolean
+  canExportDataset: boolean
 }
 
-const props = defineProps<Props>()
+interface TasksResponse {
+  data: TaskLike[]
+  permissions?: UserPermissions
+}
+
+const props = defineProps<{
+  projectId: string
+}>()
+
+const token = useCookie('auth_token')
+const route = useRoute()
+
+const { organizationId, load: loadProject } = useProjectRecord(() => props.projectId)
+const { emailFor, load: loadUsers } = useOrganizationUsers(organizationId)
+
+const tasks = ref<TaskLike[]>([])
+const loading = ref(false)
+const loaded = ref(false)
+const error = ref<string | null>(null)
+const canViewAllTasks = ref(false)
+
+const total = computed(() => tasks.value.length)
+const completedCount = computed(() => tasks.value.filter(task => task.status === 'completed').length)
+const annotatingCount = computed(() => tasks.value.filter(task => task.status === 'annotating').length)
+const unassignedCount = computed(() => tasks.value.filter(task => task.status === 'unassigned').length)
+const completedPercent = computed(() => (total.value === 0 ? 0 : Math.round((completedCount.value / total.value) * 100)))
+
+const workload = computed(() => {
+  const rows = new Map<number, { annotating: number; completed: number }>()
+  for (const task of tasks.value) {
+    if (!task.assignedTo) continue
+    const row = rows.get(task.assignedTo) || { annotating: 0, completed: 0 }
+    if (task.status === 'completed') row.completed += 1
+    else row.annotating += 1
+    rows.set(task.assignedTo, row)
+  }
+
+  return [...rows.entries()]
+    .map(([userId, counts]) => {
+      const held = counts.annotating + counts.completed
+      return {
+        key: String(userId),
+        label: emailFor(userId) || `User ${userId}`,
+        annotating: counts.annotating,
+        completed: counts.completed,
+        percent: held === 0 ? 0 : Math.round((counts.completed / held) * 100)
+      }
+    })
+    .sort((a, b) => b.annotating + b.completed - (a.annotating + a.completed))
+})
+
+// The section is a place held in the URL, so move by navigating, not by
+// writing shared state the layout would overwrite on the next route change.
+const goToSection = (section: string) => {
+  navigateTo({ path: route.path, query: { ...route.query, section } })
+}
+
+const load = async () => {
+  if (!props.projectId || !import.meta.client) return
+  try {
+    loading.value = true
+    error.value = null
+
+    if (!token.value) throw new Error('Your session has expired. Log in again to read this project.')
+
+    await loadProject()
+    if (organizationId.value) await loadUsers()
+
+    const params = new URLSearchParams({ projectId: props.projectId })
+    if (organizationId.value) params.append('organizationId', String(organizationId.value))
+
+    const response = await $fetch<TasksResponse>(
+      `${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/my-tasks?${params.toString()}`,
+      { headers: { Authorization: `Bearer ${token.value}` } }
+    )
+
+    tasks.value = Array.isArray(response.data) ? response.data : []
+    canViewAllTasks.value = response.permissions?.canViewAllTasks || false
+    loaded.value = true
+  } catch (err) {
+    const message = err instanceof Error ? err.message : ''
+    if (message.includes('403') || message.toLowerCase().includes('forbidden')) {
+      error.value = 'You do not have permission to read tasks in this project. Ask a project editor to add you.'
+    } else if (message.includes('401') || message.toLowerCase().includes('unauthorized')) {
+      error.value = 'Your session has expired. Log in again to read this project.'
+    } else {
+      error.value = message || 'The task list could not be reached. Check your connection and try again.'
+    }
+  } finally {
+    loading.value = false
+  }
+}
+
+watch(() => props.projectId, () => {
+  loaded.value = false
+  tasks.value = []
+  load()
+}, { immediate: true })
 </script>

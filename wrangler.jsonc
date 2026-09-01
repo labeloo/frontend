@@ -1,0 +1,17 @@
+{
+  // Labeloo's frontend on Cloudflare Workers.
+  //
+  // Only the frontend goes here. The API needs a filesystem for its SQLite file
+  // and its bucket, plus sharp and ffmpeg as native binaries, none of which a
+  // Worker has — so `NUXT_PUBLIC_API_URL` has to point at wherever the backend
+  // actually runs.
+  "name": "labeloo",
+  "main": ".output/server/index.mjs",
+  "compatibility_date": "2026-08-31",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "binding": "ASSETS",
+    "directory": ".output/public"
+  },
+  "observability": { "enabled": true }
+}

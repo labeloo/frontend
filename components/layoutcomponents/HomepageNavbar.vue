@@ -1,31 +1,12 @@
-<template>    <header class="bg-white dark:bg-gray-800 shadow">
-        <div class="max-w-7xl mx-auto py-6 px-4 sm:px-6 lg:px-8 flex justify-between items-center">            <NuxtLink :to="{name: 'homepage'}">
-                <h1 class="text-3xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
-            </NuxtLink>
-            <div class="flex items-center gap-3">
-                <UtilsColorModeButton class="hover:cursor-pointer" />
-                <UButton color="secondary" class="hover:cursor-pointer" @click="handleLogout">Logout</UButton>
-            </div>
-        </div>
-    </header>
+<template>
+  <header class="border-b border-stock-400">
+    <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+      <NuxtLink :to="{ name: 'homepage' }" class="flex items-center gap-2.5">
+        <img src="~/assets/images/penguin.png" alt="" class="h-7 w-auto" />
+        <span class="text-base font-semibold tracking-tight text-stock-950">Labeloo</span>
+      </NuxtLink>
+
+      <LayoutcomponentsSessionField />
+    </div>
+  </header>
 </template>
-
-<script setup lang="ts">
-import { useAuth } from '@/composables/useAuth'
-
-// Define middleware as a navigation guard
-definePageMeta({
-    middleware: [async () => {
-        const { isAuthenticated } = useAuth()
-        if (!isAuthenticated.value) {
-            return navigateTo('/login')
-        }
-    }]
-})
-
-const { logout } = useAuth()
-
-const handleLogout = () => {
-    logout()
-}
-</script>

@@ -1,60 +1,454 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
-.fade-up-enter-active,
-.fade-up-leave-active {
-  transition: all 0.6s ease;
-}
-.fade-up-enter-from {
-  opacity: 0;
-  transform: translateY(20px);
-}
-.fade-up-enter-to {
-  opacity: 1;
-  transform: translateY(0);
-}
-.fade-up-leave-from {
-  opacity: 1;
-  transform: translateY(0);
-}
-.fade-up-leave-to {
-  opacity: 0;
-  transform: translateY(20px);
+/* ═══════════════════════════════════════════════════════════════════════════
+   SEPARATION PROOF
+   A class is an ink; an annotation is a separation printed over the plate.
+
+   Two grounds, and the split is functional rather than decorative. Chrome sits
+   on uncoated proof stock. Anywhere an image is judged, the surround is a
+   calibrated neutral grey - the same reason a retoucher's bench and a press
+   viewing booth are grey: a white surround blows out the dark half of a
+   photograph and a black one glares off the light half.
+
+   Process inks belong to the plate, never to the chrome. A class swatch is an
+   ink; hiding a class pulls that ink from the proof. Because the interface
+   never spends those hues on itself, colour on this screen always means data.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@theme static {
+  /* ── Stock and ink ───────────────────────────────────────────────────── */
+  --color-stock-50:  #FAF8F2;   /* highlight, hover on paper */
+  --color-stock-100: #F4F2EC;   /* THE GROUND: uncoated proof stock */
+  --color-stock-200: #EAE7DE;   /* recessed panel, table stripe */
+  --color-stock-300: #D9D5C9;   /* heavy rule, disabled fill */
+  --color-stock-400: #C9C5BA;   /* HAIRLINE: every border on paper */
+  --color-stock-450: #7E7A70;   /* SPENT: disabled control text - 3.82:1 on stock-100. Deliberately
+                                   below 4.5:1 so a retired control still reads as retired;
+                                   disabled controls are outside WCAG 1.4.3. stock-400 was
+                                   1.54:1 here, which is not a state, it is an absence. */
+  --color-stock-500: #8E8A80;   /* muted furniture only; never text (2.9:1) */
+  --color-stock-600: #67635C;   /* secondary ink on paper - measured 5.2:1 on stock-100 */
+  --color-stock-700: #565249;   /* body ink, low emphasis */
+  --color-stock-800: #33302B;
+  --color-stock-900: #22201D;
+  --color-stock-950: #141414;   /* INK: text and filled controls, never #000 */
+
+  /* ── The viewing stage: neutral grey around any judged image ─────────── */
+  --color-stage-100: #A9A9A7;   /* label ink on the dark stage bar - 4.9:1 on stage-800 */
+  --color-stage-200: #838381;
+  --color-stage-300: #767674;   /* THE STAGE: calibrated neutral surround */
+  --color-stage-400: #6A6A68;
+  --color-stage-500: #5C5C5A;
+  --color-stage-600: #4E4E4C;   /* stage furniture, docket bars */
+  --color-stage-700: #3E3E3C;
+  --color-stage-800: #2E2E2C;
+  --color-stage-900: #1F1F1E;
+
+  /* ── Reflex blue: the printer's own mark colour ──────────────────────────
+     Registration marks and printer's furniture print in reflex blue, not in a
+     process ink. That makes it the one hue the interface may spend on itself
+     without ever colliding with a class swatch. Focus, selection and links. */
+  --color-reflex-100: #E3E8F7;
+  --color-reflex-300: #8FA3DC;
+  --color-reflex-500: #2D4BA0;
+  --color-reflex-600: #1F3A93;
+  --color-reflex-700: #182D72;
+
+  /* ── Correction red: the mark-up pencil. Errors and destructive acts ─── */
+  --color-correct-100: #F7E4E1;
+  --color-correct-500: #C4302B;
+  --color-correct-600: #A6241F;
+
+  /* ── Process inks. DATA ONLY - never chrome ──────────────────────────── */
+  --color-ink-c: #0093D3;
+  --color-ink-m: #D6006E;
+  --color-ink-y: #F5C400;
+  --color-ink-k: #141414;
+  --color-ink-o: #E8590C;
+  --color-ink-g: #009B72;
+  --color-ink-v: #6B3FA0;
+  --color-ink-t: #00A6A6;
+
+  /* ── Nuxt UI semantic mapping ────────────────────────────────────────── */
+  --color-primary-50:  #FAF8F2;
+  --color-primary-100: #EAE7DE;
+  --color-primary-200: #D9D5C9;
+  --color-primary-300: #A8A499;
+  --color-primary-400: #7E7A72;
+  --color-primary-500: #33302B;
+  --color-primary-600: #22201D;
+  --color-primary-700: #141414;
+  --color-primary-800: #141414;
+  --color-primary-900: #141414;
+  --color-primary-950: #141414;
+
+  /* Secondary is ink, not a second brand colour.
+     The chrome of this world is monochrome: a filled control is an inked
+     rectangle. Reflex blue is reserved for the browser's own surfaces - focus,
+     selection, caret - where it reads as the printer's mark rather than as a
+     button. Spending it on buttons put a second accent on a screen whose only
+     colour is supposed to mean "class". */
+  --color-secondary-50:  #FAF8F2;
+  --color-secondary-100: #EAE7DE;
+  --color-secondary-200: #D9D5C9;
+  --color-secondary-300: #A8A499;
+  --color-secondary-400: #565249;
+  --color-secondary-500: #33302B;
+  --color-secondary-600: #22201D;
+  --color-secondary-700: #141414;
+  --color-secondary-800: #141414;
+  --color-secondary-900: #141414;
+  --color-secondary-950: #141414;
+
+  /* Info is ink as well. The chrome of this world carries no accent at all, so
+     that the only colour on screen is a class. Reflex blue survives exactly
+     where a printer would use it: the browser's own marks, set in @layer base. */
+  --color-info-50:  #FAF8F2;
+  --color-info-100: #EAE7DE;
+  --color-info-200: #D9D5C9;
+  --color-info-300: #A8A499;
+  --color-info-400: #565249;
+  --color-info-500: #33302B;
+  --color-info-600: #22201D;
+  --color-info-700: #141414;
+  --color-info-800: #141414;
+  --color-info-900: #141414;
+  --color-info-950: #141414;
+
+  /* Spot green: a passed proof. */
+  --color-success-50:  #EDF7F3;
+  --color-success-100: #D3EDE3;
+  --color-success-200: #A6DCC8;
+  --color-success-300: #64C4A5;
+  --color-success-400: #22AC83;
+  --color-success-500: #009B72;
+  --color-success-600: #00805E;
+  --color-success-700: #00654A;
+  --color-success-800: #004F3A;
+  --color-success-900: #003D2D;
+  --color-success-950: #002A1F;
+
+  /* Spot orange: something needs attention but nothing is broken. */
+  --color-warning-50:  #FDF2EA;
+  --color-warning-100: #FADFCB;
+  --color-warning-200: #F5BE97;
+  --color-warning-300: #F09760;
+  --color-warning-400: #EC7434;
+  --color-warning-500: #E8590C;
+  --color-warning-600: #C0490A;
+  --color-warning-700: #983908;
+  --color-warning-800: #762D06;
+  --color-warning-900: #5B2305;
+  --color-warning-950: #3D1703;
+
+  /* Correction red: the mark-up pencil. */
+  --color-error-50:  #FBF0EF;
+  --color-error-100: #F7E4E1;
+  --color-error-200: #EFC5C1;
+  --color-error-300: #E29B95;
+  --color-error-400: #D26A63;
+  --color-error-500: #C4302B;
+  --color-error-600: #A6241F;
+  --color-error-700: #851C18;
+  --color-error-800: #671613;
+  --color-error-900: #50110F;
+  --color-error-950: #360B0A;
+
+  --color-neutral-50:  #FAF8F2;
+  --color-neutral-100: #F4F2EC;
+  --color-neutral-200: #EAE7DE;
+  --color-neutral-300: #D9D5C9;
+  --color-neutral-400: #C9C5BA;
+  --color-neutral-500: #A8A499;
+  --color-neutral-600: #7E7A72;
+  --color-neutral-700: #565249;
+  --color-neutral-800: #33302B;
+  --color-neutral-900: #22201D;
+  --color-neutral-950: #141414;
+
+  /* ── Type ────────────────────────────────────────────────────────────────
+     Archivo is a grotesque drawn for print at small sizes, which is what a
+     docket and a colour bar are. Sometype Mono carries the registration
+     furniture: figures, coordinates, frame counts - the places where a
+     monospace is doing measurement rather than dressing up as technical. */
+  --font-sans: "Archivo", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Sometype Mono", ui-monospace, "SF Mono", monospace;
+
+  /* Print furniture has square corners. Only small controls take a hint. */
+  --radius-none: 0px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 2px;
 }
 
-@theme static{
-  --color-primary: #0B2139; /*bunlar bg-primary, text-primary, fill-primary gibi classlar oluşturuyor */
-  --color-secondary: #FAA23E; /*aynı zamanda color typeına uygun isim verdiysek color="secondary" de çalışıyor */
-  --color-info: #36827F;
-  --color-success: #99C24D;
-  --color-warning: #F2D7EE;
-  /* neutral rengini primary'e göre otomatik ayarlıyor custom oluşturmana gerek yok*/
+/* ══════════════════════════════════════════════════════════════════════════
+   Base
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   The component library's own tokens.
+
+   Nuxt UI v3 paints fields, menus and borders from --ui-* variables, not from
+   the Tailwind palette. Overriding a component's `base` slot loses to them,
+   which is why form fields kept rendering on a black ground with unreadable
+   labels. Setting them here is the single place that actually decides.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --ui-bg: var(--color-stock-100);
+  --ui-bg-muted: var(--color-stock-200);
+  --ui-bg-elevated: var(--color-stock-200);
+  --ui-bg-accented: var(--color-stock-300);
+  --ui-bg-inverted: var(--color-stock-950);
+
+  --ui-border: var(--color-stock-400);
+  --ui-border-muted: var(--color-stock-300);
+  --ui-border-accented: var(--color-stock-500);
+  --ui-border-inverted: var(--color-stock-950);
+
+  --ui-text: var(--color-stock-950);
+  --ui-text-highlighted: var(--color-stock-950);
+  --ui-text-toned: var(--color-stock-700);
+  /* Both of these carry real labels, so neither may fall under 4.5:1. */
+  --ui-text-muted: var(--color-stock-600);
+  --ui-text-dimmed: var(--color-stock-600);
+  --ui-text-inverted: var(--color-stock-50);
+
+  --ui-radius: 2px;
 }
 
-/* Primary button styling - ensures white text on primary background */
-.btn-primary, 
-[data-color="primary"],
-.bg-primary {
-  color: white !important;
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--color-stock-100);
+    color: var(--color-stock-950);
+    font-family: var(--font-sans);
+    /* Raised from 15/1.55: this is read for hours at a stretch, and the first
+       round shipped a scale that was legible in a screenshot and thin in use. */
+    font-size: 16px;
+    line-height: 1.6;
+    /* Uncoated stock is never one flat colour: it drifts warm on one edge and
+       cool on the other. Two very wide, very weak washes, no texture image. */
+    background-image:
+      radial-gradient(120% 90% at 0% 0%, #FAF6EC 0%, transparent 55%),
+      radial-gradient(120% 90% at 100% 100%, #EFF2EC 0%, transparent 55%);
+    background-attachment: fixed;
+  }
+
+  h1, h2, h3, h4 {
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    text-wrap: balance;
+  }
+
+  /* Figures line up in columns wherever they are counted or compared. */
+  table, .tabular, [data-tabular] {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Browser surfaces. These ship with defaults belonging to no design
+     system; on a proof sheet they are the printer's own marks. ───────────── */
+  ::selection {
+    background-color: var(--color-reflex-600);
+    color: #FFFFFF;
+  }
+
+  :root {
+    caret-color: var(--color-reflex-600);
+    accent-color: var(--color-reflex-600);
+    scrollbar-color: var(--color-stock-400) transparent;
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar { width: 11px; height: 11px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-stock-400);
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: var(--color-stock-500); background-clip: content-box; }
+
+  /* On the grey stage the scrollbar switches ground with everything else. */
+  .on-stage {
+    scrollbar-color: var(--color-stage-100) transparent;
+  }
+  .on-stage ::-webkit-scrollbar-thumb { background-color: var(--color-stage-100); background-clip: content-box; }
+
+  :focus-visible {
+    outline: 2px solid var(--color-reflex-600);
+    outline-offset: 2px;
+  }
+  .on-stage :focus-visible { outline-color: #FFFFFF; }
+
+  a { text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
+
+  /* A placeholder is read, so it obeys the same floor as body text. */
+  ::placeholder { color: var(--color-stock-600); }
+
+  /* Field labels are read while typing; they are not furniture. */
+  label {
+    color: var(--color-stock-800);
+    font-weight: 500;
+  }
+
+  input, select, textarea {
+    font-size: 15px;
+    color: var(--color-stock-950);
+  }
 }
 
-/* For Nuxt UI buttons specifically */
-.ui-button[data-color="primary"] {
-  color: white !important;
+/* ══════════════════════════════════════════════════════════════════════════
+   Printer's furniture
+   The small marks that make a sheet read as printed: registration crosses,
+   rules, dockets, colour bars. Geometry only - no imitation of pictures.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Printer's furniture — deliberately UNLAYERED.
+
+   These were written inside `@layer components`, where they lost every cascade
+   contest against the component library and Tailwind's own button reset: the
+   class applied, and then padding, family and size were all overridden, so an
+   ink button rendered as bare 16px Archivo with no box. Unlayered rules outrank
+   layered ones, which is what these need to survive contact with Nuxt UI.
+   ═══════════════════════════════════════════════════════════════════════════ */
+/* Tiny caps used on every label, count and coordinate. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   THREE VOICES, NOT ONE
+
+   Measured on the annotation screen before this change: 62 of 78 text elements
+   - 79% - carried the identical signature 11.5px / 500 / uppercase / mono, and
+   24 of those 62 were interactive while 38 were not. A button and a field label
+   were the same object to the eye. No amount of rearranging boxes fixes that;
+   the screen read as busy because everything on it spoke in one voice.
+
+   Mono uppercase is a print shop's LABEL voice, not its house voice. It says
+   what a thing IS. What a thing SAYS and what a thing DOES get their own:
+
+     .furniture    what it is      mono, uppercase, small, quiet
+     docket <dd>   what it says    Archivo, ink, tabular figures
+     .control      what it does    Archivo, ink, sentence case
+
+   None of the three sets `color`. These rules are unlayered, so a colour here
+   would beat the utility a template puts on the element - which is how the red
+   unclassed-marks count came to render in ink.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.furniture {
+  font-family: var(--font-mono);
+  /* 10.5px caps at 0.14em tracking measured legible and read thin. */
+  font-size: 11.5px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
 
-/* Alternative approach using Nuxt UI's component classes */
-.btn[data-color="primary"] .btn-text,
-.btn[data-color="primary"] {
-  color: white !important;
+/* The docket: the strip of facts printed along a sheet's edge. */
+.docket {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  border-bottom: 1px solid var(--color-stock-400);
+  background: var(--color-stock-100);
+}
+.docket-field { display: flex; align-items: baseline; gap: 0.5rem; }
+/* :where() drops these to zero specificity so a template's own colour utility
+   still wins - see the note above .furniture. */
+:where(.docket-field > dt) { color: var(--color-stock-600); }
+:where(.furniture dd) {
+  /* The value is the content, not the label. Set in the reading face so a
+     docket scans as label/value pairs instead of one unbroken mono ribbon.
+     Scoped to any dd inside a .furniture list, not just .docket-field: the
+     sheet panel builds its rows as plain flex divs, and a rule that only knew
+     about one of the two markup patterns left half the values speaking in the
+     label voice. */
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-stock-950);
+  font-variant-numeric: tabular-nums;
 }
 
+/* A registration cross. Drawn, not a glyph. */
+.regmark {
+  position: absolute;
+  width: 15px;
+  height: 15px;
+  pointer-events: none;
+  color: currentColor;
+}
+.regmark::before, .regmark::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+}
+.regmark::before { left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-0.5px); }
+.regmark::after { top: 50%; left: 0; right: 0; height: 1px; transform: translateY(-0.5px); }
 
-
-/* .primary{
-  color:#0B2139; 
+/* A filled ink rectangle: the primary action. Square, no shadow. */
+.ink-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: var(--color-stock-950);
+  color: var(--color-stock-50);
+  border: 1px solid var(--color-stock-950);
+  padding: 0.55rem 1rem;
+  /* Was mono/uppercase/11.5px - identical to a field label. A control that
+     reads as a label is a control nobody presses. */
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  transition: background-color 0.14s ease-out, color 0.14s ease-out;
 }
 
-.secondary {
-  color:#FAA23E; 
-} */
+/* A text button with no box: the same voice as .ink-button, so a control is a
+   control whether or not it is wearing a border. Sets no colour, on purpose. */
+.control {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.15;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.ink-button:hover:not(:disabled) { background: var(--color-reflex-600); border-color: var(--color-reflex-600); }
+.ink-button:disabled { background: transparent; color: var(--color-stock-600); border-color: var(--color-stock-400); }
+
+.ink-button--outline {
+  background: transparent;
+  color: var(--color-stock-950);
+  border-color: var(--color-stock-400);
+}
+.ink-button--outline:hover:not(:disabled) { background: var(--color-stock-950); color: var(--color-stock-50); border-color: var(--color-stock-950); }
+
+/* A swatch on the colour bar. Square patch, hairline keyline, ink fill. */
+.swatch {
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1px solid rgba(20, 20, 20, 0.35);
+  flex: none;
+}
+
+/* One authored moment: an ink laying down. A mask does not fade in, it
+   prints - wiped on from the leading edge the way a sheet leaves a press. */
+@keyframes ink-down {
+  from { clip-path: inset(0 100% 0 0); opacity: 0.7; }
+  to   { clip-path: inset(0 0 0 0); opacity: 1; }
+}
+.ink-down { animation: ink-down 0.42s cubic-bezier(0.16, 1, 0.3, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .ink-down { animation: none; }
+}
+

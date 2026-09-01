@@ -1,313 +1,167 @@
 <template>
   <div>
-    <!-- Header -->
-    <div class="mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Project Settings</h2>
-      <p class="text-gray-600 dark:text-gray-300 mt-1">Manage your project configuration and preferences</p>
+    <div v-if="loading" class="py-16 text-center">
+      <p class="furniture text-stock-600">Loading project…</p>
     </div>
 
-    <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col justify-center items-center py-12 space-y-3">
-      <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading project...</p>
-    </div>
+    <section v-else-if="error" class="max-w-xl border border-correct-500 bg-stock-50 p-6">
+      <p class="furniture text-correct-500">Settings not loaded</p>
+      <p class="mt-2 text-[15px] leading-snug text-stock-950">{{ error }}</p>
+      <p class="mt-2 text-[13px] leading-relaxed text-stock-600">
+        Nothing has been changed. These fields edit the project record, so they stay closed until
+        that record is read.
+      </p>
+      <button type="button" class="ink-button mt-5" @click="fetchProjectData">
+        <UIcon name="i-lucide-rotate-cw" class="size-3.5" />
+        Try again
+      </button>
+    </section>
 
-    <!-- Error State -->
-    <UAlert
-      v-else-if="error"
-      color="error"
-      variant="subtle"
-      :title="error"
-      icon="i-heroicons-exclamation-triangle"
-      class="mb-6"
-    />
-
-    <div v-else class="space-y-6">
-      <!-- Project Info Card -->
-      <UCard v-if="projectData" class="mb-6">
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Current Project Information</h3>
-        </template>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-            <div class="flex items-center">
-              <UIcon name="i-heroicons-folder" class="w-8 h-8 text-blue-600 mr-3" />
-              <div>
-                <p class="text-sm text-blue-600 dark:text-blue-400">Project Name</p>
-                <p class="text-lg font-bold text-blue-900 dark:text-blue-200">{{ projectData.name }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-            <div class="flex items-center">
-              <UIcon name="i-heroicons-chart-bar" class="w-8 h-8 text-green-600 mr-3" />
-              <div>
-                <p class="text-sm text-green-600 dark:text-green-400">Project Type</p>
-                <p class="text-lg font-bold text-green-900 dark:text-green-200">{{ getProjectTypeName(projectData.projectType) }}</p>
-              </div>
-            </div>
-          </div>
-
-          <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-            <div class="flex items-center">
-              <UIcon name="i-heroicons-calendar" class="w-8 h-8 text-purple-600 mr-3" />
-              <div>
-                <p class="text-sm text-purple-600 dark:text-purple-400">Created</p>
-                <p class="text-lg font-bold text-purple-900 dark:text-purple-200">{{ formatDate(projectData.createdAt) }}</p>
-              </div>
-            </div>
-          </div>
+    <div v-else>
+      <div class="flex flex-wrap items-end justify-between gap-4 border-b border-stock-400 pb-3">
+        <div>
+          <h2 class="text-[22px] font-semibold tracking-tight text-stock-950">Project settings</h2>
+          <p class="mt-1 text-[13px] leading-relaxed text-stock-600">
+            The name and work type carried by every task in this project.
+          </p>
         </div>
-        
-        <div v-if="projectData.description" class="mt-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-          <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Description:</p>
-          <p class="text-gray-900 dark:text-white">{{ projectData.description }}</p>
-        </div>
-      </UCard>
-
-      <!-- General Settings -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow">
-        <div class="p-6">
-          <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-6">General Information</h3>
-          
-            <!-- Form -->
-            <form @submit.prevent="saveGeneralSettings" class="space-y-8">
-              <!-- Project Name -->
-              <UFormGroup class="space-y-4">
-                <template #label>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">Project Name</span>
-                </template>
-                
-                <!-- Clear Input Label -->
-                <div class="mb-4 mt-6">
-                  <span class="text-xs text-gray-500 dark:text-gray-400">Enter a descriptive name for your project</span>
-                </div>
-                
-                <div class="relative">
-                  <UInput
-                    v-model="formData.name"
-                    placeholder="Enter project name"
-                    size="lg"
-                    :disabled="!isEditing"
-                    class="w-full"
-                  />
-                </div>
-                <template #help>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">This name will be visible to all project members</span>
-                </template>
-              </UFormGroup>
-
-              <!-- Description -->
-              <UFormGroup class="space-y-4">
-                <template #label>
-                  <span class="text-sm font-medium text-gray-900 dark:text-white">Project Description</span>
-                </template>
-                
-                <!-- Clear Input Label -->
-                <div class="mb-4 mt-6">
-                  <span class="text-xs text-gray-500 dark:text-gray-400">Describe the purpose and goals of this project</span>
-                </div>
-                
-                <div class="relative w-full">
-                  <UTextarea
-                    v-model="formData.description"
-                    placeholder="Enter project description"
-                    :rows="4"
-                    :disabled="!isEditing"
-                    class="w-full"
-                  />
-                </div>
-                <template #help>
-                  <span class="text-xs text-gray-500 dark:text-gray-400">Provide context about what this project aims to achieve</span>
-                </template>
-              </UFormGroup>
-
-              <!-- Project Type & Status -->
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <UFormGroup class="space-y-4">
-                  <template #label>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Project Type</span>
-                  </template>
-                  
-                  <!-- Clear Input Label -->
-                  <div class="mb-4 mt-6">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Select the type of annotation project</span>
-                  </div>
-                  
-                  <USelect
-                    v-model="formData.type"
-                    placeholder="Select project type"
-                    :options="projectTypeOptions"
-                    :disabled="!isEditing"
-                    size="lg"
-                    value-attribute="value"
-                    option-attribute="label"
-                  />
-                  <template #help>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">This determines the annotation tools available</span>
-                  </template>
-                </UFormGroup>
-                
-                <UFormGroup class="space-y-4">
-                  <template #label>
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">Status</span>
-                  </template>
-                  
-                  <!-- Clear Input Label -->
-                  <div class="mb-4 mt-6">
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Current project status</span>
-                  </div>
-                  
-                  <USelect
-                    v-model="formData.status"
-                    placeholder="Select status"
-                    :options="statusOptions"
-                    :disabled="!isEditing"
-                    size="lg"
-                  />
-                  <template #help>
-                    <span class="text-xs text-gray-500 dark:text-gray-400">Controls project visibility and access</span>
-                  </template>
-                </UFormGroup>
-              </div>
-
-            <!-- Action Buttons -->
-            <div class="pt-6 border-t border-gray-200 dark:border-gray-700">
-              <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div class="flex items-center gap-3">
-                  <UButton 
-                    v-if="!isEditing"
-                    color="primary" 
-                    @click="startEditing"
-                    size="lg"
-                  >
-                    <UIcon name="i-heroicons-pencil" class="w-4 h-4 mr-2" />
-                    Edit Settings
-                  </UButton>
-                  
-                  <template v-else>
-                    <UButton 
-                      type="submit" 
-                      color="primary" 
-                      :loading="saving"
-                      :disabled="!isFormValid || !hasUnsavedChanges"
-                      size="lg"
-                    >
-                      <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
-                      Save Changes
-                    </UButton>
-                    
-                    <UButton 
-                      color="neutral" 
-                      variant="outline" 
-                      @click="cancelEditing"
-                      :disabled="saving"
-                      size="lg"
-                    >
-                      Cancel
-                    </UButton>
-                  </template>
-                </div>
-              </div>
-              
-              <!-- Success/Info Messages -->
-              <div v-if="hasUnsavedChanges || saved" class="mt-4 p-4 rounded-lg" :class="[
-                saved 
-                  ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
-                  : 'bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
-              ]">
-                <div class="flex items-center">
-                  <UIcon 
-                    :name="saved ? 'i-heroicons-check-circle' : 'i-heroicons-information-circle'" 
-                    :class="[
-                      'w-4 h-4 mr-3',
-                      saved ? 'text-green-600 dark:text-green-400' : 'text-gray-600 dark:text-gray-400'
-                    ]" 
-                  />
-                  <span :class="[
-                    'text-sm',
-                    saved ? 'text-green-800 dark:text-green-200' : 'text-gray-700 dark:text-gray-300'
-                  ]">
-                    {{ saved ? 'Settings saved successfully!' : 'You have unsaved changes' }}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </form>
-        </div>
+        <p v-if="hasUnsavedChanges" class="furniture text-correct-500">Not saved yet</p>
       </div>
 
-      <!-- Project Statistics -->
-      <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-6">
-        <h3 class="text-lg font-medium text-gray-900 dark:text-white mb-4">Project Statistics</h3>
-        
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">15</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Users</p>
-          </div>
-          
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">45</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Total Tasks</p>
-          </div>
-          
-          <div class="text-center p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
-            <p class="text-2xl font-bold text-gray-900 dark:text-white">71%</p>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Completion Rate</p>
+      <dl v-if="projectData" class="docket mt-4 flex-wrap gap-x-8 gap-y-2 border border-stock-400 px-4 py-3 furniture text-stock-600">
+        <div class="docket-field"><dt>Project</dt><dd>#{{ projectData.id }}</dd></div>
+        <div class="docket-field"><dt>Type</dt><dd>{{ projectTypeName(projectData.projectType) }}</dd></div>
+        <div class="docket-field"><dt>Classes</dt><dd>{{ projectData.labelConfig?.classes?.length ?? 0 }}</dd></div>
+        <div class="docket-field"><dt>Created</dt><dd>{{ formatDate(projectData.createdAt) }}</dd></div>
+      </dl>
+
+      <p
+        v-if="notice"
+        class="mt-4 border px-4 py-2.5 text-[13px] leading-relaxed text-stock-800"
+        :class="notice.kind === 'error' ? 'border-correct-500' : 'border-stock-950'"
+        role="status"
+        aria-live="polite"
+      >
+        {{ notice.text }}
+      </p>
+
+      <form class="mt-8 max-w-2xl" novalidate @submit.prevent="saveGeneralSettings">
+        <div class="space-y-6">
+          <UFormField
+            label="Project name"
+            name="name"
+            required
+            :error="nameError || undefined"
+            :help="nameError ? undefined : 'Shown on every task and in the project list.'"
+          >
+            <UInput v-model="formData.name" placeholder="Street scenes, batch 3" size="lg" class="w-full" :disabled="saving" />
+          </UFormField>
+
+          <UFormField
+            label="Description"
+            name="description"
+            help="Optional. What counts as a correct label in this project."
+          >
+            <UTextarea
+              v-model="formData.description"
+              placeholder="Label every vehicle that is fully inside the frame."
+              :rows="4"
+              size="lg"
+              class="w-full"
+              :disabled="saving"
+            />
+          </UFormField>
+
+          <UFormField
+            label="Work type"
+            name="projectType"
+            help="Decides which annotation tools a task opens with."
+          >
+            <USelect
+              v-model="formData.type"
+              :items="typeItems"
+              value-key="value"
+              label-key="label"
+              placeholder="Select a work type"
+              size="lg"
+              class="w-full"
+              :disabled="saving"
+            />
+          </UFormField>
+        </div>
+
+        <div class="mt-8 flex flex-wrap items-center gap-3 border-t border-stock-400 pt-6">
+          <button type="submit" class="ink-button" :disabled="!canSave">
+            <UIcon name="i-lucide-check" class="size-3.5" />
+            {{ saving ? 'Saving…' : 'Save changes' }}
+          </button>
+          <button
+            type="button"
+            class="ink-button ink-button--outline"
+            :disabled="!hasUnsavedChanges || saving"
+            @click="resetForm"
+          >
+            Undo changes
+          </button>
+          <p v-if="!canSave && !saving" class="furniture text-stock-600">{{ saveBlockedReason }}</p>
+        </div>
+      </form>
+
+      <!-- Deleting is the only destructive act this screen can actually perform,
+           so it is the only one printed here. -->
+      <section class="mt-12 border-t border-stock-400 pt-6">
+        <h3 class="text-[15px] font-semibold tracking-tight text-correct-500">Delete this project</h3>
+        <p class="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-stock-600">
+          Deleting removes the project, its tasks, its annotations and everything uploaded to it.
+          There is no undo and no archive: once it is gone, the labelling done in it is gone with it.
+        </p>
+
+        <button
+          v-if="!deleteOpen"
+          type="button"
+          class="ink-button ink-button--outline mt-4 text-correct-500"
+          @click="deleteOpen = true"
+        >
+          <UIcon name="i-lucide-trash-2" class="size-3.5" />
+          Delete project
+        </button>
+
+        <div v-else class="mt-4 max-w-xl border border-correct-500 bg-stock-50 p-4">
+          <p class="furniture text-correct-500">Delete “{{ projectData?.name }}”?</p>
+          <p class="mt-1.5 text-[13px] leading-relaxed text-stock-800">
+            This deletes the project and every task and annotation in it. Type the project name to
+            confirm you mean this one.
+          </p>
+          <UInput
+            v-model="deleteConfirmation"
+            :placeholder="projectData?.name"
+            size="lg"
+            class="mt-3 w-full"
+            :disabled="deleting"
+            aria-label="Type the project name to confirm deletion"
+          />
+          <div class="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              class="ink-button"
+              :disabled="deleteConfirmation.trim() !== projectData?.name || deleting"
+              @click="deleteProject"
+            >
+              {{ deleting ? 'Deleting…' : 'Delete it' }}
+            </button>
+            <button type="button" class="ink-button ink-button--outline" :disabled="deleting" @click="cancelDelete">
+              Keep the project
+            </button>
           </div>
         </div>
-      </div>
-
-      <!-- Danger Zone -->
-      <div class="bg-white dark:bg-gray-800 rounded-lg shadow border border-red-200 dark:border-red-800">
-        <div class="p-6">
-          <h3 class="text-lg font-medium text-red-600 dark:text-red-400 mb-6">Danger Zone</h3>
-          
-          <div class="space-y-6">
-            <!-- Archive Project -->
-            <div class="p-4 border border-red-200 dark:border-red-800 rounded-lg">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Archive Project</h4>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Archive this project to hide it from active projects. Archived projects can be restored later.
-              </p>
-              <UButton color="warning" variant="outline" size="sm">
-                Archive Project
-              </UButton>
-            </div>
-
-            <!-- Delete Project -->
-            <div class="p-4 border border-red-200 dark:border-red-800 rounded-lg">
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white mb-2">Delete Project</h4>
-              <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">
-                Permanently delete this project and all its data. This action cannot be undone.
-              </p>
-              <UButton color="error" variant="outline" size="sm">
-                Delete Project
-              </UButton>
-            </div>
-          </div>
-        </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-/**
- * Project Settings Component
- * 
- * Features:
- * - Real-time form validation
- * - Edit mode toggle
- * - Unsaved changes detection
- * - Toast notifications for success/error feedback
- * - Form state management
- */
+import { PROJECT_TYPES, SELECTABLE_PROJECT_TYPES, projectTypeName } from '~/components/project/sections/projectTypes'
 
-// Types
 interface ProjectData {
   id: number
   name: string
@@ -334,57 +188,72 @@ interface Props {
 
 const props = defineProps<Props>()
 
-// Auth
 const token = useCookie('auth_token')
 
-// Reactive state
-const isEditing = ref(false)
-const saving = ref(false)
-const saved = ref(false)
 const loading = ref(true)
+const saving = ref(false)
+const deleting = ref(false)
 const error = ref<string | null>(null)
+const notice = ref<{ kind: 'done' | 'error', text: string } | null>(null)
 const projectData = ref<ProjectData | null>(null)
+const deleteOpen = ref(false)
+const deleteConfirmation = ref('')
 
-// Form state
 const formData = ref({
   name: '',
   description: '',
-  type: 1,
-  status: 'active'
+  type: 1
 })
 
-// Original data to compare for unsaved changes
 const originalData = ref({
   name: '',
   description: '',
-  type: 1,
-  status: 'active'
+  type: 1
 })
 
-// Options
-const projectTypeOptions = [
-  { label: 'Image Classification', value: 1 },
-  { label: 'Object Detection', value: 2 },
-  { label: 'Data Analysis', value: 3 },
-  { label: 'Text Analysis', value: 4 },
-  { label: 'Named Entity Recognition', value: 5 }
-]
+/** Only the seeded types may be chosen; a project already on a withdrawn type
+ *  keeps it in the list so saving the name cannot silently change its type. */
+const typeItems = computed(() => {
+  const current = PROJECT_TYPES.find(type => type.value === formData.value.type)
+  if (current && !current.selectable) return [...SELECTABLE_PROJECT_TYPES, current]
+  return SELECTABLE_PROJECT_TYPES
+})
 
-const statusOptions = [
-  { label: 'Active', value: 'active' },
-  { label: 'Paused', value: 'paused' },
-  { label: 'Completed', value: 'completed' },
-  { label: 'Archived', value: 'archived' }
-]
+const nameError = computed(() => {
+  const name = formData.value.name.trim()
+  if (!name) return 'A project name is required.'
+  if (name.length > 100) return `${name.length} characters. The limit is 100.`
+  return null
+})
 
-// Methods
+const hasUnsavedChanges = computed(() =>
+  formData.value.name !== originalData.value.name ||
+  formData.value.description !== originalData.value.description ||
+  formData.value.type !== originalData.value.type
+)
+
+const canSave = computed(() => !saving.value && !nameError.value && hasUnsavedChanges.value)
+
+const saveBlockedReason = computed(() => {
+  if (nameError.value) return 'A name is needed'
+  if (!hasUnsavedChanges.value) return 'Nothing changed'
+  return ''
+})
+
+const formatDate = (timestamp: number) =>
+  new Date(timestamp * 1000).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
+
 const fetchProjectData = async () => {
   try {
     loading.value = true
     error.value = null
-    
+
     if (!token.value) {
-      throw new Error('Authentication required')
+      throw new Error('You are signed out, so the project could not be read.')
     }
 
     const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
@@ -394,174 +263,131 @@ const fetchProjectData = async () => {
       }
     })
 
-    // Handle the nested response structure
-    if (response.data?.projects) {
-      projectData.value = response.data.projects
-      
-      // Update form data with real project data
-      const project = response.data.projects
-      const projectFormData = {
-        name: project.name || '',
-        description: project.description || '',
-        type: project.projectType || 1,
-        status: 'active' // Default status since it's not in API response
-      }
-      
-      formData.value = { ...projectFormData }
-      originalData.value = { ...projectFormData }
-      
-    } else {
-      throw new Error('Project not found')
+    if (!response.data?.projects) {
+      throw new Error(`No project ${props.projectId} is open to you.`)
     }
+
+    projectData.value = response.data.projects
+
+    const loaded = {
+      name: response.data.projects.name || '',
+      description: response.data.projects.description || '',
+      type: response.data.projects.projectType || 1
+    }
+
+    formData.value = { ...loaded }
+    originalData.value = { ...loaded }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : 'Failed to load project'
-    console.error('Error fetching project:', err)
+    error.value = err instanceof Error ? err.message : 'The project could not be loaded.'
   } finally {
     loading.value = false
   }
 }
 
-const getProjectTypeName = (type?: number) => {
-  switch (type) {
-    case 1: return 'Image Classification'
-    case 2: return 'Object Detection'
-    case 3: return 'Data Analysis'
-    case 4: return 'Text Analysis'
-    case 5: return 'Named Entity Recognition'
-    default: return 'Unknown'
-  }
-}
-
-const formatDate = (timestamp: number) => {
-  return new Date(timestamp * 1000).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  })
-}
-
-// Computed properties
-const isFormValid = computed(() => {
-  return formData.value.name.trim().length > 0 && 
-         formData.value.description.trim().length > 0
-})
-
-const hasUnsavedChanges = computed(() => {
-  return (
-    formData.value.name !== originalData.value.name ||
-    formData.value.description !== originalData.value.description ||
-    formData.value.type !== originalData.value.type ||
-    formData.value.status !== originalData.value.status
-  )
-})
-
-// Methods
-const startEditing = () => {
-  isEditing.value = true
-}
-
-const cancelEditing = () => {
-  // Reset form data to original values
+const resetForm = () => {
   formData.value = { ...originalData.value }
-  isEditing.value = false
-  saved.value = false
+  notice.value = null
+}
+
+const changedFieldNames = () => {
+  const changed: string[] = []
+  if (formData.value.name !== originalData.value.name) changed.push('name')
+  if (formData.value.description !== originalData.value.description) changed.push('description')
+  if (formData.value.type !== originalData.value.type) changed.push('work type')
+  return changed
 }
 
 const saveGeneralSettings = async () => {
+  if (!canSave.value) return
+
+  const changed = changedFieldNames()
   saving.value = true
-  saved.value = false
-  
+  notice.value = null
+
   try {
-    // Basic validation
-    if (!formData.value.name.trim()) {
-      throw new Error('Project name is required')
+    const project = projectData.value
+    if (!project?.id) {
+      throw new Error('The project is not loaded, so nothing could be saved.')
     }
 
-    if (!formData.value.description.trim()) {
-      throw new Error('Project description is required')
-    }
-
-    if (!projectData.value?.id) {
-      throw new Error('Project ID not found')
-    }
-
-    const updateData = {
-      name: formData.value.name.trim(),
-      description: formData.value.description.trim(),
-      projectType: formData.value.type
-    }
-
-    const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectData.value.id}`, {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${project.id}`, {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token.value}`
       },
-      body: updateData
+      body: {
+        name: formData.value.name.trim(),
+        description: formData.value.description.trim(),
+        projectType: formData.value.type
+      }
     })
 
-    console.log('Project settings saved successfully:', response)
-
-    // Update original data to match saved data
+    formData.value.name = formData.value.name.trim()
+    formData.value.description = formData.value.description.trim()
     originalData.value = { ...formData.value }
-    
-    // Update project data with new values
-    if (projectData.value) {
-      projectData.value.name = formData.value.name
-      projectData.value.description = formData.value.description
-      projectData.value.projectType = formData.value.type
+
+    project.name = formData.value.name
+    project.description = formData.value.description
+    project.projectType = formData.value.type
+
+    // The confirmation names what actually moved, so it cannot claim more than it did.
+    notice.value = { kind: 'done', text: `Saved: ${changed.join(', ')}.` }
+  } catch (err: any) {
+    notice.value = {
+      kind: 'error',
+      text: `${err?.data?.details || err?.message || 'The settings could not be saved.'} Your edits are still on screen — press Save changes to try again.`
     }
-    
-    // Show success state
-    saved.value = true
-    isEditing.value = false
-    
-    // Show success toast
-    const toast = useToast()
-    toast.add({
-      title: 'Settings saved',
-      description: 'Project settings have been updated successfully.',
-      color: 'success',
-      icon: 'i-heroicons-check-circle'
-    })
-    
-    // Reset saved state after 2 seconds
-    setTimeout(() => {
-      saved.value = false
-    }, 2000)
-    
-  } catch (error: any) {
-    console.error('Error saving project settings:', error)
-    
-    // Show error toast
-    const toast = useToast()
-    toast.add({
-      title: 'Failed to save settings',
-      description: error.message || 'An error occurred while saving project settings.',
-      color: 'error',
-      icon: 'i-heroicons-exclamation-circle'
-    })
   } finally {
     saving.value = false
   }
 }
 
-// Lifecycle
+const cancelDelete = () => {
+  deleteOpen.value = false
+  deleteConfirmation.value = ''
+}
+
+const deleteProject = async () => {
+  if (!projectData.value || deleteConfirmation.value.trim() !== projectData.value.name) return
+
+  deleting.value = true
+  notice.value = null
+
+  const organizationId = projectData.value.organizationId
+
+  try {
+    await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectData.value.id}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${token.value}`
+      }
+    })
+
+    await navigateTo(`/organizations/${organizationId}?section=projects`)
+  } catch (err: any) {
+    deleting.value = false
+    notice.value = {
+      kind: 'error',
+      text: `${err?.data?.details || err?.message || 'The project could not be deleted.'} It is still here and nothing was removed.`
+    }
+  }
+}
+
 onMounted(() => {
   fetchProjectData()
 })
 
-// Warn user before leaving with unsaved changes
 onMounted(() => {
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (hasUnsavedChanges.value && isEditing.value) {
-      e.preventDefault()
-      e.returnValue = ''
+  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (hasUnsavedChanges.value) {
+      event.preventDefault()
+      event.returnValue = ''
     }
   }
-  
+
   window.addEventListener('beforeunload', handleBeforeUnload)
-  
+
   onUnmounted(() => {
     window.removeEventListener('beforeunload', handleBeforeUnload)
   })

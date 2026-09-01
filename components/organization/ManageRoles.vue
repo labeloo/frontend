@@ -1,265 +1,130 @@
 <script setup lang="ts">
-import { reactive, watch, onMounted, toRefs, computed, ref } from 'vue'
-import { Switch } from '@headlessui/vue'
+/**
+ * The permission editor for one role.
+ *
+ * Turning "full administrator" on used to silently leave every other flag on
+ * when it was turned back off, so a role that read as restricted could still
+ * delete the organization. The switches a reader can see now always match the
+ * flags that will be saved: admin hides the list because it covers all of it,
+ * and switching admin back off restores exactly what was set before.
+ */
+import {
+  ADMIN_PERMISSION,
+  EMPTY_FLAGS,
+  PERMISSION_GROUPS,
+  ANNOTATION_NOTE,
+  ROLE_TEMPLATES,
+  type PermissionFlags,
+  type PermissionKey
+} from './permissions'
 
-interface RoleState {
-  admin: boolean
-  editOrganization: boolean
-  deleteOrganization: boolean
-  editMembers: boolean
-  editRoles: boolean
-  editProjects: boolean
-  createProjects: boolean
-  deleteProjects: boolean
-}
-
-// Add props to receive initial state from parent
 const props = defineProps<{
-  initialState?: RoleState
+  initialState?: PermissionFlags
 }>()
 
-const state = reactive<RoleState>({
-  admin: false,
-  editOrganization: false,
-  deleteOrganization: false,
-  editMembers: false,
-  editRoles: false,
-  editProjects: false,
-  createProjects: false,
-  deleteProjects: false,
-})
+const emit = defineEmits(['update:state'])
 
-// Initialize state from props when component mounts and when props change
-watch(() => props.initialState, (newInitialState) => {
-  if (newInitialState) {
-    // Use for..of loop instead of forEach
-    for (const key of Object.keys(state)) {
-      const typedKey = key as keyof RoleState
-      if (newInitialState && typedKey in newInitialState) {
-        state[typedKey] = newInitialState[typedKey]
-      }
-    }
+const state = reactive<PermissionFlags>({ ...EMPTY_FLAGS })
+
+// What the non-admin switches read as before admin was switched on, so that
+// switching it off puts the role back where the reader left it.
+const beforeAdmin = ref<PermissionFlags | null>(null)
+
+const nonAdminKeys = PERMISSION_GROUPS.flatMap(g => g.items.map(i => i.key))
+
+watch(() => props.initialState, (incoming) => {
+  if (!incoming) return
+  for (const key of Object.keys(state) as PermissionKey[]) {
+    if (key in incoming) state[key] = incoming[key]
   }
 }, { immediate: true, deep: true })
 
-// Watch for changes to the admin flag specifically
-watch(() => state.admin, (isAdmin) => {
-  if (isAdmin) {
-    // Set all other flags to true when admin is true
-    // Use for..of loop instead of forEach
-    for (const key of Object.keys(state)) {
-      const typedKey = key as keyof RoleState
-      if (typedKey !== 'admin') {
-        state[typedKey] = true
-      }
-    }
-  }
-})
-
-// Watch for any changes in the state object
 watch(state, (newState) => {
-  console.log('State changed:', newState)
-  emit('update:state', { ...newState }) // Clone to avoid reference issues
+  emit('update:state', { ...newState })
 }, { deep: true })
 
-// Computed property to check if other flags should be disabled
-const otherFlagsDisabled = computed(() => {
-  return state.admin
-})
+const onAdminToggle = (value: boolean) => {
+  if (value) {
+    beforeAdmin.value = { ...state }
+    for (const key of nonAdminKeys) state[key] = true
+    state.admin = true
+    return
+  }
 
-// Define the emit
-const emit = defineEmits(['update:state'])
+  state.admin = false
+  const restore = beforeAdmin.value
+  for (const key of nonAdminKeys) state[key] = restore ? restore[key] : false
+  beforeAdmin.value = null
+}
+
+const applyTemplate = (flags: PermissionFlags) => {
+  beforeAdmin.value = null
+  for (const key of Object.keys(state) as PermissionKey[]) state[key] = flags[key]
+}
 </script>
 
 <template>
-  <div class="max-h-[70vh] overflow-y-auto -mr-12 pr-6">
-    <UForm :state="state" class="space-y-3 ml-2">
-      <div class="space-y-2">
-        <UFormField label="Admin Access" name="admin" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Full administrative access</p>
-          </template>
-          <Switch
-            v-model="state.admin"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class="[state.admin ? 'bg-green-500' : 'bg-gray-300']"
-          >
-            <span class="sr-only">Enable admin role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.admin ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
+  <div class="max-h-[70vh] overflow-y-auto pr-1">
+    <section>
+      <h4 class="furniture text-stock-600 border-b border-stock-400 pb-2">Start from</h4>
+      <div class="flex flex-wrap gap-2 mt-3">
+        <button
+          v-for="template in ROLE_TEMPLATES"
+          :key="template.name"
+          type="button"
+          class="ink-button ink-button--outline"
+          :title="template.summary"
+          @click="applyTemplate(template.flags)"
+        >
+          {{ template.name }}
+        </button>
+      </div>
+      <p class="text-sm text-stock-600 mt-2">
+        A starting point, not a lock — every switch below stays editable.
+      </p>
+    </section>
+
+    <section class="mt-8">
+      <div class="flex items-start justify-between gap-6 border-y border-stock-400 py-4">
+        <div>
+          <div class="font-medium text-stock-950">{{ ADMIN_PERMISSION.label }}</div>
+          <p class="text-sm text-stock-600 mt-0.5">{{ ADMIN_PERMISSION.detail }}</p>
+        </div>
+        <USwitch
+          :model-value="state.admin"
+          :aria-label="ADMIN_PERMISSION.label"
+          class="mt-1 shrink-0"
+          @update:model-value="onAdminToggle"
+        />
       </div>
 
-      <div class="space-y-2">
-        <UFormField label="Edit Organization" name="editOrganization" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Modify organization settings</p>
-          </template>
-          <Switch
-            v-model="state.editOrganization"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.editOrganization ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable edit organization role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.editOrganization ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
+      <p v-if="state.admin" class="text-sm text-stock-700 mt-4 border border-stock-400 p-4">
+        This role covers every permission there is, so there is nothing left to choose.
+        Switch it off to set permissions one by one — the ones you had picked come back.
+      </p>
 
-      <div class="space-y-2">
-        <UFormField label="Delete Organization" name="deleteOrganization" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Permanently delete organization</p>
-          </template>
-          <Switch
-            v-model="state.deleteOrganization"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.deleteOrganization ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable delete organization role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.deleteOrganization ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
+      <div v-else class="mt-6 space-y-8">
+        <div v-for="group in PERMISSION_GROUPS" :key="group.title">
+          <h4 class="furniture text-stock-600 border-b border-stock-400 pb-2">{{ group.title }}</h4>
+          <p class="text-sm text-stock-600 mt-2">{{ group.note }}</p>
 
-      <div class="space-y-2">
-        <UFormField label="Edit Members" name="editMembers" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Manage organization members</p>
-          </template>
-          <Switch
-            v-model="state.editMembers"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.editMembers ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable edit members role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.editMembers ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
-
-      <div class="space-y-2">
-        <UFormField label="Edit Roles" name="editRoles" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Create and modify roles</p>
-          </template>
-          <Switch
-            v-model="state.editRoles"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.editRoles ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable edit roles role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.editRoles ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
-
-      <div class="space-y-2">
-        <UFormField label="Edit Projects" name="editProjects" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Modify existing projects</p>
-          </template>
-          <Switch
-            v-model="state.editProjects"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.editProjects ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable edit projects role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.editProjects ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
-
-      <div class="space-y-2">
-        <UFormField label="Create Projects" name="createProjects" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Create new projects</p>
-          </template>
-          <Switch
-            v-model="state.createProjects"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.createProjects ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable create projects role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.createProjects ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
-
-      <div class="space-y-2">
-        <UFormField label="Delete Projects" name="deleteProjects" size="lg">
-          <template #description>
-            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">Permanently delete projects</p>
-          </template>
-          <Switch
-            v-model="state.deleteProjects"
-            :disabled="otherFlagsDisabled"
-            class="group relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2"
-            :class=" [
-              state.deleteProjects ? 'bg-green-500' : 'bg-gray-300',
-              otherFlagsDisabled ? 'opacity-70 cursor-not-allowed' : ''
-            ]"
-          >
-            <span class="sr-only">Enable delete projects role</span>
-            <span
-              class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out"
-              :class="[state.deleteProjects ? 'translate-x-6' : 'translate-x-1']"
-            />
-          </Switch>
-        </UFormField>
-      </div>
-
-      <div v-if="state.admin" class="p-3 mt-4 text-xs text-blue-700 bg-blue-100 dark:bg-blue-900/20 dark:text-blue-300 rounded-lg border border-blue-200 dark:border-blue-800">
-        <div class="flex items-center gap-2">
-          <UIcon name="i-heroicons-information-circle" class="w-3 h-3" />
-          <span class="font-medium">Admin permission grants all other permissions automatically</span>
+          <div class="mt-2 divide-y divide-stock-400">
+            <div
+              v-for="item in group.items"
+              :key="item.key"
+              class="flex items-start justify-between gap-6 py-3"
+            >
+              <div>
+                <div class="text-stock-950">{{ item.label }}</div>
+                <p class="text-sm text-stock-600 mt-0.5">{{ item.detail }}</p>
+              </div>
+              <USwitch v-model="state[item.key]" :aria-label="item.label" class="mt-1 shrink-0" />
+            </div>
+          </div>
         </div>
       </div>
-    </UForm>
+    </section>
+
+    <p class="text-sm text-stock-600 mt-8 border-t border-stock-400 pt-4">{{ ANNOTATION_NOTE }}</p>
   </div>
 </template>

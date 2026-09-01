@@ -1,0 +1,51 @@
+{
+  "title": "Labeloo — görsel dünya seçimi (2. atış)",
+  "question": "Zar bu kez 'Separation Proof' yönünü atadı. Onu tut, alternatiflerden birini al, ya da yeniden at.",
+  "options": [
+    {
+      "id": "assigned",
+      "label": "Separation Proof",
+      "kicker": "ZARIN ATADIĞI",
+      "lineage": "matbaa renk ayrımı provası, ilerlemeli baskı ve tescil çubuğu",
+      "thesis": "Her sınıf bir mürekkeptir; anotasyon katmanı fotoğrafın üstüne basılan ayrımdır.",
+      "palette": ["#F4F2EC", "#141414", "#0093D3", "#D6006E"],
+      "materials": ["kaplamasız prova kâğıdı", "proses mürekkepleri", "tescil hedefi", "yoğunluk ölçüm çubuğu"],
+      "viewport": "Görüntü, prova sayfasının plakası gibi alanı doldurur. Altındaki renk çubuğu her sınıfı bir mürekkep olarak dizer; yanındaki yoğunluk yamaları o sınıftan kaç örnek işaretlendiğini gösterir. Tescil haçları kare köşelerini tutar, araçlar bir mürekkep sırası gibi okunur.",
+      "risk": "Proses mürekkepleri doygun renklerdir; fotoğrafın üstünde disiplinli kullanılmazsa görüntüyle yarışır.",
+      "case": "Bir maske zaten bir ayrım katmanıdır: bir sınıfı açıp kapatmak, provaya bir mürekkep eklemek ya da çıkarmaktır. Sınıf renkleri keyfi bir palet olmaktan çıkıp mürekkep sırasına dönüşür — ve ilerlemeli prova, çok nesneli video takibinin doğal gösterimi olur."
+    },
+    {
+      "id": "challenger-plate-section",
+      "label": "Design Annual — Plate Section",
+      "lineage": "tasarım yıllığının plaka bölümü, kaplamasız beyaza yakın kâğıt",
+      "thesis": "Sayfa bir plaka bölümüdür: tescil furnitürü, ince cetveller ve tek bir grotesk.",
+      "case": "Çok güçlü oturuyor — belki atanandan da güçlü. 'Fotoğraf tonlanmaz' kuralı ürünün birinci prensibiyle birebir aynı; tescil haçları kare köşelerini işaretler, mono jeton çubuğu görev künyesidir. Zayıf yanı: bu bir yayın dünyası, bir alet dünyası değil — yoğun araç ve durum yükünü taşıması için gramerin genişletilmesi gerekir.",
+      "hero": "https://impeccable.style/worlds/cards/design-annual-s-plate-section-hero.webp"
+    },
+    {
+      "id": "challenger-cassette",
+      "label": "Cassette Futurism Deck",
+      "lineage": "fırçalanmış alüminyum teyp paneli, krom anahtarlar, amber LED merdivenleri",
+      "thesis": "Her işlevin kendi etiketli anahtarı vardır; durum ışıkla okunur.",
+      "case": "Kısmen oturuyor: 'her işleve kendi anahtarı' bir araç paletine gerçek bir cevap ve amber LED merdiveni, takip ilerlemesinin doğal göstergesi. Ama fırçalanmış alüminyum ve bej çevre, yargılanması gereken görüntüyle yarışır.",
+      "hero": "https://impeccable.style/worlds/cards/pop-culture-shelf-cassette-futurism-deck-hero.webp"
+    },
+    {
+      "id": "challenger-crt",
+      "label": "CRT Arcade Glow",
+      "lineage": "fosfor siyahı üzerine on altı renklik sprite paleti, tarama çizgileri",
+      "thesis": "Izgara kutsaldır; ölçekleme tam sayıdır, durum palet yasasıdır.",
+      "case": "Zayıf oturuyor: tam sayı ölçekleme, yakınlaştırmalı bir tuval için gerçek bir cevap. Ama tarama çizgileri ve fosfor parlaması, fotoğrafın üstünde tam olarak yargılamaya çalıştığınız şeyi bozar.",
+      "hero": "https://impeccable.style/worlds/cards/medium-native-crt-arcade-pixel-glow-hero.webp"
+    }
+  ],
+  "reroll": true,
+  "canon": true,
+  "canonCard": {
+    "label": "Kategori standardı",
+    "thesis": "Bu kategorinin hep gönderdiği şey, kusursuz işçilikle.",
+    "viewport": "Neredeyse siyah kabuk, solda ikon şeridi, tek neon vurgu — CVAT, Label Studio ve bugünkü Labeloo'nun ortak dili, tam ustalıkla uygulanmış.",
+    "risk": "Tanıdık ve güvenli; Labeloo'yu rakiplerinden ayırmaz."
+  },
+  "steer": true
+}

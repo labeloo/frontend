@@ -66,9 +66,6 @@ class PolygonSimplificationWorkerManager {
       
       // Wait for worker ready signal
       await this.waitForWorkerReady()
-      
-      console.log('🔧 Polygon simplification worker initialized successfully')
-      
     } catch (error) {
       console.error('🔧 Failed to initialize polygon worker:', error)
       throw new Error(`Failed to initialize polygon simplification worker: ${error}`)
@@ -162,13 +159,11 @@ class PolygonSimplificationWorkerManager {
     }
 
     if (!('id' in data)) {
-      console.warn('🔧 Received worker message without ID:', data)
       return
     }
 
     const pending = this.pendingRequests.get(data.id)
     if (!pending) {
-      console.warn('🔧 Received response for unknown request:', data.id)
       return
     }
 
@@ -177,9 +172,6 @@ class PolygonSimplificationWorkerManager {
     if (data.type === 'simplified') {
       const response = data as SimplificationResponse
       const totalTime = performance.now() - pending.startTime
-      
-      console.log(`🔧 Polygon simplified: ${response.originalPoints} → ${(response.simplifiedPoints.length/2)} points (${response.compressionRatio.toFixed(1)}%) in ${totalTime.toFixed(1)}ms`)
-      
       pending.resolve(response)
     } else if (data.type === 'error') {
       const errorResponse = data as ErrorResponse
@@ -219,7 +211,6 @@ class PolygonSimplificationWorkerManager {
       this.worker.terminate()
       this.worker = null
       this.isWorkerReady = false
-      console.log('🔧 Polygon simplification worker terminated')
     }
   }
 

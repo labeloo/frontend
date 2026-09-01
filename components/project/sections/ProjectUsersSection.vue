@@ -1,7 +1,7 @@
 <template>
   <div>
     <div class="flex items-center justify-between mb-6">
-      <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Project Users</h2>
+      <h2 class="text-2xl font-semibold text-stock-950">Project Users</h2>
       <UButton color="secondary" class="cursor-pointer">
         <UIcon name="i-heroicons-plus" class="w-4 h-4 mr-2" />
         Add User
@@ -10,14 +10,14 @@
 
     <!-- Users List -->
     <div class="space-y-4">
-      <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+      <div class="flex items-center justify-between p-4 bg-stock-50 rounded-none">
         <div class="flex items-center space-x-4">
           <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-user" class="w-5 h-5 text-white" />
+            <UIcon name="i-heroicons-user" class="w-5 h-5 text-stock-50" />
           </div>
           <div>
-            <h3 class="font-medium text-gray-900 dark:text-white">John Doe</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Project Manager</p>
+            <h3 class="font-medium text-stock-950">John Doe</h3>
+            <p class="text-sm text-stock-600">Project Manager</p>
           </div>
         </div>
         <div class="flex items-center space-x-2">          <UBadge color="success" variant="soft">Active</UBadge>
@@ -27,14 +27,14 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+      <div class="flex items-center justify-between p-4 bg-stock-50 rounded-none">
         <div class="flex items-center space-x-4">
           <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-user" class="w-5 h-5 text-white" />
+            <UIcon name="i-heroicons-user" class="w-5 h-5 text-stock-50" />
           </div>
           <div>
-            <h3 class="font-medium text-gray-900 dark:text-white">Jane Smith</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Data Annotator</p>
+            <h3 class="font-medium text-stock-950">Jane Smith</h3>
+            <p class="text-sm text-stock-600">Data Annotator</p>
           </div>
         </div>
         <div class="flex items-center space-x-2">
@@ -45,14 +45,14 @@
         </div>
       </div>
 
-      <div class="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg">
+      <div class="flex items-center justify-between p-4 bg-stock-50 rounded-none">
         <div class="flex items-center space-x-4">
           <div class="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <UIcon name="i-heroicons-user" class="w-5 h-5 text-white" />
+            <UIcon name="i-heroicons-user" class="w-5 h-5 text-stock-50" />
           </div>
           <div>
-            <h3 class="font-medium text-gray-900 dark:text-white">Mike Johnson</h3>
-            <p class="text-sm text-gray-500 dark:text-gray-400">Reviewer</p>
+            <h3 class="font-medium text-stock-950">Mike Johnson</h3>
+            <p class="text-sm text-stock-600">Reviewer</p>
           </div>
         </div>
         <div class="flex items-center space-x-2">

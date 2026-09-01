@@ -1,138 +1,102 @@
 <template>
-    <!-- Sidebar -->
-    <aside class="bg-white dark:bg-gray-800 shadow-lg h-screen w-64 fixed left-0 top-0 z-40 border-r border-gray-200 dark:border-gray-700">
-        <div class="flex flex-col h-full">
-            <!-- Logo/Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                <NuxtLink :to="{ name: 'homepage' }">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
-                </NuxtLink>
-            </div>            <!-- Navigation Menu -->
-            <div class="flex-1 p-4 overflow-y-auto">
-                <!-- Manual navigation for debugging -->
-                <div class="space-y-1">
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Organization</div>
-                    
-                    <button
-                        @click="handleNavClick('overview')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'overview'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-home" class="w-4 h-4 mr-3" />
-                        Overview
-                    </button>
-                    
-                    <button
-                        @click="handleNavClick('projects')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'projects'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-folder" class="w-4 h-4 mr-3" />
-                        Projects
-                    </button>
-                    
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3 mt-6">Management</div>
-                    
-                    <button
-                        @click="handleNavClick('users')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'users'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
-                        Users
-                    </button>
-                    
-                    <button
-                        @click="handleNavClick('roles')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'roles'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-user-group" class="w-4 h-4 mr-3" />
-                        Roles
-                    </button>
-                    
-                    <button
-                        @click="handleNavClick('settings')"
-                        :class="[
-                            'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors',
-                            activeSection === 'settings'
-                                ? 'bg-primary text-white'
-                                : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                        ]"
-                    >
-                        <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />
-                        Settings
-                    </button>
-                </div>
-            </div>
+  <aside class="bg-stock-100 h-screen w-64 fixed left-0 top-0 z-40 border-r border-stock-400">
+    <div class="flex flex-col h-full">
+      <!-- Wordmark -->
+      <div class="px-5 py-4 border-b border-stock-400">
+        <NuxtLink :to="{ name: 'homepage' }" class="text-xl font-semibold text-stock-950">
+          Labeloo
+        </NuxtLink>
+      </div>
 
-            <!-- Footer Actions -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex flex-col gap-2">
-                    <UtilsColorModeButton class="hover:cursor-pointer" />
-                    <UButton color="secondary" block class="hover:cursor-pointer" @click="handleLogout">
-                        <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
-                        Logout
-                    </UButton>
-                </div>
-            </div>
-        </div>
-    </aside>
+      <!-- Which organization this is. Without it, a manager with several of
+           them cannot tell whose settings they are about to change. -->
+      <div class="px-5 py-4 border-b border-stock-400">
+        <p class="furniture text-stock-600">Organization</p>
+        <p class="text-stock-950 font-medium mt-2 break-words leading-snug">
+          {{ organizationName || 'Loading' }}
+        </p>
+        <NuxtLink
+          to="/homepage"
+          class="control text-stock-600 hover:text-stock-950 inline-flex items-center gap-1.5 mt-3"
+        >
+          <UIcon name="i-lucide-arrow-left" class="w-3 h-3" />
+          All organizations
+        </NuxtLink>
+      </div>
+
+      <!-- Sections -->
+      <nav class="flex-1 p-3 overflow-y-auto" aria-label="Organization sections">
+        <p class="furniture text-stock-600 px-2 pt-2 pb-3">This organization</p>
+        <ul class="space-y-0.5">
+          <li v-for="item in navItems" :key="item.key">
+            <button
+              type="button"
+              class="w-full flex items-center gap-3 px-3 py-2 text-sm text-left border-l-2 transition-colors"
+              :class="activeSection === item.key
+                ? 'border-stock-950 bg-stock-950 text-stock-50'
+                : 'border-transparent text-stock-700 hover:text-stock-950 hover:bg-stock-200'"
+              :aria-current="activeSection === item.key ? 'page' : undefined"
+              @click="handleNavClick(item.key)"
+            >
+              <UIcon :name="item.icon" class="w-4 h-4 shrink-0" />
+              {{ item.label }}
+            </button>
+          </li>
+        </ul>
+      </nav>
+
+      <div class="p-3 border-t border-stock-400">
+        <button type="button" class="ink-button ink-button--outline w-full justify-center" @click="handleLogout">
+          <UIcon name="i-lucide-log-out" class="w-3.5 h-3.5" />
+          Sign out
+        </button>
+      </div>
+    </div>
+  </aside>
 </template>
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
 
-// Define middleware as a navigation guard
 definePageMeta({
-    middleware: [async () => {
-        const { isAuthenticated } = useAuth()
-        if (!isAuthenticated.value) {
-            return navigateTo('/login')
-        }
-    }]
+  middleware: [async () => {
+    const { isAuthenticated } = useAuth()
+    if (!isAuthenticated.value) {
+      return navigateTo('/login')
+    }
+  }]
 })
 
 const { logout } = useAuth()
 const route = useRoute()
+const router = useRouter()
 
-// Emit events for component navigation
 const emit = defineEmits<{
   'section-change': [section: string]
 }>()
 
-// Use the global state for section management
-const activeSection = useState('currentSection', () => 'overview')
+const navItems = [
+  { key: 'overview', label: 'Overview', icon: 'i-lucide-layout-dashboard' },
+  { key: 'projects', label: 'Projects', icon: 'i-lucide-folder' },
+  { key: 'users', label: 'Members', icon: 'i-lucide-users' },
+  { key: 'roles', label: 'Roles', icon: 'i-lucide-list-checks' },
+  { key: 'models', label: 'Models', icon: 'i-lucide-cpu' },
+  { key: 'settings', label: 'Settings', icon: 'i-lucide-settings' }
+]
+
+// The page writes this while it loads the organization.
+const organizationName = useState<string | null>('currentOrganizationName', () => null)
+
+// The section is a fact about the address, not a fact about the session: Back
+// returns to the previous section, and a link carries the section with it.
+const activeSection = computed(() => (route.query.section as string) || 'overview')
 
 const handleLogout = () => {
-    logout()
+  logout()
 }
 
-// Handle navigation clicks
 const handleNavClick = (section: string) => {
-    activeSection.value = section
-    emit('section-change', section)
+  router.push({ query: { ...route.query, section } })
+  emit('section-change', section)
 }
-
-// Watch for changes in the global state to update the navbar UI
-watch(activeSection, (newSection) => {
-    // The navbar UI will automatically update because activeSection is reactive
-    console.log('Navbar: Active section changed to:', newSection)
-}, { immediate: true })
 </script>

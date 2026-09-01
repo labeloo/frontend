@@ -1,99 +1,79 @@
 <template>
-    <!-- Sidebar -->
-    <aside
-        class="bg-white dark:bg-gray-800 shadow-lg h-screen w-64 fixed left-0 top-0 z-40 border-r border-gray-200 dark:border-gray-700">
-        <div class="flex flex-col h-full">
-            <!-- Logo/Header -->
-            <div class="p-6 border-b border-gray-200 dark:border-gray-700">
-                <NuxtLink :to="{ name: 'homepage' }">
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white hover:cursor-pointer">Labeloo</h1>
+    <aside class="fixed left-0 top-0 z-40 h-screen w-64 border-r border-stock-400 bg-stock-100">
+        <div class="flex h-full flex-col">
+            <div class="border-b border-stock-400 p-5">
+                <NuxtLink :to="{ name: 'homepage' }" class="flex items-center gap-2">
+                    <img src="~/assets/images/penguin.png" alt="" class="h-5 w-auto" />
+                    <span class="text-[15px] font-semibold tracking-tight text-stock-950">Labeloo</span>
                 </NuxtLink>
-                <div class="mt-2">
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Project Dashboard</p>
-                </div>
+                <p class="mt-3 truncate text-[13px] font-medium text-stock-950" :title="projectTitle">
+                    {{ projectTitle }}
+                </p>
+                <p class="furniture mt-1 text-stock-600">Project {{ projectId }}</p>
             </div>
 
-            <!-- Navigation Menu -->
-            <div class="flex-1 p-4 overflow-y-auto">
-                <div class="space-y-1">
-                    <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Project</div>
+            <nav class="flex-1 overflow-y-auto p-3" aria-label="Project sections">
+                <p class="furniture mb-2 px-2 text-stock-600">Sections</p>
 
-                    <button @click="handleNavClick('annotate')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'annotate'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-pencil-square" class="w-4 h-4 mr-3" />
-                        Annotate
+                <ul class="space-y-px">
+                    <li v-for="item in sections" :key="item.key">
+                        <button
+                            type="button"
+                            :aria-current="activeSection === item.key ? 'page' : undefined"
+                            :class="[
+                                'flex w-full items-center gap-3 px-3 py-2 text-left text-[13px] transition-colors',
+                                activeSection === item.key
+                                    ? 'bg-stock-950 text-stock-50'
+                                    : 'text-stock-700 hover:bg-stock-200 hover:text-stock-950'
+                            ]"
+                            @click="handleNavClick(item.key)"
+                        >
+                            <UIcon :name="item.icon" class="size-4 flex-none" />
+                            {{ item.label }}
+                        </button>
+                    </li>
+
+                    <li>
+                        <!-- A page of its own rather than a section: it holds a live SAM 2
+                             session, so it must survive section switches. -->
+                        <NuxtLink
+                            :to="`/annotate/video/${projectId}`"
+                            class="flex w-full items-center gap-3 px-3 py-2 text-[13px] text-stock-700 transition-colors hover:bg-stock-200 hover:text-stock-950"
+                        >
+                            <UIcon name="i-lucide-film" class="size-4 flex-none" />
+                            Video tracking
+                        </NuxtLink>
+                    </li>
+                </ul>
+            </nav>
+
+            <div class="border-t border-stock-400 p-3">
+                <!-- The organization id is read once for the whole screen, so this is a
+                     real link rather than a click that waits on a request. -->
+                <NuxtLink
+                    v-if="organizationId"
+                    :to="`/organizations/${organizationId}`"
+                    class="control flex w-full items-center gap-2 px-3 py-2 text-stock-600 transition-colors hover:bg-stock-200 hover:text-stock-950"
+                >
+                    <UIcon name="i-lucide-arrow-left" class="size-3.5" />
+                    Back to organization
+                </NuxtLink>
+                <p v-else-if="projectLoadError" class="px-3 py-2">
+                    <span class="furniture text-correct-500">Organization unknown</span>
+                    <button
+                        type="button"
+                        class="control mt-1 block text-stock-600 underline underline-offset-2 hover:text-stock-950"
+                        @click="load(true)"
+                    >
+                        Try again
                     </button>
+                </p>
+                <p v-else class="furniture px-3 py-2 text-stock-600">Reading project…</p>
 
-                    <button @click="handleNavClick('tasks')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'tasks'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-clipboard-document-list" class="w-4 h-4 mr-3" />
-                        Tasks
-                    </button>
-
-                    <button @click="handleNavClick('users')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'users'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-users" class="w-4 h-4 mr-3" />
-                        Users
-                    </button>
-
-                    <button @click="handleNavClick('upload-data')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'upload-data'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-cloud-arrow-up" class="w-4 h-4 mr-3" />
-                        Upload Data
-                    </button>
-
-                    <button @click="handleNavClick('classes')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'classes'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-academic-cap" class="w-4 h-4 mr-3" />
-                        Classes
-                    </button>
-
-                    <button @click="handleNavClick('settings')" :class="[
-                        'w-full flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors cursor-pointer',
-                        activeSection === 'settings'
-                            ? 'bg-info text-white'
-                            : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700'
-                    ]">
-                        <UIcon name="i-heroicons-cog-6-tooth" class="w-4 h-4 mr-3" />
-                        Settings
-                    </button>
-                </div>
-            </div>
-
-            <!-- Footer Actions -->
-            <div class="p-4 border-t border-gray-200 dark:border-gray-700">
-                <div class="flex flex-col gap-2">
-                    <UtilsColorModeButton class="hover:cursor-pointer" />
-                    <UButton color="neutral" variant="ghost" block class="hover:cursor-pointer"
-                        @click="handleBackToOrg">
-                        <UIcon name="i-heroicons-arrow-left" class="w-4 h-4 mr-2" />
-                        Back to Organization
-                    </UButton>
-                    <UButton color="secondary" block class="hover:cursor-pointer" @click="handleLogout">
-                        <UIcon name="i-heroicons-arrow-left-on-rectangle" class="w-4 h-4 mr-2" />
-                        Logout
-                    </UButton>
-                </div>
+                <button type="button" class="ink-button ink-button--outline mt-2 w-full justify-center" @click="handleLogout">
+                    <UIcon name="i-lucide-log-out" class="size-3.5" />
+                    Log out
+                </button>
             </div>
         </div>
     </aside>
@@ -101,8 +81,8 @@
 
 <script setup lang="ts">
 import { useAuth } from '@/composables/useAuth'
+import { useProjectRecord } from '~/components/project/useProjectRecord'
 
-// Define middleware as a navigation guard
 definePageMeta({
     middleware: [async () => {
         const { isAuthenticated } = useAuth()
@@ -114,80 +94,38 @@ definePageMeta({
 
 const { logout } = useAuth()
 const route = useRoute()
-const token = useCookie('auth_token')
 
-// Emit events for component navigation
 const emit = defineEmits<{
     'section-change': [section: string]
 }>()
 
-// Current active section - sync with global state
+const projectId = computed(() => String(route.params.id ?? ''))
+
 const activeSection = useState('currentProjectSection', () => 'annotate')
+
+const { projectName, organizationId, loadError: projectLoadError, load } = useProjectRecord(projectId)
+
+const projectTitle = computed(() => projectName.value || `Project ${projectId.value}`)
+
+const sections = [
+    { key: 'annotate', label: 'Annotate', icon: 'i-lucide-pencil-line' },
+    { key: 'tasks', label: 'Progress', icon: 'i-lucide-bar-chart-3' },
+    { key: 'users', label: 'Users', icon: 'i-lucide-users' },
+    { key: 'upload-data', label: 'Upload data', icon: 'i-lucide-upload' },
+    { key: 'classes', label: 'Classes', icon: 'i-lucide-tags' },
+    { key: 'settings', label: 'Settings', icon: 'i-lucide-settings' }
+]
 
 const handleLogout = () => {
     logout()
 }
 
-// Handle navigation clicks
+// The layout owns the section: it puts it in the URL and writes it back into
+// the shared state, so this rail only asks.
 const handleNavClick = (section: string) => {
-    activeSection.value = section
     emit('section-change', section)
 }
 
-// Handle back to organization navigation
-const handleBackToOrg = async () => {
-    try {
-        // Get the current project ID from the route
-        const projectId = route.params.id
-        
-        if (!projectId || !token.value) {
-            // Fallback to homepage if no project ID or token
-            console.error('Missing project ID or token')
-            await navigateTo('/homepage')
-            return
-        }
-
-        // Define the expected response type
-        interface ProjectResponse {
-            data: {
-                projects: {
-                    id: number
-                    organizationId: number
-                    name: string
-                    description: string
-                    projectType: number
-                    createdAt: number
-                    updatedAt: number
-                }
-            }
-        }
-
-        // Fetch project data to get organization ID using $fetch like other components
-        const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${projectId}`, {
-            headers: {
-                'Authorization': `Bearer ${token.value}`
-            }
-        })
-
-        const organizationId = response.data?.projects?.organizationId
-
-        if (organizationId) {
-
-            // Navigate to the organization page
-            await navigateTo(`/organizations/${organizationId}`)
-            return
-        } else {
-
-            console.error('No organization ID found in response:', response)
-        }
-        
-        // Fallback if API call fails or no organization ID found
-
-        await navigateTo('/homepage')
-    } catch (error) {
-        console.error('Error navigating back to organization:', error)
-        // Fallback to homepage on error
-        await navigateTo('/homepage')
-    }
-}
+watch(projectId, () => load(), { immediate: true })
+onMounted(() => load())
 </script>

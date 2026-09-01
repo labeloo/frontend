@@ -55,8 +55,6 @@ export const useAnnotationLifecycle = (options: AnnotationLifecycleOptions) => {
           // Use Web Worker for complex polygons
           try {
             const optimizedPoints = await slidingBufferOptimizer.getOptimizedCompletePolygonAsync(2.0, true)
-            console.log(`🔧 Web Worker optimized freehand: ${pointCount} → ${optimizedPoints.length/2} points`)
-            
             // Convert flat points to coordinate objects
             const finalPoints: { x: number; y: number }[] = []
             for (let i = 0; i < optimizedPoints.length - 1; i += 2) {
@@ -71,14 +69,11 @@ export const useAnnotationLifecycle = (options: AnnotationLifecycleOptions) => {
             // Update the annotation with optimized points
             currentAnnotation.value.points = finalPoints
           } catch (error) {
-            console.warn('🔧 Web Worker optimization failed, using original points:', error)
           }
         }
         
         // Get final optimization statistics
         const bufferInfo = slidingBufferOptimizer.getBufferInfo()
-        console.log(`📊 Freehand completion stats:`, bufferInfo)
-        
         // Reset the sliding buffer
         slidingBufferOptimizer.reset()
       }

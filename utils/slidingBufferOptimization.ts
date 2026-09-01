@@ -68,7 +68,6 @@ class SlidingBufferOptimizer {
     // Determine if we should start optimizing
     if (pointCount >= this.config.simplificationThreshold && !this.isOptimizing) {
       this.isOptimizing = true
-      console.log(`🎯 Sliding buffer optimization activated at ${pointCount} points`)
     }
     
     if (this.config.batchDrawUpdates) {
@@ -182,10 +181,8 @@ class SlidingBufferOptimizer {
     try {
       // Use Web Worker for heavy computation
       const result = await workerManager.simplifyPolygon(this.fullBuffer, tolerance, preserveShape)
-      console.log(`🔧 Worker simplification: ${result.originalPoints} → ${result.simplifiedPoints.length/2} points (${result.compressionRatio.toFixed(1)}%) in ${result.processingTime.toFixed(1)}ms`)
       return result.simplifiedPoints
     } catch (error) {
-      console.warn('🔧 Worker simplification failed, falling back to synchronous:', error)
       // Fallback to synchronous simplification
       return this.simplifyPoints(this.fullBuffer, tolerance)
     }

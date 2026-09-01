@@ -1,13 +1,13 @@
 <template>
   <div class="relative">
     <!-- Loading State -->
-    <div v-if="loading" class="flex items-center justify-center bg-gray-100 dark:bg-gray-700" :class="imageClass">
-      <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-gray-400" />
+    <div v-if="loading" class="flex items-center justify-center bg-stock-200" :class="imageClass">
+      <UIcon name="i-heroicons-arrow-path" class="w-6 h-6 animate-spin text-stock-600" />
     </div>
     
     <!-- Error State -->
-    <div v-else-if="error" class="flex items-center justify-center bg-gray-100 dark:bg-gray-700" :class="imageClass">
-      <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-red-400" />
+    <div v-else-if="error" class="flex items-center justify-center bg-stock-200" :class="imageClass">
+      <UIcon name="i-heroicons-exclamation-triangle" class="w-6 h-6 text-correct-500" />
     </div>
     
     <!-- Image -->

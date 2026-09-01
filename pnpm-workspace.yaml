@@ -1,0 +1,7 @@
+# pnpm 10+ refuses to run a dependency's install scripts unless they are listed
+# here. Without real values (or --ignore-scripts) `pnpm install` exits 1, which
+# is exactly what breaks a fresh clone and every Docker build.
+allowBuilds:
+  '@tailwindcss/oxide': true   # builds the native Tailwind v4 engine
+  esbuild: true                # fetches its platform binary
+  vue-demi: false              # only patches itself for Vue 2/3 duality; not needed

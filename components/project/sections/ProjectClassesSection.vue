@@ -1,140 +1,167 @@
 <template>
   <div>
-    <!-- Loading State -->
-    <div v-if="loading" class="flex flex-col justify-center items-center py-12 space-y-3">
-      <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Loading classes...</p>
+    <div v-if="loading" class="py-16 text-center">
+      <p class="furniture text-stock-600">Loading classes…</p>
     </div>
 
-    <!-- Error State -->
-    <UAlert
-      v-else-if="error"
-      color="error"
-      variant="subtle"
-      :title="error"
-      icon="i-heroicons-exclamation-triangle"
-      class="mb-6"
-    />
+    <!-- The list could not be read: say what is missing and offer the way back. -->
+    <section v-else-if="error" class="max-w-xl border border-correct-500 bg-stock-50 p-6">
+      <p class="furniture text-correct-500">Classes not loaded</p>
+      <p class="mt-2 text-[15px] leading-snug text-stock-950">{{ error }}</p>
+      <p class="mt-2 text-[13px] leading-relaxed text-stock-600">
+        Nothing has been changed. The class list lives on the project, so until it loads there is
+        nothing safe to edit here.
+      </p>
+      <button type="button" class="ink-button mt-5" @click="fetchProjectData">
+        <UIcon name="i-lucide-rotate-cw" class="size-3.5" />
+        Try again
+      </button>
+    </section>
 
-    <!-- Main Content -->
     <div v-else>
-      <div class="flex items-center justify-between mb-6">
-        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Project Classes</h2>
+      <!-- Heading strip: the state of the list and the one control that saves it. -->
+      <div class="flex flex-wrap items-end justify-between gap-4 border-b border-stock-400 pb-3">
+        <div>
+          <h2 class="text-[22px] font-semibold tracking-tight text-stock-950">Classes</h2>
+          <p class="mt-1 text-[13px] leading-relaxed text-stock-600">
+            The only vocabulary an annotator may apply. Each class prints in the ink shown beside it.
+          </p>
+        </div>
+        <div class="flex items-center gap-3">
+          <p v-if="hasChanges" class="furniture text-correct-500">Not saved yet</p>
+          <button
+            type="button"
+            class="ink-button"
+            :disabled="!hasChanges || updating"
+            @click="updateClasses"
+          >
+            <UIcon name="i-lucide-check" class="size-3.5" />
+            {{ updating ? 'Saving…' : 'Save classes' }}
+          </button>
+        </div>
       </div>
 
-      <!-- Classes Overview -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-          <div class="flex items-center">
-            <UIcon name="i-heroicons-academic-cap" class="w-8 h-8 text-blue-600 mr-3" />
-            <div>
-              <p class="text-sm text-blue-600 dark:text-blue-400">Total Classes</p>
-              <p class="text-2xl font-bold text-blue-900 dark:text-blue-200">{{ classes.length }}</p>
-            </div>
-          </div>
+      <dl class="docket mt-4 flex-wrap gap-x-8 gap-y-2 border border-stock-400 px-4 py-3 furniture text-stock-600">
+        <div class="docket-field min-w-0">
+          <dt>Project</dt>
+          <dd class="truncate">{{ projectData?.name || `#${props.projectId}` }}</dd>
         </div>
-        
-        <div class="bg-green-50 dark:bg-green-900/20 p-4 rounded-lg">
-          <div class="flex items-center">
-            <UIcon name="i-heroicons-check-circle" class="w-8 h-8 text-green-600 mr-3" />
-            <div>
-              <p class="text-sm text-green-600 dark:text-green-400">Active Classes</p>
-              <p class="text-2xl font-bold text-green-900 dark:text-green-200">{{ classes.length }}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div class="bg-purple-50 dark:bg-purple-900/20 p-4 rounded-lg">
-          <div class="flex items-center">
-            <UIcon name="i-heroicons-chart-bar" class="w-8 h-8 text-purple-600 mr-3" />
-            <div>
-              <p class="text-sm text-purple-600 dark:text-purple-400">Project Type</p>
-              <p class="text-lg font-bold text-purple-900 dark:text-purple-200">{{ getProjectTypeName(projectData?.projectType) }}</p>
-            </div>
-          </div>
-        </div>
-      </div>      <!-- Class Management Section -->
-      <UCard>
-        <template #header>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Manage Classes</h3>
-        </template>
+        <div class="docket-field"><dt>Type</dt><dd>{{ projectTypeName(projectData?.projectType) }}</dd></div>
+        <div class="docket-field"><dt>Classes</dt><dd>{{ classes.length }}</dd></div>
+        <div class="docket-field"><dt>Saved</dt><dd>{{ originalClasses.length }}</dd></div>
+      </dl>
 
-        <div class="space-y-6">
-          <!-- Add Class Input -->
-          <div class="flex space-x-2">
-            <UInput
-              v-model="newClassName"
-              placeholder="Enter class name(s) - separate multiple with commas (e.g., 'cat, dog, person')"
-              size="lg"
+      <!-- What happened to the list, said where the list is. -->
+      <p
+        v-if="notice"
+        class="mt-4 border px-4 py-2.5 text-[13px] leading-relaxed"
+        :class="notice.kind === 'error' ? 'border-correct-500 text-stock-800' : 'border-stock-950 text-stock-800'"
+        role="status"
+        aria-live="polite"
+      >
+        {{ notice.text }}
+      </p>
+
+      <div class="mt-6 flex gap-2">
+        <UInput
+          v-model="newClassName"
+          placeholder="car, pedestrian, traffic light"
+          size="lg"
+          class="flex-1"
+          :disabled="updating"
+          aria-label="Class name, or several separated by commas"
+          @keydown.enter="handleAddClassKeydown"
+        />
+        <button
+          type="button"
+          class="ink-button"
+          :disabled="!newClassName.trim() || updating"
+          @click="addClass"
+        >
+          <UIcon name="i-lucide-plus" class="size-3.5" />
+          Add
+        </button>
+      </div>
+
+      <ul v-if="classes.length" class="mt-6 divide-y divide-stock-400 border-y border-stock-400">
+        <li v-for="(className, index) in classes" :key="className" class="py-2.5">
+          <div class="flex items-center gap-3">
+            <span class="furniture w-6 text-stock-600">{{ index + 1 }}</span>
+            <span class="swatch" :style="{ backgroundColor: classInk(className) }" />
+            <span class="min-w-0 flex-1 truncate text-[14px] text-stock-950">{{ className }}</span>
+            <button
+              type="button"
+              class="control px-2 py-1 text-stock-600 hover:text-correct-500"
               :disabled="updating"
-              class="flex-1"
-              @keydown.enter="handleAddClassKeydown"
-            />
-            <UButton
-              @click="addClass"
-              :disabled="!newClassName.trim() || updating"
-              icon="i-heroicons-plus"
-              size="lg"
-              color="secondary"
-              class="cursor-pointer"
+              :aria-label="`Remove class ${className}`"
+              @click="askRemove(index)"
             >
-              Add
-            </UButton>
+              Remove
+            </button>
           </div>
 
-          <!-- Classes List -->
-          <div v-if="classes.length > 0" class="space-y-4">
-            <div class="flex items-center justify-between">
-              <h4 class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                Current Classes ({{ classes.length }})
-              </h4>
-              <UButton
-                v-if="hasChanges"
-                @click="updateClasses"
-                :loading="updating"
-                color="info"
-                size="sm"
-                icon="i-heroicons-check"
-                class="cursor-pointer"
-              >
-                Update Classes
-              </UButton>
-            </div>
-            
-            <div class="flex flex-wrap gap-2">
-              <div
-                v-for="(className, index) in classes"
-                :key="index"
-                class="flex items-center space-x-2 bg-gray-100 dark:bg-gray-100 text-primary dark:text-black px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-200"
-              >
-                <span class="text-sm font-medium">{{ className }}</span>
-                <UButton
-                  @click="removeClass(index)"
-                  icon="i-heroicons-x-mark"
-                  size="xs"
-                  color="primary"
-                  variant="ghost"
-                  :disabled="updating"
-                  class="cursor-pointer"
-                />
-              </div>
+          <!-- Removing shifts every later class onto a different ink, so it is said first. -->
+          <div v-if="pendingRemoval === index" class="mt-2 border border-correct-500 bg-stock-50 p-3">
+            <p class="furniture text-correct-500">Remove “{{ className }}”?</p>
+            <p class="mt-1.5 text-[13px] leading-relaxed text-stock-800">
+              Marks already made with this class keep their record but lose their ink and print as
+              unclassed.
+              <template v-if="classes.length - index - 1 > 0">
+                The {{ classes.length - index - 1 }} class(es) below it move up a place, so each one
+                prints in a different colour from tomorrow on.
+              </template>
+              Nothing changes on the server until you press Save classes.
+            </p>
+            <div class="mt-3 flex gap-2">
+              <button type="button" class="ink-button" @click="removeClass(index)">Remove it</button>
+              <button type="button" class="ink-button ink-button--outline" @click="pendingRemoval = null">Keep it</button>
             </div>
           </div>
+        </li>
+      </ul>
 
-          <!-- Empty State -->
-          <div v-else class="text-center py-8 border-2 border-dashed border-gray-200 dark:border-gray-700 rounded-lg">
-            <UIcon name="i-heroicons-tag" class="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-2">No Classes</h3>
-            <p class="text-xs text-gray-500 dark:text-gray-400">Add your first class above to get started.</p>
-          </div>
+      <!-- An empty list is the state that stops labelling, so it says so. -->
+      <div v-else class="mt-6 border border-dashed border-stock-400 p-6">
+        <p class="text-[14px] font-semibold text-stock-950">No classes on this project</p>
+        <p class="mt-1.5 max-w-xl text-[13px] leading-relaxed text-stock-600">
+          An annotator opening a task here has nothing to apply, so no annotation can be recorded.
+          Add the classes this dataset is being labelled for — type them above, separated by commas.
+          {{ hasChanges ? 'Your removals are not saved yet: press Save classes to make them real.' : '' }}
+        </p>
+      </div>
+
+      <p v-if="inkRepeatsFrom" class="mt-4 text-[13px] leading-relaxed text-correct-500">
+        There are nine inks. From class {{ inkRepeatsFrom }} on they repeat — {{ repeatedPairs }}
+        print in the same colour, and an annotator can only tell them apart by name.
+      </p>
+
+      <!-- Leaving this screen with unsaved edits is how the list gets lost, so it asks. -->
+      <div v-if="pendingSection" class="mt-6 border border-correct-500 bg-stock-50 p-4">
+        <p class="furniture text-correct-500">Unsaved classes</p>
+        <p class="mt-1.5 text-[13px] leading-relaxed text-stock-800">
+          The class list on screen is not the one on the server. Leaving this section now drops the
+          edits.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button type="button" class="ink-button" :disabled="updating" @click="saveThenLeave">
+            {{ updating ? 'Saving…' : 'Save and continue' }}
+          </button>
+          <button type="button" class="ink-button ink-button--outline" @click="discardThenLeave">
+            Discard edits and continue
+          </button>
+          <button type="button" class="ink-button ink-button--outline" @click="pendingSection = null">
+            Stay here
+          </button>
         </div>
-      </UCard>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useAuth } from '~/composables/useAuth'
+import { onBeforeRouteUpdate } from 'vue-router'
+import { inkForClass, CLASS_INKS } from '~/utils/inks'
+import { projectTypeName } from '~/components/project/sections/projectTypes'
 
 interface Props {
   projectId: string
@@ -169,12 +196,8 @@ interface ProjectResponse {
 
 const props = defineProps<Props>()
 
-// Auth and utils
-const { isAuthenticated } = useAuth()
 const token = useCookie('auth_token')
-const toast = useToast()
 
-// Reactive state
 const loading = ref(true)
 const error = ref<string | null>(null)
 const updating = ref(false)
@@ -182,135 +205,75 @@ const projectData = ref<Project | null>(null)
 const classes = ref<string[]>([])
 const originalClasses = ref<string[]>([])
 const newClassName = ref('')
-
-// Computed properties
-const getProjectTypeName = (type: number | undefined) => {
-  if (!type) return 'Unknown'
-  switch (type) {
-    case 1: return 'Classification'
-    case 2: return 'Object Detection'
-    case 3: return 'Data Analysis'
-    default: return 'Unknown'
-  }
-}
+const pendingRemoval = ref<number | null>(null)
+const notice = ref<{ kind: 'done' | 'error', text: string } | null>(null)
 
 const hasChanges = computed(() => {
   if (classes.value.length !== originalClasses.value.length) return true
   return !classes.value.every((className, index) => className === originalClasses.value[index])
 })
 
-// Methods
+const classInk = (className: string) => inkForClass(className, classes.value)
+
+const inkRepeatsFrom = computed(() =>
+  classes.value.length > CLASS_INKS.length ? CLASS_INKS.length + 1 : null
+)
+
+const repeatedPairs = computed(() => {
+  const pairs = classes.value
+    .slice(CLASS_INKS.length)
+    .map((className, index) => `${classes.value[index]} and ${className}`)
+  return pairs.slice(0, 3).join(', ') + (pairs.length > 3 ? `, and ${pairs.length - 3} more pair(s)` : '')
+})
+
 const fetchProjectData = async () => {
   try {
     loading.value = true
     error.value = null
-    
+
     if (!token.value) {
-      throw new Error('Authentication required')
+      throw new Error('You are signed out, so the project could not be read.')
     }
-      const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
+
+    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       headers: {
         'Authorization': `Bearer ${token.value}`
       }
     })
-    
-    // Extract project data from nested response
+
     projectData.value = response.data.projects
-    
-    // Extract classes from labelConfig
-    if (response.data.projects.labelConfig?.classes) {
-      classes.value = [...response.data.projects.labelConfig.classes]
-      originalClasses.value = [...response.data.projects.labelConfig.classes]
-    } else {
-      classes.value = []
-      originalClasses.value = []
-    }
-    
+
+    const saved = response.data.projects.labelConfig?.classes ?? []
+    classes.value = [...saved]
+    originalClasses.value = [...saved]
   } catch (err) {
-    console.error('Error fetching project data:', err)
-    error.value = err instanceof Error ? err.message : 'Failed to load project data'
+    error.value = err instanceof Error ? err.message : 'The project could not be loaded.'
   } finally {
     loading.value = false
   }
 }
 
 const addClass = () => {
-  const input = newClassName.value.trim()
-  
-  if (!input) {
-    return
-  }
-  
-  // Split by comma and clean up each class name
-  const classNames = input
+  const names = newClassName.value
     .split(',')
     .map(name => name.trim())
-    .filter(name => name.length > 0)
-  
-  if (classNames.length === 0) {
-    return
-  }
-  
-  const addedClasses: string[] = []
-  const duplicateClasses: string[] = []
-  
-  // Process each class name
-  classNames.forEach(className => {
-    if (classes.value.includes(className)) {
-      duplicateClasses.push(className)
-    } else {
-      classes.value.push(className)
-      addedClasses.push(className)
-    }
-  })
-  
-  // Clear the input
-  newClassName.value = ''
-  
-  // Show success message for added classes
-  if (addedClasses.length > 0) {
-    if (addedClasses.length === 1) {
-      toast.add({
-        title: 'Class Added',
-        description: `Class "${addedClasses[0]}" has been added`,
-        color: 'success'
-      })
-    } else {
-      toast.add({
-        title: 'Classes Added', 
-        description: `${addedClasses.length} classes have been added: ${addedClasses.join(', ')}`,
-        color: 'success'
-      })
-    }
-  }
-  
-  // Show warning for duplicates
-  if (duplicateClasses.length > 0) {
-    if (duplicateClasses.length === 1) {
-      toast.add({
-        title: 'Duplicate Class',
-        description: `Class "${duplicateClasses[0]}" already exists`,
-        color: 'warning'
-      })
-    } else {
-      toast.add({
-        title: 'Duplicate Classes',
-        description: `${duplicateClasses.length} classes already exist: ${duplicateClasses.join(', ')}`,
-        color: 'warning'
-      })
-    }
-  }
-}
+    .filter(Boolean)
 
-const removeClass = (index: number) => {
-  const className = classes.value[index]
-  classes.value.splice(index, 1)
-  
-  toast.add({
-    title: 'Class Removed',
-    description: `Class "${className}" has been removed`,
-    color: 'info'
+  if (!names.length) return
+
+  const duplicates: string[] = []
+  names.forEach(name => {
+    if (classes.value.includes(name)) duplicates.push(name)
+    else classes.value.push(name)
   })
+
+  newClassName.value = ''
+  pendingRemoval.value = null
+
+  // The list itself is the receipt for an addition; only the refusals need words.
+  notice.value = duplicates.length
+    ? { kind: 'error', text: `Already in the list, not added again: ${duplicates.join(', ')}.` }
+    : null
 }
 
 const handleAddClassKeydown = (event: KeyboardEvent) => {
@@ -319,25 +282,37 @@ const handleAddClassKeydown = (event: KeyboardEvent) => {
   addClass()
 }
 
+const askRemove = (index: number) => {
+  pendingRemoval.value = pendingRemoval.value === index ? null : index
+}
+
+const removeClass = (index: number) => {
+  classes.value.splice(index, 1)
+  pendingRemoval.value = null
+  notice.value = null
+}
+
 const updateClasses = async () => {
+  if (!hasChanges.value) return
+
   try {
     updating.value = true
-    
+    notice.value = null
+
     if (!token.value) {
-      throw new Error('Authentication required')
+      throw new Error('You are signed out, so nothing could be saved.')
     }
-    
     if (!projectData.value) {
-      throw new Error('Project data not loaded')
+      throw new Error('The project is not loaded, so nothing could be saved.')
     }
-      // Prepare the updated project data
+
     const updatedProject = {
       ...projectData.value,
       labelConfig: {
         classes: classes.value
       }
     }
-    
+
     const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
       method: 'PUT',
       headers: {
@@ -346,42 +321,83 @@ const updateClasses = async () => {
       },
       body: updatedProject
     })
-    
-    // Update local project data from response
+
     if (response.data?.projects) {
       projectData.value = response.data.projects
-      // Update originalClasses to reflect the new saved state
-      originalClasses.value = [...classes.value]
     } else {
       projectData.value = updatedProject
-      // Update originalClasses to reflect the new saved state
-      originalClasses.value = [...classes.value]
     }
-    
-    toast.add({
-      title: 'Classes Updated',
-      description: `Project classes have been updated successfully`,
-      color: 'success'
-    })
-    
+    originalClasses.value = [...classes.value]
+
+    notice.value = {
+      kind: 'done',
+      text: `Saved. This project now has ${classes.value.length} class(es); annotators see the change on their next task.`
+    }
+    return true
   } catch (err) {
-    console.error('Error updating classes:', err)
-    toast.add({
-      title: 'Update Failed',
-      description: err instanceof Error ? err.message : 'Failed to update classes',
-      color: 'error'
-    })
+    notice.value = {
+      kind: 'error',
+      text: `${err instanceof Error ? err.message : 'The classes could not be saved.'} The list on screen is unchanged — press Save classes to try again.`
+    }
+    return false
   } finally {
     updating.value = false
   }
 }
 
-// Lifecycle
-onMounted(() => {
-  fetchProjectData()
+/**
+ * The sidebar swaps sections by writing this state, which unmounts this
+ * component and takes any unsaved list with it. Hold the switch until the
+ * edits have somewhere to go.
+ */
+const currentSection = useState<string>('currentProjectSection', () => 'annotate')
+const pendingSection = ref<string | null>(null)
+
+watch(currentSection, (next, previous) => {
+  if (next === 'classes' || previous !== 'classes' || !hasChanges.value) return
+  pendingSection.value = next
+  currentSection.value = 'classes'
 })
 
-// Watch for project ID changes
+// The section also lives in the URL, so the same hold is put on the navigation
+// itself; otherwise the query would move on without the panel.
+onBeforeRouteUpdate(to => {
+  if (!hasChanges.value) return true
+  const raw = Array.isArray(to.query.section) ? to.query.section[0] : to.query.section
+  if (!raw || raw === 'classes') return true
+  pendingSection.value = String(raw)
+  currentSection.value = 'classes'
+  return false
+})
+
+const leaveToPendingSection = () => {
+  const target = pendingSection.value
+  pendingSection.value = null
+  if (target) currentSection.value = target
+}
+
+const saveThenLeave = async () => {
+  const ok = await updateClasses()
+  if (ok) leaveToPendingSection()
+}
+
+const discardThenLeave = () => {
+  classes.value = [...originalClasses.value]
+  leaveToPendingSection()
+}
+
+onMounted(() => {
+  const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (hasChanges.value) {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+  }
+
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  onUnmounted(() => window.removeEventListener('beforeunload', handleBeforeUnload))
+})
+
 watch(() => props.projectId, () => {
   if (props.projectId) {
     fetchProjectData()

@@ -1,696 +1,307 @@
-<!-- 
-  TaskAssignmentSlider Component
-  
-  A comprehensive task assignment interface that allows users to:
-  - Select the number of tasks to assign using an interactive slider
-  - Preview the tasks that will be assigned
-  - Get time estimates for completion
-  - Use quick selection presets (1, 5, 10, 25, 50, All)
-  - See visual feedback during assignment
-  - Track assignment progress
-  
-  Uses the backend endpoint: POST /api/tasks/assign/:taskId
-  Requires authentication via JWT token
+<!--
+  Hand work out of the pool. One control, one verb: pick how many sheets and
+  pick who gets them, in that order, both visible at once.
+
+  Nobody is pre-selected. The old version quietly put the signed-in user in the
+  box and hid the box two steps back, so "Assign 50 Tasks" could pile fifty
+  sheets onto yourself without ever naming a person.
+
+  Backend: POST /api/tasks/assign/:taskId with { userId }.
 -->
 <template>
-  <div class="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-6 mb-6">
-    <div class="flex items-center justify-between mb-4">
-      <div>
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex items-center">
-          <UIcon name="i-heroicons-user-plus" class="w-5 h-5 mr-2" />
-          Bulk Task Assignment
-        </h3>
-        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">
-          Assign multiple tasks to organization members
-        </p>
-      </div>
-      <div class="flex items-center space-x-2">
-        <UBadge 
-          v-if="availableTasks > 0" 
-          color="info" 
-          variant="subtle"
-          size="md"
-        >
-          {{ availableTasks }} available
-        </UBadge>
-        <UBadge 
-          v-else 
-          color="neutral" 
-          variant="subtle"
-          size="md"
-        >
-          No tasks available
-        </UBadge>
-      </div>
+  <section class="border-t border-stock-400 pt-5" aria-labelledby="hand-out-heading">
+    <div class="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
+      <h3 id="hand-out-heading" class="furniture text-stock-600">Hand out work</h3>
+      <p class="furniture text-stock-600">{{ availableTasks }} in the pool</p>
     </div>
 
-    <!-- Assignment Success Animation -->
-    <div 
-      v-if="showSuccessAnimation" 
-      class="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4 mb-4 transition-all duration-500 ease-in-out"
-    >
-      <div class="flex items-center">
-        <div class="p-2 bg-green-100 dark:bg-green-900/40 rounded-lg animate-pulse">
-          <UIcon name="i-heroicons-check-circle" class="w-5 h-5 text-green-600 dark:text-green-400" />
-        </div>
-        <div class="ml-3">
-          <h4 class="text-sm font-medium text-green-900 dark:text-green-300">
-            Tasks Assigned Successfully!
-          </h4>
-          <p class="text-xs text-green-700 dark:text-green-400 mt-1">
-            {{ lastAssignedCount }} {{ lastAssignedCount === 1 ? 'task' : 'tasks' }} assigned to {{ selectedUser?.email || 'user' }}. Assignment completed successfully.
-          </p>
-        </div>
-      </div>
+    <div v-if="availableTasks === 0" class="mt-3 text-[13px] leading-snug text-stock-700">
+      The pool is empty: every task in this project is already with somebody. Upload more data to
+      make new tasks, or take work back from the Completed tab.
     </div>
 
-    <div v-if="availableTasks > 0" class="space-y-4">
-      <!-- Slider Section -->
-      <div class="space-y-3">
-        <div class="flex items-center justify-between">
-          <label class="text-sm font-medium text-gray-700 dark:text-gray-300">
-            Number of tasks to assign:
-          </label>
-          <div class="flex items-center space-x-2">
-            <span class="text-lg font-bold text-primary">{{ selectedTaskCount }}</span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              / {{ availableTasks }} tasks
-            </span>
-          </div>
-        </div>
-
-        <!-- Custom Range Slider -->
-        <div class="relative">
-          <input
-            v-model.number="selectedTaskCount"
-            type="range"
-            :min="minTasks"
-            :max="availableTasks"
-            :step="1"
-            class="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
-            :style="sliderStyle"
-          />
-          
-          <!-- Tick marks for better UX -->
-          <div class="flex justify-between text-xs text-gray-400 dark:text-gray-500 mt-1 px-1">
-            <span>{{ minTasks }}</span>
-            <span v-if="availableTasks >= 25">{{ Math.floor(availableTasks * 0.25) }}</span>
-            <span v-if="availableTasks >= 10">{{ Math.floor(availableTasks * 0.5) }}</span>
-            <span v-if="availableTasks >= 25">{{ Math.floor(availableTasks * 0.75) }}</span>
-            <span>{{ availableTasks }}</span>
-          </div>
-        </div>
-
-        <!-- Quick Selection Buttons -->
-        <div class="flex items-center space-x-2 mt-3">
-          <span class="text-sm text-gray-600 dark:text-gray-400">Quick select:</span>
-          <UButton
-            v-for="preset in quickSelectPresets"
-            :key="preset.label"
-            @click="setTaskCount(preset.value)"
-            size="xs"
-            variant="outline"
-            :color="selectedTaskCount === preset.value ? 'primary' : 'neutral'"
-            class="cursor-pointer"
-          >
-            {{ preset.label }}
-          </UButton>
-        </div>
-      </div>
-
-      <!-- Task Preview -->
-      <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-3">
-            <div class="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
-              <UIcon name="i-heroicons-clipboard-document-list" class="w-5 h-5 text-blue-600 dark:text-blue-400" />
-            </div>
-            <div>
-              <h4 class="text-sm font-medium text-gray-900 dark:text-white">
-                Assignment Preview
-              </h4>
-              <p class="text-xs text-gray-600 dark:text-gray-400">
-                {{ selectedTaskCount }} {{ selectedTaskCount === 1 ? 'task' : 'tasks' }} will be assigned to selected user
-              </p>
-            </div>
-          </div>
-          <div class="text-right">
-            <div class="text-sm font-medium text-gray-900 dark:text-white">
-              Estimated time: {{ estimatedTime }}
-            </div>
-            <div class="text-xs text-gray-500 dark:text-gray-400">
-              {{ estimatedTimePerTask }}min per task
-            </div>
-          </div>
-        </div>
-
-        <!-- Progress visualization -->
-        <div class="mt-3">
-          <div class="flex items-center justify-between text-xs text-gray-600 dark:text-gray-400 mb-1">
-            <span>Assignment progress</span>
-            <span>{{ Math.round((selectedTaskCount / availableTasks) * 100) }}%</span>
-          </div>
-          <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-            <div 
-              class="bg-gradient-to-r from-primary to-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
-              :style="{ width: `${(selectedTaskCount / availableTasks) * 100}%` }"
-            ></div>
-          </div>
-          
-          <!-- Task Preview Info -->
-          <div class="flex items-center justify-between text-xs text-gray-500 dark:text-gray-400 mt-2">
-            <span>Tasks {{ selectedTaskCount > 1 ? `#${props.unassignedTasks.slice(0, selectedTaskCount).map(t => t.id).join(', #')}` : `#${props.unassignedTasks[0]?.id || 'N/A'}` }}</span>
-            <span>{{ availableTasks - selectedTaskCount }} remaining</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- User Selection -->
-      <div v-if="showUserSelection || isAssigning" class="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
-        <h4 class="text-sm font-medium text-blue-900 dark:text-blue-300 mb-3 flex items-center">
-          <UIcon name="i-heroicons-user-circle" class="w-4 h-4 mr-2" />
-          Select User to Assign Tasks
-        </h4>
-        
-        <div class="space-y-3">
-          <!-- User Selection Dropdown -->
-          <div v-if="loadingUsers" class="flex items-center justify-center py-4">
-            <UIcon name="i-heroicons-arrow-path" class="w-5 h-5 animate-spin text-blue-600 mr-2" />
-            <span class="text-sm text-blue-600">Loading organization users...</span>
-          </div>
-          
-          <div v-else-if="userOptions.length === 0" class="text-center py-4">
-            <UIcon name="i-heroicons-users" class="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p class="text-sm text-gray-500">No organization users found</p>
-          </div>
-          
-          <div v-else class="space-y-2">
-            <label class="text-xs font-medium text-gray-700 dark:text-gray-300">
-              Assign to:
-            </label>
-            <USelect
-              v-model="selectedUserId"
-              :items="userOptions"
-              placeholder="Select a user..."
-              size="md"
-              class="w-full"
+    <template v-else>
+      <div class="mt-4 grid gap-6 lg:grid-cols-2">
+        <!-- How many -->
+        <div>
+          <label for="assign-count" class="furniture block text-stock-600">How many sheets</label>
+          <div class="mt-2 flex items-center gap-4">
+            <input
+              id="assign-count"
+              v-model.number="selectedTaskCount"
+              type="range"
+              :min="minTasks"
+              :max="availableTasks"
+              step="1"
+              class="h-1 flex-1 cursor-pointer rounded-none bg-stock-400"
+              :disabled="isAssigning"
             />
-            
-            <!-- Selected User Preview -->
-            <div v-if="selectedUser" class="flex items-center space-x-2 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/30 rounded-md p-2">
-              <UIcon name="i-heroicons-check-circle" class="w-4 h-4" />
-              <span>
-                Tasks will be assigned to <strong>{{ selectedUser.email }}</strong> ({{ selectedUser.role }})
-              </span>
-            </div>
+            <output for="assign-count" class="w-12 text-right text-lg font-semibold tabular-nums text-stock-950">
+              {{ selectedTaskCount }}
+            </output>
+          </div>
+
+          <div class="mt-2 flex flex-wrap items-center gap-2">
+            <span class="furniture text-stock-600">Jump to</span>
+            <button
+              v-for="preset in quickSelectPresets"
+              :key="preset.label"
+              type="button"
+              class="control border px-2 py-1 transition-colors"
+              :class="selectedTaskCount === preset.value
+                ? 'border-stock-950 bg-stock-950 text-stock-50'
+                : 'border-stock-400 text-stock-700 hover:border-stock-950 hover:text-stock-950'"
+              :disabled="isAssigning"
+              @click="setTaskCount(preset.value)"
+            >
+              {{ preset.label }}
+            </button>
           </div>
         </div>
-      </div>
 
-      <!-- Assignment Action -->
-      <div class="flex items-center justify-between pt-2">
-        <div class="flex items-center space-x-2 text-xs text-gray-500 dark:text-gray-400">
-          <UIcon name="i-heroicons-information-circle" class="w-4 h-4" />
-          <span>{{ showUserSelection ? 'Select user and assign tasks' : 'Click assign to choose user' }}</span>
-        </div>
-        
-        <div class="flex items-center space-x-3">
-          <!-- Reset Button -->
-          <UButton
-            v-if="selectedTaskCount !== Math.min(5, availableTasks)"
-            @click="resetToDefault"
-            :disabled="isAssigning"
-            variant="ghost"
-            size="sm"
-            color="neutral"
-            class="cursor-pointer"
-          >
-            <UIcon name="i-heroicons-arrow-uturn-left" class="w-3 h-3 mr-1" />
-            Reset
-          </UButton>
-          
-          <!-- Cancel Assignment Button (when user selection is shown) -->
-          <UButton
-            v-if="showUserSelection && !isAssigning"
-            @click="showUserSelection = false"
-            variant="outline"
-            size="md"
-            color="neutral"
-            class="cursor-pointer"
-          >
-            Cancel
-          </UButton>
-          
-          <!-- Main Assignment Button -->
-          <UButton
-            v-if="!showUserSelection"
-            @click="() => { 
-              console.log('Showing user selection, current users:', organizationUsers.length); 
-              showUserSelection = true; 
-              if (organizationUsers.length === 0) {
-                console.log('No users loaded, fetching project data');
-                fetchProjectData(); 
-              }
-            }"
-            :disabled="selectedTaskCount === 0 || availableTasks === 0"
-            size="lg"
-            color="primary"
-            class="cursor-pointer px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-          >
-            <UIcon name="i-heroicons-user-plus" class="w-4 h-4 mr-2" />
-            Assign {{ selectedTaskCount }} {{ selectedTaskCount === 1 ? 'Task' : 'Tasks' }}
-          </UButton>
-          
-          <!-- Confirm Assignment Button (when user is selected) -->
-          <UButton
+        <!-- Who -->
+        <div>
+          <label for="assign-user" class="furniture block text-stock-600">Who gets them</label>
+
+          <p v-if="loadingUsers" class="furniture mt-2 text-stock-600">Reading the member list…</p>
+
+          <div v-else-if="usersError" class="mt-2">
+            <p class="text-[13px] leading-snug text-correct-500">{{ usersError }}</p>
+            <button type="button" class="ink-button ink-button--outline mt-2" @click="loadMembers(true)">
+              Try again
+            </button>
+          </div>
+
+          <p v-else-if="userOptions.length === 0" class="mt-2 text-[13px] leading-snug text-stock-700">
+            This organization has no active members to assign to. Invite someone from the
+            organization's Users screen first.
+          </p>
+
+          <select
             v-else
-            @click="handleAssignTasks"
-            :loading="isAssigning"
-            :disabled="!selectedUserId || selectedTaskCount === 0"
-            size="lg"
-            color="success"
-            class="cursor-pointer px-6 py-3 font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+            id="assign-user"
+            v-model="selectedUserId"
+            class="mt-2 w-full appearance-none bg-[url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 12 8%22 fill=%22none%22 stroke=%22%23141414%22 stroke-width=%221.5%22><path d=%22M1 2l5 5 5-5%22/></svg>')] bg-[length:9px_6px] bg-[position:right_0.6rem_center] bg-no-repeat rounded-none border border-stock-400 bg-stock-50 py-2 pl-3 pr-8 text-[13px] text-stock-950"
+            :disabled="isAssigning"
           >
-            <UIcon name="i-heroicons-check" class="w-4 h-4 mr-2" />
-            {{ isAssigning ? 'Assigning...' : 'Confirm Assignment' }}
-          </UButton>
+            <option :value="undefined">Choose a member…</option>
+            <option v-for="option in userOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
         </div>
       </div>
-    </div>
 
-    <!-- No Tasks Available State -->
-    <div v-else class="text-center py-8">
-      <UIcon name="i-heroicons-inbox" class="w-12 h-12 text-gray-400 mx-auto mb-3" />
-      <h3 class="text-sm font-medium text-gray-900 dark:text-white mb-1">
-        No Tasks Available
-      </h3>
-      <p class="text-xs text-gray-500 dark:text-gray-400">
-        All tasks have been assigned or there are no unassigned tasks in this project.
+      <!-- What is about to happen, in one sentence, before it happens. -->
+      <div class="mt-5 flex flex-wrap items-center justify-between gap-4">
+        <dl class="furniture flex flex-wrap gap-x-6 gap-y-1 text-stock-600">
+          <div class="docket-field"><dt>Sheets</dt><dd>{{ selectedTaskCount }}</dd></div>
+          <div class="docket-field">
+            <dt>To</dt>
+            <dd class="max-w-[16rem] truncate normal-case tracking-normal">{{ selectedUser?.email || 'nobody yet' }}</dd>
+          </div>
+          <div class="docket-field"><dt>Left in pool</dt><dd>{{ Math.max(0, availableTasks - selectedTaskCount) }}</dd></div>
+          <div v-if="firstSheetName" class="docket-field hidden xl:flex">
+            <dt>From</dt>
+            <dd class="max-w-[16rem] truncate normal-case tracking-normal">{{ firstSheetName }}</dd>
+          </div>
+        </dl>
+
+        <div class="flex items-center gap-3">
+          <button
+            v-if="selectedTaskCount !== defaultCount"
+            type="button"
+            class="control text-stock-600 underline underline-offset-2 hover:text-stock-950"
+            :disabled="isAssigning"
+            @click="resetToDefault"
+          >
+            Reset count
+          </button>
+
+          <button
+            type="button"
+            class="ink-button"
+            :disabled="isAssigning || !selectedUserId || selectedTaskCount === 0"
+            @click="handleAssignTasks"
+          >
+            <UIcon :name="isAssigning ? 'i-lucide-loader-circle' : 'i-lucide-user-plus'" class="size-3.5" :class="isAssigning ? 'animate-spin' : ''" />
+            {{ isAssigning
+              ? 'Assigning…'
+              : `Assign ${selectedTaskCount} to ${selectedUser?.email || '…'}` }}
+          </button>
+        </div>
+      </div>
+
+      <p v-if="!selectedUserId && userOptions.length > 0" class="furniture mt-2 text-stock-600">
+        Choose a member before assigning
       </p>
-    </div>
-  </div>
+
+      <!-- One channel for the result of this control, said where it happened. -->
+      <p
+        v-if="statusMessage"
+        class="mt-3 text-[13px] leading-snug"
+        :class="statusFailed ? 'text-correct-500' : 'text-stock-700'"
+        role="status"
+        aria-live="polite"
+      >
+        {{ statusMessage }}
+      </p>
+    </template>
+  </section>
 </template>
 
 <script setup lang="ts">
-import { getUserIdFromToken } from '~/utils/jwt'
+import { useProjectRecord, useOrganizationUsers } from './useProjectRecord'
+import { taskName, type TaskLike } from './taskFacts'
 
-interface Task {
-  id: number
-  projectId: number
-  dataUrl: string
-  dataType: string
-  status: 'unassigned' | 'annotating' | 'completed'
-  assignedTo: number | null
-  metadata: string
-  priority: number
-  createdAt: number
-  updatedAt: number
-}
-
-interface OrganizationUser {
-  id: number
-  email: string
-  isActive: boolean
-  role: string
-  createdAt: number
-}
-
-interface ProjectData {
-  id: number
-  name: string
-  description?: string
-  projectType: number
-  labelConfig?: {
-    classes: string[]
-  }
-  organizationId: number
-  createdAt: number
-  updatedAt: number
-}
-
-interface ProjectResponse {
-  data: {
-    projects: ProjectData
-    project_relations: any
-  }
-}
-
-// Props
 const props = defineProps<{
   availableTasks: number
-  unassignedTasks: Task[]
+  unassignedTasks: TaskLike[]
   projectId: string
 }>()
 
-// Emits
 const emit = defineEmits<{
   tasksAssigned: [taskIds: number[]]
   assignmentError: [error: string]
 }>()
 
-// Composables
-const toast = useToast()
 const token = useCookie('auth_token')
 
-// State
+const { organizationId, load: loadProject } = useProjectRecord(() => props.projectId)
+const { activeUsers, loadError: usersError, load: loadOrganizationUsers } = useOrganizationUsers(organizationId)
+
 const selectedTaskCount = ref(1)
-const isAssigning = ref(false)
-const estimatedTimePerTask = ref(5) // 5 minutes per task estimate
-const showSuccessAnimation = ref(false)
-const lastAssignedCount = ref(0)
-
-// Organization and user assignment state
-const organizationUsers = ref<OrganizationUser[]>([])
 const selectedUserId = ref<number | undefined>(undefined)
-const showUserSelection = ref(false)
+const isAssigning = ref(false)
 const loadingUsers = ref(false)
-const organizationId = ref<number | null>(null)
+const statusMessage = ref('')
+const statusFailed = ref(false)
 
-// Computed
 const minTasks = computed(() => Math.min(1, props.availableTasks))
-const maxTasks = computed(() => props.availableTasks)
+const defaultCount = computed(() => Math.max(minTasks.value, Math.min(5, props.availableTasks)))
 
 const quickSelectPresets = computed(() => {
-  const presets = []
   const available = props.availableTasks
-  
-  if (available >= 1) presets.push({ label: '1', value: 1 })
-  if (available >= 5) presets.push({ label: '5', value: 5 })
-  if (available >= 10) presets.push({ label: '10', value: 10 })
-  if (available >= 25) presets.push({ label: '25', value: 25 })
-  if (available >= 50) presets.push({ label: '50', value: 50 })
+  const presets: { label: string; value: number }[] = []
+  for (const step of [1, 5, 10, 25, 50]) {
+    if (available >= step) presets.push({ label: String(step), value: step })
+  }
   if (available > 50) presets.push({ label: 'All', value: available })
-  
   return presets
 })
 
-const estimatedTime = computed(() => {
-  const totalMinutes = selectedTaskCount.value * estimatedTimePerTask.value
-  const hours = Math.floor(totalMinutes / 60)
-  const minutes = totalMinutes % 60
-  
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`
-  }
-  return `${minutes}m`
+const userOptions = computed(() =>
+  activeUsers.value.map(user => ({
+    label: `${user.email} · ${user.role}`,
+    value: user.id
+  }))
+)
+
+const selectedUser = computed(() => activeUsers.value.find(user => user.id === selectedUserId.value))
+
+const tasksToAssign = computed(() =>
+  props.unassignedTasks.slice(0, selectedTaskCount.value).map(task => task.id)
+)
+
+const firstSheetName = computed(() => {
+  const first = props.unassignedTasks[0]
+  return first ? taskName(first) : ''
 })
 
-const sliderStyle = computed(() => {
-  const percentage = (selectedTaskCount.value - minTasks.value) / (maxTasks.value - minTasks.value) * 100
-  return {
-    background: `linear-gradient(to right, #0B2139 0%, #0B2139 ${percentage}%, #d1d5db ${percentage}%, #d1d5db 100%)`
-  }
-})
-
-const userOptions = computed(() => {
-  console.log('Computing user options from organization users:', organizationUsers.value)
-  const options = organizationUsers.value
-    .filter(user => user.isActive)
-    .map(user => ({
-      label: `${user.email} (${user.role})`,
-      value: user.id,
-      email: user.email,
-      role: user.role
-    }))
-  console.log('Generated user options:', options)
-  return options
-})
-
-const selectedUser = computed(() => {
-  return organizationUsers.value.find(user => user.id === selectedUserId.value)
-})
-
-const taskPreviewIds = computed(() => {
-  return props.unassignedTasks
-    .slice(0, selectedTaskCount.value)
-    .map(task => task.id)
-})
-
-// Get current user ID from JWT token for auto-selection
-const currentUserId = computed(() => {
-  return getUserIdFromToken(token.value)
-})
-
-// Methods
 const setTaskCount = (count: number) => {
-  selectedTaskCount.value = Math.min(count, props.availableTasks)
+  selectedTaskCount.value = Math.max(minTasks.value, Math.min(count, props.availableTasks))
 }
 
 const resetToDefault = () => {
-  const defaultCount = Math.min(5, props.availableTasks, 10)
-  selectedTaskCount.value = Math.max(minTasks.value, defaultCount)
+  selectedTaskCount.value = defaultCount.value
 }
 
-// Fetch project data to get organization ID
-const fetchProjectData = async () => {
-  if (!token.value || !props.projectId) return
-
-  try {
-    const response = await $fetch<ProjectResponse>(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/projects/${props.projectId}`, {
-      headers: {
-        'Authorization': `Bearer ${token.value}`
-      }
-    })
-
-    if (response?.data?.projects?.organizationId) {
-      organizationId.value = response.data.projects.organizationId
-      await fetchOrganizationUsers()
-    }
-  } catch (error) {
-    console.error('Error fetching project data:', error)
-  }
-}
-
-// Fetch organization users
-const fetchOrganizationUsers = async () => {
-  if (!token.value || !organizationId.value) return
-
+const loadMembers = async (force = false) => {
   try {
     loadingUsers.value = true
-    
-    const response = await $fetch<{ data: OrganizationUser[] }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizationRelations/users', {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`,
-        'orgId': organizationId.value.toString()
-      }
-    })
-
-    console.log('Organization users API response:', response)
-    
-    if (response?.data && Array.isArray(response.data)) {
-      // Store all users first, then filter active ones for selection
-      organizationUsers.value = response.data
-      console.log('Stored organization users:', organizationUsers.value)
-      
-      const activeUsers = organizationUsers.value.filter(user => user.isActive)
-      console.log('Active users:', activeUsers)
-      
-      // Auto-select current user if available
-      const currentUser = activeUsers.find(user => user.id === currentUserId.value)
-      if (currentUser) {
-        selectedUserId.value = currentUser.id
-        console.log('Auto-selected current user:', currentUser.email)
-      } else if (activeUsers.length > 0) {
-        selectedUserId.value = activeUsers[0]?.id
-        console.log('Auto-selected first user:', activeUsers[0]?.email)
-      }
-    } else {
-      console.log('No valid data in response or data is not an array')
-      organizationUsers.value = []
-    }
-  } catch (error) {
-    console.error('Error fetching organization users:', error)
-    toast.add({
-      title: 'Error Loading Users',
-      description: 'Failed to load organization users for assignment',
-      color: 'error'
-    })
+    await loadProject(force)
+    if (organizationId.value) await loadOrganizationUsers(force)
   } finally {
     loadingUsers.value = false
   }
 }
 
 const handleAssignTasks = async () => {
-  if (!selectedUserId.value) {
-    toast.add({
-      title: 'No User Selected',
-      description: 'Please select a user to assign tasks to.',
-      color: 'error'
-    })
+  if (!selectedUserId.value || !token.value) {
+    statusFailed.value = true
+    statusMessage.value = !token.value
+      ? 'Your session has expired. Log in again to assign work.'
+      : 'Choose the member who should get these sheets.'
     return
   }
 
-  if (!token.value) {
-    toast.add({
-      title: 'Authentication Required',
-      description: 'Please log in to assign tasks.',
-      color: 'error'
-    })
+  const taskIds = tasksToAssign.value
+  if (taskIds.length === 0) {
+    statusFailed.value = true
+    statusMessage.value = 'There is nothing left in the pool to assign.'
     return
   }
 
-  if (selectedTaskCount.value === 0 || selectedTaskCount.value > props.availableTasks) {
-    toast.add({
-      title: 'Invalid Selection',
-      description: 'Please select a valid number of tasks to assign.',
-      color: 'error'
-    })
-    return
-  }
+  const recipient = selectedUser.value?.email || `user ${selectedUserId.value}`
 
   try {
     isAssigning.value = true
+    statusMessage.value = ''
+    statusFailed.value = false
 
-    // Get the first N unassigned tasks
-    const tasksToAssign = props.unassignedTasks
-      .slice(0, selectedTaskCount.value)
-      .map(task => task.id)
+    const results = await Promise.allSettled(
+      taskIds.map(taskId =>
+        $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/assign/${taskId}`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token.value}`,
+            'Content-Type': 'application/json'
+          },
+          body: { userId: selectedUserId.value }
+        })
+      )
+    )
 
-    if (tasksToAssign.length !== selectedTaskCount.value) {
-      throw new Error(`Only ${tasksToAssign.length} tasks are available for assignment`)
+    const assigned = taskIds.filter((_, index) => results[index]?.status === 'fulfilled')
+    const failed = taskIds.length - assigned.length
+
+    if (assigned.length > 0) emit('tasksAssigned', assigned)
+
+    if (failed === taskIds.length) {
+      throw new Error('The server refused every assignment. Your permissions may have changed — reload the page and try again.')
     }
 
-    console.log('Assigning tasks:', {
-      taskIds: tasksToAssign,
-      userId: selectedUserId.value,
-      selectedUser: selectedUser.value?.email,
-      count: selectedTaskCount.value
-    })
+    statusFailed.value = failed > 0
+    statusMessage.value = failed > 0
+      ? `${assigned.length} of ${taskIds.length} sheets went to ${recipient}; ${failed} were refused and are still in the pool. Try the rest again.`
+      : `${assigned.length} ${assigned.length === 1 ? 'sheet' : 'sheets'} assigned to ${recipient}. They are now in that member's task list.`
 
-    // Assign each task using the backend endpoint
-    const assignmentPromises = tasksToAssign.map(async (taskId) => {
-      const response = await $fetch(`${import.meta.env.NUXT_PUBLIC_API_URL}/api/tasks/assign/${taskId}`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token.value}`,
-          'Content-Type': 'application/json'
-        },
-        body: {
-          userId: selectedUserId.value
-        }
-      })
-      return { taskId, response }
-    })
-
-    const results = await Promise.allSettled(assignmentPromises)
-    
-    // Check for any failed assignments
-    const failed = results.filter(result => result.status === 'rejected')
-    const succeeded = results.filter(result => result.status === 'fulfilled')
-
-    if (failed.length > 0) {
-      console.error('Some task assignments failed:', failed)
-      throw new Error(`${failed.length} out of ${selectedTaskCount.value} task assignments failed`)
-    }
-
-    // Success - emit the assigned task IDs
-    emit('tasksAssigned', tasksToAssign)
-    
-    // Show success animation
-    lastAssignedCount.value = selectedTaskCount.value
-    showSuccessAnimation.value = true
-    
-    // Hide success animation after 3 seconds
-    setTimeout(() => {
-      showSuccessAnimation.value = false
-    }, 3000)
-    
-    toast.add({
-      title: 'Tasks Assigned Successfully',
-      description: `${selectedTaskCount.value} ${selectedTaskCount.value === 1 ? 'task' : 'tasks'} assigned to ${selectedUser.value?.email || 'user'}. Estimated completion time: ${estimatedTime.value}`,
-      color: 'success'
-    })
-
-    // Hide user selection and reset selection
-    showUserSelection.value = false
-    selectedTaskCount.value = Math.min(1, props.availableTasks - selectedTaskCount.value)
-
+    // The pool shrinks under us; clamp to what is actually left.
+    selectedTaskCount.value = Math.max(
+      minTasks.value,
+      Math.min(defaultCount.value, Math.max(0, props.availableTasks - assigned.length))
+    )
   } catch (error) {
-    console.error('Error assigning tasks:', error)
-    const errorMessage = error instanceof Error ? error.message : 'Failed to assign tasks'
-    
-    emit('assignmentError', errorMessage)
-    
-    toast.add({
-      title: 'Assignment Failed',
-      description: errorMessage,
-      color: 'error'
-    })
+    const message = error instanceof Error ? error.message : 'The assignment could not be completed.'
+    statusFailed.value = true
+    statusMessage.value = message
+    emit('assignmentError', message)
   } finally {
     isAssigning.value = false
   }
 }
 
-// Watchers
-watch(() => props.availableTasks, (newCount) => {
-  // Adjust selected count if it exceeds available tasks
+watch(() => props.availableTasks, newCount => {
   if (selectedTaskCount.value > newCount) {
     selectedTaskCount.value = Math.max(minTasks.value, newCount)
   }
+  if (selectedTaskCount.value < minTasks.value) {
+    selectedTaskCount.value = minTasks.value
+  }
 }, { immediate: true })
 
-// Initialize with reasonable default
 onMounted(async () => {
-  const defaultCount = Math.min(5, props.availableTasks, 10) // Default to 5 tasks or available count
-  selectedTaskCount.value = Math.max(minTasks.value, defaultCount)
-  
-  // Fetch project data to get organization users when component loads
-  if (props.projectId) {
-    console.log('Component mounted, fetching project data for projectId:', props.projectId)
-    await fetchProjectData()
-  }
+  selectedTaskCount.value = defaultCount.value
+  if (props.projectId) await loadMembers()
 })
 </script>
-
-<style scoped>
-/* Custom slider styling */
-.slider::-webkit-slider-thumb {
-  appearance: none;
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  background: #0B2139;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  border: 2px solid white;
-}
-
-.slider::-moz-range-thumb {
-  height: 20px;
-  width: 20px;
-  border-radius: 50%;
-  background: #0B2139;
-  cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  border: 2px solid white;
-  border: none;
-}
-
-.slider::-webkit-slider-track {
-  height: 12px;
-  cursor: pointer;
-  border-radius: 6px;
-}
-
-.slider::-moz-range-track {
-  height: 12px;
-  cursor: pointer;
-  border-radius: 6px;
-  background: #d1d5db;
-  border: none;
-}
-
-.slider:focus {
-  outline: none;
-}
-
-.slider:focus::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px rgba(11, 33, 57, 0.3);
-}
-
-.slider:focus::-moz-range-thumb {
-  box-shadow: 0 0 0 3px rgba(11, 33, 57, 0.3);
-}
-</style>

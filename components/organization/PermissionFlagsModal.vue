@@ -1,115 +1,111 @@
 <script setup lang="ts">
 /**
- * Permission Flags Modal Component
- * 
- * Displays a modal with all permission flags for a selected role,
- * showing which permissions are enabled or disabled.
+ * Reads out one role: what it grants, and — quietly, underneath — what it does
+ * not. Withheld permissions are not errors, so they never print in correction
+ * red; they are set in the secondary ink under their own heading.
  */
+import { ALL_PERMISSIONS, ANNOTATION_NOTE, permissionLabel } from './permissions'
 
-// ----- Types -----
 interface RoleWithPermissions {
-  name?: string;
-  roleName?: string; // For backward compatibility
-  permissionFlags: Record<string, boolean>;
+  name?: string
+  roleName?: string
+  description?: string
+  permissionFlags: Record<string, boolean>
+  memberCount?: number
 }
 
-// ----- Props -----
 const props = defineProps<{
-  show: boolean;
-  role: RoleWithPermissions | null;
-}>();
+  show: boolean
+  role: RoleWithPermissions | null
+}>()
 
-// ----- Events -----
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close'])
 
-// ----- Computed -----
-// Get the role name safely, handling both API formats
 const roleName = computed(() => {
-  if (!props.role) return 'Role';
-  
-  // Prefer name from API, fall back to roleName for compatibility
-  return typeof props.role.name === 'string' 
-    ? props.role.name 
-    : (typeof props.role.roleName === 'string' ? props.role.roleName : 'Role');
-});
+  if (!props.role) return 'Role'
+  return typeof props.role.name === 'string'
+    ? props.role.name
+    : (typeof props.role.roleName === 'string' ? props.role.roleName : 'Role')
+})
 
-// ----- Methods -----
-const closeModal = () => {
-  emit('close');
-};
+const flags = computed<Record<string, boolean>>(() => props.role?.permissionFlags ?? {})
+const isAdmin = computed(() => flags.value.admin === true)
+
+const granted = computed(() =>
+  ALL_PERMISSIONS.filter(p => flags.value[p.key] === true)
+)
+
+const withheld = computed(() =>
+  ALL_PERMISSIONS.filter(p => flags.value[p.key] !== true)
+)
+
+const knownKeys = new Set(ALL_PERMISSIONS.map(p => p.key as string))
+const unknownGranted = computed(() =>
+  Object.keys(flags.value).filter(k => !knownKeys.has(k) && flags.value[k] === true)
+)
+
+const onOpenChange = (open: boolean) => {
+  if (!open) emit('close')
+}
 </script>
 
 <template>
-  <div v-if="show && role" class="fixed inset-0 z-50 flex items-center justify-center">
-    <!-- Overlay background -->
-    <div class="fixed inset-0 bg-black bg-opacity-50" @click="closeModal"></div>
-    
-    <!-- Modal content -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl z-50 max-w-md md:max-w-xl w-full max-h-[90vh] flex flex-col relative">
-      <!-- Header -->
-      <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white flex-1 truncate pr-4">
-          {{ roleName }} Permissions
-        </h3>
-        <button 
-          @click="closeModal"
-          class="text-gray-400 hover:text-gray-500 focus:outline-none flex-shrink-0"
-        >
-          <span class="sr-only">Close</span>
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-      </div>
-      
-      <!-- Body - scrollable content -->
-      <div class="px-6 py-4 flex-1 overflow-y-auto">
-        <!-- Flag count summary -->
-        <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
-          <strong>Flag count:</strong> {{ role && role.permissionFlags ? Object.keys(role.permissionFlags).length : 0 }}
+  <UModal
+    :open="show && !!role"
+    :title="`${roleName} — permissions`"
+    :ui="{ content: 'max-w-xl' }"
+    @update:open="onOpenChange"
+  >
+    <template #body>
+      <div class="space-y-8">
+        <p v-if="role?.description" class="text-stock-700">{{ role.description }}</p>
+
+        <div v-if="typeof role?.memberCount === 'number'" class="docket-field furniture">
+          <dt>Held by</dt>
+          <dd>{{ role.memberCount }} {{ role.memberCount === 1 ? 'member' : 'members' }}</dd>
         </div>
-        
-        <!-- Warning for no permissions -->
-        <div v-if="!role || !role.permissionFlags || Object.keys(role.permissionFlags).length === 0" 
-             class="text-sm text-red-500 p-2 bg-red-50 dark:bg-red-900 dark:bg-opacity-20 rounded">
-          Warning: No permission flags found for this role.
-        </div>
-        
-        <!-- Permission flags list -->
-        <div class="grid grid-cols-1 gap-3 mt-2">
-          <div v-if="role && role.permissionFlags">
-            <div v-for="(value, key) in role.permissionFlags" :key="key" 
-                class="border rounded p-3 flex justify-between items-center dark:border-gray-700 mb-2">
-              <!-- Flag name (formatted with spaces between camel case words) -->
-              <span class="font-medium capitalize text-gray-900 dark:text-white">
-                {{ key.replace(/([A-Z])/g, ' $1').trim() }}
-              </span>
-              
-              <!-- Flag value badge (green for true, red for false) -->
-              <span 
-                :class="[
-                  'px-2 py-1 text-xs font-medium rounded-full',
-                  value 
-                    ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:bg-opacity-30 dark:text-green-400' 
-                    : 'bg-red-100 text-red-800 dark:bg-red-900 dark:bg-opacity-30 dark:text-red-400'
-                ]"
-              >
-                {{ value ? 'True' : 'False' }}
-              </span>
-            </div>
-          </div>
-        </div>
+
+        <section>
+          <h4 class="furniture text-stock-600 border-b border-stock-400 pb-2">This role can</h4>
+
+          <p v-if="isAdmin" class="mt-4 text-stock-950">
+            Everything. A full administrator can edit and delete the organization, its members,
+            its roles and every project in it.
+          </p>
+
+          <ul v-else-if="granted.length" class="mt-4 divide-y divide-stock-400">
+            <li v-for="p in granted" :key="p.key" class="py-3">
+              <div class="text-stock-950 font-medium">{{ p.label }}</div>
+              <div class="text-sm text-stock-600">{{ p.detail }}</div>
+            </li>
+          </ul>
+
+          <p v-else class="mt-4 text-stock-700">
+            Nothing in the management model. This is a working role, not a managing one.
+          </p>
+
+          <ul v-if="unknownGranted.length" class="mt-3 space-y-1">
+            <li v-for="key in unknownGranted" :key="key" class="text-sm text-stock-700">
+              {{ permissionLabel(key) }}
+            </li>
+          </ul>
+        </section>
+
+        <section v-if="!isAdmin && withheld.length">
+          <h4 class="furniture text-stock-600 border-b border-stock-400 pb-2">Not in this role</h4>
+          <p class="mt-3 text-sm text-stock-600">
+            {{ withheld.map(p => p.label).join(' · ') }}
+          </p>
+        </section>
+
+        <p class="text-sm text-stock-600 border-t border-stock-400 pt-4">{{ ANNOTATION_NOTE }}</p>
       </div>
-      
-      <!-- Footer with close button -->
-      <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end">
-        <button 
-          @click="closeModal"
-          class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-800 dark:bg-gray-700 dark:hover:bg-gray-600 dark:text-white rounded font-medium text-sm"
-        >
-          Close
-        </button>
+    </template>
+
+    <template #footer>
+      <div class="flex justify-end w-full">
+        <button type="button" class="ink-button ink-button--outline" @click="emit('close')">Close</button>
       </div>
-    </div>
-  </div>
+    </template>
+  </UModal>
 </template>

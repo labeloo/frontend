@@ -1,163 +1,182 @@
-<template>
-  <div class="space-y-6">
-    <div class="flex justify-between items-center mb-6">
-      <h2 class="text-2xl font-bold text-gray-900 dark:text-white">My Organizations</h2>
-      <UModal 
-      fullscreen
-      >
-        <UButton label="Create Organization" color="secondary" class="cursor-pointer" />
-        <template #content>
-          <OrganizationCreateOrg />
-        </template>
-      </UModal>
-    </div>    <div v-if="loading" class="flex flex-col justify-center items-center min-h-[400px] py-8 space-y-3">
-      <USpinner size="lg" />
-      <p class="text-gray-600 dark:text-gray-300 font-medium">Getting your organizations...</p>
-    </div>
-
-
-    <!-- If there are no organizations and not loading-->
-    <div v-else-if="organizations.length === 0" class="text-center py-8 min-h-[400px] flex items-center justify-center">
-      <div class="mx-auto max-w-md"> <img src="~/assets/images/loading.png" alt="No organizations"
-          class="mx-auto w-48 h-auto mb-3" />
-        <h3 class="text-2xl font-semibold text-secondary mb-4">No Organizations Found</h3>
-        <p class="text-gray-500 mb-6">Get started by creating your first organization</p>      
-          <UModal size="2xl" class="modal-fullwidth">
-          <UButton label="Create Organization" color="secondary" class="cursor-pointer" size="xl" />
-
-          <template #content>
-            <OrganizationCreateOrg />
-          </template>
-        </UModal>
-      </div>
-    </div>
-    <!-- If there are organizations-->
-    <div v-else class="min-h-[400px] grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-      <div v-for="org in organizations" :key="org.id"
-        class="bg-white dark:bg-gray-800 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden">
-        <div class="h-3 bg-secondary"></div>
-        <div class="p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h3 class="text-xl font-semibold text-gray-900 dark:text-white truncate">{{ org.name || 'Unnamed Organization' }}</h3>
-            <UBadge v-if="org.isActiveOrg" color="success" variant="subtle" class="ml-2">Active</UBadge>
-          </div>
-          
-          <div class="flex items-center mb-4">
-            <img 
-              :src="org.logo || DEFAULT_ORGANIZATION_LOGO" 
-              alt="Organization logo" 
-              class="w-12 h-12 rounded-full object-cover mr-3"
-              @error="handleImageError"
-            />
-          </div>
-          
-          <p class="text-gray-500 dark:text-gray-300 mb-6 line-clamp-2" style="min-height: 3rem">
-            {{ org.description || 'No description provided' }}
-          </p>
-            <div class="flex items-center justify-between mt-4">            <UButton color="info" variant="solid" :to="'/organizations/' + org.id" class="text-white">
-              View Details
-            </UButton>
-            <p class="text-xs text-black dark:text-white">
-              Created: {{ formatDate(org.createdAt) }}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { DEFAULT_ORGANIZATION_LOGO } from '~/utils/constants'
+/**
+ * The organizations this account belongs to.
+ *
+ * Loading the page used to fire a success toast every time — a celebration for
+ * something nobody asked for, which spends the notification channel that real
+ * failures need. Notifications here now only follow an action.
+ */
+import penguin from '~/assets/images/penguin.png'
 
 interface Organization {
-  id: number;
-  name: string;
-  logo: string;
-  description: string;
-  isActiveOrg: boolean;
-  createdAt: number;
-  updatedAt: number;
+  id: number
+  name: string
+  logo: string
+  description: string
+  isActiveOrg: boolean
+  createdAt: number
+  updatedAt: number
 }
 
-interface ApiResponse {
-  data: Organization[];
-}
-
-const organizations = ref<Organization[]>([]);
-const loading = ref(true);
-const toast = useToast();
+const organizations = ref<Organization[]>([])
+const loading = ref(true)
+const loadError = ref<string | null>(null)
+const showCreate = ref(false)
 
 const formatDate = (timestamp: number): string => {
-  if (!timestamp) return 'N/A';
-  return new Date(timestamp * 1000).toLocaleDateString();
+  if (!timestamp) return 'Unknown'
+  return new Date(timestamp * 1000).toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  })
 }
 
-const handleImageError = (event: Event) => {
+const hideBrokenLogo = (event: Event) => {
   const target = event.target as HTMLImageElement
-  if (target) {
-    // Set a simple data URI for a gray circle as fallback
-    target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDgiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMjQiIGZpbGw9IiNFNUU3RUIiLz4KPHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIiB4PSIxMiIgeT0iMTIiPgo8cGF0aCBkPSJNMTIgMkM2LjQ4IDIgMiA2LjQ4IDIgMTJTNi40OCAyMiAxMiAyMlMyMiAxNy41MiAyMiAxMlMxNy41MiAyIDEyIDJaTTEyIDVDMTMuNjYgNSAxNSA2LjM0IDE1IDhTMTMuNjYgMTEgMTIgMTFTOSA5LjY2IDkgOFMxMC4zNCA1IDEyIDVaTTEyIDE5LjJDOS41NCAxOS4yIDcuMyAxNy45MiA2IDE1Ljk4QzYuMDMgMTMuOTkgMTAuMDEgMTIuOSAxMiAxMi45UzE3Ljk3IDEzLjk5IDE4IDE1Ljk4QzE2LjcgMTcuOTIgMTQuNDYgMTkuMiAxMiAxOS4yWiIgZmlsbD0iIzlDQTNBRiIvPgo8L3N2Zz4KPC9zdmc+'
-  }
+  if (target) target.style.display = 'none'
 }
-
-onMounted(async () => {
-  fetchOrganizations();
-});
 
 const fetchOrganizations = async () => {
-  loading.value = true;
+  loading.value = true
+  loadError.value = null
   try {
     const token = useCookie('auth_token')
     if (!token.value) {
-      console.warn('No auth token found')
-      toast.add({ title: 'Authentication Error', description: 'Please login to view your organizations', color: 'error' })
+      loadError.value = 'Your session has expired. Sign in again to see your organizations.'
       return
     }
 
     const response = await fetch(import.meta.env.NUXT_PUBLIC_API_URL + '/api/organizations/all', {
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token.value}`
-      },
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch organizations');
-    }
-    
-    const responseData: ApiResponse = await response.json();
-    organizations.value = responseData.data || [];
-    
-    if (organizations.value.length > 0) {
-      toast.add({ 
-        title: 'Organizations Loaded', 
-        description: `Found ${organizations.value.length} organization(s)`, 
-        color: 'success' 
-      });
-    }
-  } catch (error) {
-    console.error('Error fetching organizations:', error);
-    toast.add({ 
-      title: 'Failed to Load Organizations', 
-      description: 'There was an error retrieving your organizations. Please try again.', 
-      color: 'error' 
-    });
-  } finally {
-    loading.value = false;
-  }
-};
-</script>
+        Authorization: `Bearer ${token.value}`
+      }
+    })
 
-<style scoped>
-/* Add global styling for modals used in this component */
-:deep(.modal-fullwidth .u-modal-container) {
-  width: 95%;
-  max-width: 1200px;
+    if (!response.ok) {
+      throw new Error(
+        response.status === 401
+          ? 'Your session has expired. Sign in again.'
+          : `The server answered ${response.status}.`
+      )
+    }
+
+    const responseData: { data: Organization[] } = await response.json()
+    organizations.value = responseData.data || []
+  } catch (error) {
+    loadError.value = error instanceof Error
+      ? error.message
+      : 'Your organizations could not be loaded.'
+  } finally {
+    loading.value = false
+  }
 }
 
-:deep(.modal-fullwidth .u-modal-body) {
-  padding: 0;
+onMounted(fetchOrganizations)
+</script>
+
+<template>
+  <div class="space-y-8">
+    <header class="flex flex-wrap items-end justify-between gap-4 border-b border-stock-400 pb-5">
+      <div>
+        <h2 class="text-2xl font-semibold text-stock-950">Organizations</h2>
+        <p class="text-stock-600 mt-1">Each one holds its own projects, members and model connection.</p>
+      </div>
+      <button type="button" class="ink-button" @click="showCreate = true">
+        <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+        Create organization
+      </button>
+    </header>
+
+    <!-- Loading -->
+    <div v-if="loading" class="flex items-center gap-3 min-h-[300px] text-stock-600">
+      <UIcon name="i-lucide-loader-2" class="w-4 h-4 animate-spin" />
+      <span class="furniture">Reading your organizations</span>
+    </div>
+
+    <!-- Error -->
+    <div v-else-if="loadError" role="alert" class="border border-correct-500 bg-correct-100 p-5 max-w-2xl">
+      <p class="font-medium text-correct-600">Your organizations could not be loaded</p>
+      <p class="text-sm text-stock-800 mt-1">{{ loadError }}</p>
+      <button type="button" class="ink-button ink-button--outline mt-4" @click="fetchOrganizations">Try again</button>
+    </div>
+
+    <!-- Empty -->
+    <div v-else-if="organizations.length === 0" class="border border-stock-400 p-8 max-w-2xl">
+      <div class="flex items-start gap-6">
+        <img :src="penguin" alt="" class="w-24 h-auto shrink-0 hidden sm:block">
+        <div>
+          <h3 class="text-lg font-semibold text-stock-950">You are not in any organization yet</h3>
+          <p class="text-stock-700 mt-2">
+            An organization is where the work lives: its projects, the people labelling them, the
+            roles that decide who may do what, and the SAM 2 connection that powers the magic stick.
+            Create one and Labeloo will walk you through roles and members.
+          </p>
+          <button type="button" class="ink-button mt-5" @click="showCreate = true">
+            <UIcon name="i-lucide-plus" class="w-3.5 h-3.5" />
+            Create your first organization
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- List -->
+    <div v-else class="border border-stock-400">
+      <ul class="divide-y divide-stock-400">
+        <li v-for="org in organizations" :key="org.id">
+          <NuxtLink
+            :to="'/organizations/' + org.id"
+            class="flex flex-wrap items-center gap-4 px-5 py-4 hover:bg-stock-50"
+          >
+            <img
+              v-if="org.logo"
+              :src="org.logo"
+              alt=""
+              class="w-10 h-10 object-cover border border-stock-400 shrink-0"
+              @error="hideBrokenLogo"
+            >
+            <div class="flex-1 min-w-[14rem]">
+              <div class="font-medium text-stock-950">{{ org.name || 'Unnamed organization' }}</div>
+              <p v-if="org.description" class="text-sm text-stock-600 line-clamp-2 mt-0.5">
+                {{ org.description }}
+              </p>
+            </div>
+            <dl class="flex items-center gap-6 furniture">
+              <div class="docket-field hidden sm:flex">
+                <dt>Created</dt>
+                <dd>{{ formatDate(org.createdAt) }}</dd>
+              </div>
+              <div v-if="!org.isActiveOrg" class="docket-field">
+                <dt>Status</dt>
+                <dd>Inactive</dd>
+              </div>
+            </dl>
+            <UIcon name="i-lucide-arrow-right" class="w-4 h-4 text-stock-600 shrink-0" />
+          </NuxtLink>
+        </li>
+      </ul>
+    </div>
+
+    <UModal
+      v-model:open="showCreate"
+      fullscreen
+      title="Create organization"
+      description="Name it, define roles, then add the people who will label."
+    >
+      <template #body>
+        <OrganizationCreateOrg @finished="showCreate = false" />
+      </template>
+    </UModal>
+  </div>
+</template>
+
+<style scoped>
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
