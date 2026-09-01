@@ -63,7 +63,6 @@ const SECTIONS = [
   { id: 'projects', label: 'Projects' },
   { id: 'users', label: 'Users' },
   { id: 'roles', label: 'Roles' },
-  { id: 'models', label: 'Models' },
   { id: 'settings', label: 'Settings' }
 ]
 

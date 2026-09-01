@@ -73,7 +73,7 @@ export const useTraining = (organizationId: string | number) => {
     catalog: (): Promise<WeightCatalogEntry[]> => getJson('/catalog'),
     downloadWeight: (catalogId: string): Promise<ModelAsset> => post(`/weights/${catalogId}/download`),
     models: (): Promise<ModelAsset[]> => getJson('/models'),
-    jobs: (): Promise<TrainingJob[]> => getJson('/jobs'),
+    jobs: (projectId?: number): Promise<TrainingJob[]> => getJson(projectId ? `/jobs?projectId=${projectId}` : '/jobs'),
     job: (id: number): Promise<TrainingJob> => getJson(`/jobs/${id}`),
     startJob: (body: { projectId: number; baseAssetId: number; taskFilter: string; epochs: number; imgsz: number }): Promise<TrainingJob> =>
       post('/jobs', body),

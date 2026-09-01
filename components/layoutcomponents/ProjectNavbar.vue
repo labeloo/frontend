@@ -113,6 +113,7 @@ const sections = [
     { key: 'users', label: 'Users', icon: 'i-lucide-users' },
     { key: 'upload-data', label: 'Upload data', icon: 'i-lucide-upload' },
     { key: 'classes', label: 'Classes', icon: 'i-lucide-tags' },
+    { key: 'models', label: 'Models', icon: 'i-lucide-cpu' },
     { key: 'settings', label: 'Settings', icon: 'i-lucide-settings' }
 ]
 

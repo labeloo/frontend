@@ -80,7 +80,6 @@ const navItems = [
   { key: 'projects', label: 'Projects', icon: 'i-lucide-folder' },
   { key: 'users', label: 'Members', icon: 'i-lucide-users' },
   { key: 'roles', label: 'Roles', icon: 'i-lucide-list-checks' },
-  { key: 'models', label: 'Models', icon: 'i-lucide-cpu' },
   { key: 'settings', label: 'Settings', icon: 'i-lucide-settings' }
 ]
 

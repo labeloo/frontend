@@ -76,11 +76,6 @@
         :organization-id="organizationId"
       />
 
-      <OrganizationSectionsModelsSection
-        v-else-if="activeSection === 'models'"
-        :organization-id="organizationId"
-      />
-
       <OrganizationSectionsSettingsSection
         v-else-if="activeSection === 'settings'"
         :organization="organization"

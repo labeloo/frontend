@@ -30,6 +30,8 @@
 
       <ProjectSectionsProjectClassesSection v-else-if="currentSection === 'classes'" :project-id="projectId" />
 
+      <ProjectSectionsProjectModelsSection v-else-if="currentSection === 'models'" :project-id="projectId" />
+
       <ProjectSectionsProjectUploadDataSection v-else-if="currentSection === 'upload-data'" :project-id="projectId" />
 
       <ProjectSectionsProjectAnnotateSection v-else-if="currentSection === 'annotate'" :project-id="projectId" />

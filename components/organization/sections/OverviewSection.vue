@@ -56,6 +56,8 @@ const projects = ref<Project[]>([])
 const members = ref<Member[]>([])
 const roles = ref<Role[]>([])
 const connections = ref<BackendConnection[]>([])
+const subscription = ref<{ plan: string; status: string } | null>(null)
+const planUsage = ref<{ plan: string; edition: string; limits: Record<string, number>; used: Record<string, number> } | null>(null)
 const loading = ref(true)
 
 const token = useCookie('auth_token')
@@ -128,6 +130,19 @@ const fetchConnections = async () => {
   }
 }
 
+const fetchBilling = async () => {
+  try {
+    const [sub, usage] = await Promise.all([
+      $fetch<{ data: any }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/billing/subscription', { headers: authHeaders() }),
+      $fetch<{ data: any }>(import.meta.env.NUXT_PUBLIC_API_URL + '/api/billing/usage', { headers: authHeaders() }),
+    ])
+    subscription.value = sub.data
+    planUsage.value = usage.data
+  } catch {
+    // Not fatal; the plan card simply does not render.
+  }
+}
+
 const fetchAllData = async () => {
   loading.value = true
   if (!token.value) {
@@ -135,7 +150,7 @@ const fetchAllData = async () => {
     return
   }
   try {
-    await Promise.all([fetchProjects(), fetchMembers(), fetchRoles(), fetchConnections()])
+    await Promise.all([fetchProjects(), fetchMembers(), fetchRoles(), fetchConnections(), fetchBilling()])
   } finally {
     loading.value = false
   }
@@ -198,6 +213,10 @@ watch(() => props.organizationId, fetchAllData)
           <dt>SAM 2</dt>
           <dd>{{ sam2Connection ? (sam2Connection.isActive ? 'Connected' : 'Disabled') : 'Not connected' }}</dd>
         </div>
+        <div v-if="subscription" class="docket-field">
+          <dt>Plan</dt>
+          <dd class="capitalize">{{ subscription.plan }}</dd>
+        </div>
       </dl>
 
       <!-- The one fact that decides whether assisted labelling works -->
@@ -235,6 +254,31 @@ watch(() => props.organizationId, fetchAllData)
             </p>
           </div>
         </div>
+      </section>
+
+      <!-- Plan & usage: only meaningful in the cloud edition; self-host is unlimited -->
+      <section v-if="planUsage && planUsage.edition === 'cloud'" class="border border-stock-400 p-5 max-w-3xl">
+        <div class="flex items-baseline justify-between gap-3">
+          <h3 class="font-semibold text-stock-950">Plan &amp; usage</h3>
+          <span class="furniture text-stock-500 capitalize">{{ planUsage.plan }}</span>
+        </div>
+        <dl class="mt-4 space-y-3">
+          <div v-for="key in Object.keys(planUsage.limits)" :key="key">
+            <div v-if="planUsage.used[key] !== undefined" class="space-y-1">
+              <div class="flex items-baseline justify-between furniture text-stock-600">
+                <dt>{{ key.replace('.', ' · ') }}</dt>
+                <dd>
+                  {{ planUsage.used[key] }}<template v-if="planUsage.limits[key] >= 0"> / {{ planUsage.limits[key] }}</template>
+                  <span v-if="planUsage.limits[key] < 0"> / unlimited</span>
+                </dd>
+              </div>
+              <div v-if="planUsage.limits[key] > 0" class="h-1.5 bg-stock-200 overflow-hidden">
+                <div class="h-full bg-stock-800" :style="{ width: Math.min(100, (planUsage.used[key] / planUsage.limits[key]) * 100) + '%' }" />
+              </div>
+            </div>
+          </div>
+        </dl>
+        <p class="text-[12px] text-stock-500 mt-4">Changing plan is handled by your Labeloo operator.</p>
       </section>
 
       <!-- Projects -->

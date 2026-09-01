@@ -76,6 +76,7 @@ const SECTIONS = [
   { id: 'users', label: 'Users' },
   { id: 'upload-data', label: 'Upload data' },
   { id: 'classes', label: 'Classes' },
+  { id: 'models', label: 'Models' },
   { id: 'settings', label: 'Settings' }
 ]
 
